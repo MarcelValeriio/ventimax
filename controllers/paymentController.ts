@@ -6,7 +6,8 @@ const getPayments = async (req, res) => {
     const payments = await MetodoPago.find();
     res.json({ success: true, data: payments });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("❌ Error en getPayments:", error);
+    res.status(500).json({ success: false, error: "Error al obtener métodos de pago" });
   }
 };
 

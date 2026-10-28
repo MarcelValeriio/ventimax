@@ -497,7 +497,7 @@ const deleteProduct = async (req, res) => {
     res.json({ success: true, message: "Producto eliminado" });
   } catch (error) {
     console.error("❌ Error en deleteProduct:", error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: "Error eliminando el producto" });
   }
 };
 
@@ -2181,7 +2181,7 @@ const editOrder = async (req, res, io) => {
     res.json(pedido);
   } catch (error) {
     console.error("❌ Error en editOrder:", error);
-    res.status(500).json({ success: false, error: "Error editando pedido", details: error.message });
+    res.status(500).json({ success: false, error: "Error editando pedido" });
   }
 };
 
@@ -3327,7 +3327,7 @@ const uploadAndSendFile = async (req, res, io) => {
     }
   } catch (error) {
     console.error("❌ Error en uploadAndSendFile:", error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: "Error al procesar y enviar archivo" });
   }
 };
 
@@ -3360,30 +3360,48 @@ const postManualSale = async (req, res, io) => {
 
     for (const item of items) {
       if (
-        !item.producto ||
-        !item.price ||
+        (!item.producto && !item.id && !item.productoId && !item._id) ||
         !item.cantidad ||
         isNaN(item.cantidad) ||
-        item.cantidad <= 0
+        Number(item.cantidad) <= 0
       ) {
         return res.status(400).json({
           success: false,
-          error: "Cada item debe tener producto, precio y cantidad válidos.",
+          error: "Cada item debe tener producto y cantidad válidos.",
         });
       }
     }
 
-    // 2. Pre-verificar y descontar stock
+    // 2. Pre-verificar, validar existencia/estado y obtener precio real de la base de datos
     // Primero validamos todo para evitar decrementos parciales en caso de error
     for (const item of items) {
-      const prod = await Producto.findOne({ name: item.producto });
-      if (!prod) {
-        return res.status(400).json({
-          success: false,
-          error: `El producto "${item.producto}" no existe en el catálogo.`,
+      const prodId = item.id || item.productoId || item._id;
+      let prod = null;
+      if (prodId) {
+        // Un id de texto (p. ej. "fortunne-n21") no se puede convertir a ObjectId: Mongoose lanzaría CastError
+        prod = await Producto.findOne({
+          $or: [{ id: prodId }, ...(mongoose.Types.ObjectId.isValid(prodId) ? [{ _id: prodId }] : [])],
         });
       }
-      if (prod.trackStock && prod.stock < item.cantidad) {
+      if (!prod && item.producto) {
+        prod = await Producto.findOne({
+          $or: [{ id: item.producto }, { name: item.producto }],
+        });
+      }
+
+      if (!prod || prod.activo === false) {
+        return res.status(400).json({
+          success: false,
+          error: `El producto "${item.producto || prodId || "desconocido"}" no existe en el catálogo o está inactivo.`,
+        });
+      }
+
+      // Seguridad: el precio se toma SIEMPRE de la base de datos por producto/id, no del cuerpo de la petición
+      item.price = Number(prod.price);
+      item.producto = prod.name;
+      item.id = prod.id;
+
+      if (prod.trackStock && prod.stock < Number(item.cantidad)) {
         return res.status(400).json({
           success: false,
           error: `Stock insuficiente para "${item.producto}". Disponible: ${prod.stock}, Solicitado: ${item.cantidad}`,
@@ -3711,7 +3729,7 @@ const getQuickReplies = async (req, res) => {
     res.json({ success: true, data: replies });
   } catch (err) {
     console.error("Error getQuickReplies:", err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: "Error al obtener respuestas rápidas" });
   }
 };
 
@@ -3734,7 +3752,7 @@ const createQuickReply = async (req, res) => {
     res.status(201).json({ success: true, data: reply });
   } catch (err) {
     console.error("Error createQuickReply:", err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: "Error al crear respuesta rápida" });
   }
 };
 
@@ -3758,7 +3776,7 @@ const updateQuickReply = async (req, res) => {
     res.json({ success: true, data: reply });
   } catch (err) {
     console.error("Error updateQuickReply:", err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: "Error al actualizar respuesta rápida" });
   }
 };
 
@@ -3771,7 +3789,7 @@ const deleteQuickReply = async (req, res) => {
     res.json({ success: true, message: "Eliminada" });
   } catch (err) {
     console.error("Error deleteQuickReply:", err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: "Error al eliminar respuesta rápida" });
   }
 };
 
@@ -3790,7 +3808,7 @@ const reorderQuickReplies = async (req, res) => {
     res.json({ success: true, message: "Reordenado" });
   } catch (err) {
     console.error("Error reorderQuickReplies:", err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: "Error al reordenar respuestas rápidas" });
   }
 };
 
@@ -3809,7 +3827,7 @@ const getFaqs = async (req, res) => {
     res.json({ success: true, data: faqs });
   } catch (err) {
     console.error("Error getFaqs:", err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: "Error al obtener preguntas frecuentes" });
   }
 };
 
@@ -3859,7 +3877,7 @@ const createFaq = async (req, res) => {
     res.status(201).json({ success: true, data: faq });
   } catch (err) {
     console.error("Error createFaq:", err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: "Error al crear pregunta frecuente" });
   }
 };
 
@@ -3903,7 +3921,7 @@ const updateFaq = async (req, res) => {
     res.json({ success: true, data: faq });
   } catch (err) {
     console.error("Error updateFaq:", err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: "Error al actualizar pregunta frecuente" });
   }
 };
 
@@ -3923,7 +3941,7 @@ const deleteFaq = async (req, res) => {
     res.json({ success: true, message: "FAQ eliminada" });
   } catch (err) {
     console.error("Error deleteFaq:", err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: "Error al eliminar pregunta frecuente" });
   }
 };
 
@@ -4529,8 +4547,7 @@ ${conversation}`;
     return res.json({ success: true, data: orderData });
   } catch (error) {
     console.error("❌ Error en extractOrderFromChat:", error?.response?.data || error);
-    const msg = error?.response?.data?.error?.message || error.message || "Error desconocido";
-    return res.status(500).json({ success: false, error: "Error analizando el chat con IA: " + msg });
+    return res.status(500).json({ success: false, error: "Error analizando el chat con IA" });
   }
 };
 

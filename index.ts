@@ -26,10 +26,13 @@ const watchdogService = require("./services/watchdogService");
 watchdogService.initErrorCatcher();
 
 // 1. Inicialización de App y Servidores
+const { CSP_DIRECTIVES } = require("./middlewares/csp");
 const app = express();
-app.use(helmet({
-  contentSecurityPolicy: false, // Permitir scripts externos si es necesario
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: { useDefaults: false, directives: CSP_DIRECTIVES },
+  })
+);
 app.set("trust proxy", 1); // Confiar en el proxy de Render para cookies Secure
 const server = http.createServer(app);
 // Sin opción `cors`: el panel se sirve desde el mismo origen, así que no se conceden orígenes cruzados.
@@ -52,11 +55,15 @@ app.get(["/privacidad", "/privacidad.html", "/privacidad-instagram", "/privacida
   res.type("html").send(generarPaginaPrivacidad());
 });
 
-// 2. MAPEOS ESTÁTICOS AGRESIVOS (Prioridad Máxima)
+// 2. MAPEOS ESTÁTICOS
+// Redirigir accesos directos a archivos HTML para que /panel y /login gobiernen las entradas
+app.get("/index.html", (req, res) => res.redirect("/panel"));
+app.get("/login.html", (req, res) => res.redirect("/login"));
+
 // Obligamos a Express a servir la carpeta de scripts de forma independiente
 app.use("/src", express.static(SRC_DIR));
 app.use("/assets", express.static(path.join(PUBLIC_DIR, "assets")));
-app.use(express.static(PUBLIC_DIR));
+app.use(express.static(PUBLIC_DIR, { index: false }));
 
 // 3. MIDDLEWARES BÁSICOS
 // Capturar raw body ANTES del parseo JSON (necesario para validación HMAC)

@@ -17,7 +17,8 @@ const getShippingMethods = async (req: any, res: any) => {
     const methods = await MetodoEnvio.find(query).sort({ orden: 1, createdAt: 1 });
     res.json({ success: true, data: methods });
   } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("❌ Error en getShippingMethods:", error);
+    res.status(500).json({ success: false, error: "Error al obtener métodos de envío" });
   }
 };
 

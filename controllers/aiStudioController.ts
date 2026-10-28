@@ -1,4 +1,4 @@
-﻿const AIDestination = require('../models/AIDestination');
+const AIDestination = require('../models/AIDestination');
 const AIGeneration = require('../models/AIGeneration');
 const { getAgenda } = require('../services/agendaService');
 const { generateCopy } = require('../services/aiStudioService');
@@ -10,7 +10,8 @@ exports.getDestinations = async (req, res) => {
     const dests = await AIDestination.find();
     res.json({ success: true, data: dests });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("❌ Error en getDestinations:", error);
+    res.status(500).json({ success: false, error: "Error al obtener destinos" });
   }
 };
 
@@ -22,7 +23,8 @@ exports.addDestination = async (req, res) => {
     const dest = await AIDestination.create({ name, phone: cleanPhone });
     res.json({ success: true, data: dest });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("❌ Error en addDestination:", error);
+    res.status(500).json({ success: false, error: "Error al agregar destino" });
   }
 };
 
@@ -31,7 +33,8 @@ exports.deleteDestination = async (req, res) => {
     await AIDestination.findByIdAndDelete(req.params.id);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("❌ Error en deleteDestination:", error);
+    res.status(500).json({ success: false, error: "Error al eliminar destino" });
   }
 };
 
@@ -41,7 +44,8 @@ exports.getHistory = async (req, res) => {
     const history = await AIGeneration.find().sort({ createdAt: -1 }).limit(20);
     res.json({ success: true, data: history });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("❌ Error en getHistory:", error);
+    res.status(500).json({ success: false, error: "Error al obtener historial" });
   }
 };
 
@@ -57,7 +61,8 @@ exports.requestImageGeneration = async (req, res) => {
     
     res.json({ success: true, data: generation });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("❌ Error en requestImageGeneration:", error);
+    res.status(500).json({ success: false, error: "Error al solicitar generación de imagen" });
   }
 };
 
@@ -74,7 +79,8 @@ exports.requestCopyGeneration = async (req, res) => {
 
     res.json({ success: true, data: copy });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("❌ Error en requestCopyGeneration:", error);
+    res.status(500).json({ success: false, error: "Error al generar copy" });
   }
 };
 
@@ -95,6 +101,7 @@ exports.broadcastContent = async (req, res) => {
 
     res.json({ success: true, sent: successCount, total: destinations.length });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("❌ Error en broadcastContent:", error);
+    res.status(500).json({ success: false, error: "Error en la difusión de contenido" });
   }
 };

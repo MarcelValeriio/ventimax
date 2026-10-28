@@ -34,7 +34,7 @@ function responderError(res: any, err: any): any {
   }
   const payload: Record<string, any> = {
     success: false,
-    error: err?.message || "Error en el inbox unificado",
+    error: status >= 500 && status !== 502 ? "Error interno del servidor" : (err?.message || "Error en el inbox unificado"),
   };
   if (err?.canal) payload.canal = err.canal;
   if (status === 502) {
