@@ -27,6 +27,7 @@ import {
   MAX_CANTIDAD_POR_LINEA,
   MAX_LINEAS_CARRITO,
 } from "../catalogo/js/carrito.js";
+import { debeMostrarAyuda, textoAyuda, armarEnlaceAyuda } from "../catalogo/js/ayuda.js";
 
 async function runTests() {
   console.log("================================================================================");
@@ -362,8 +363,31 @@ async function runTests() {
   assert.ok((appSrc.match(/actualizarTextoAgregar\(\)/g) || []).length >= 2, "El texto del botón se actualiza con + y −");
   console.log("  ✅ Test 10 superado (recuadro 'Sin foto' y botón con la cantidad elegida)");
 
+  // Test 11: botón flotante de ayuda por WhatsApp
+  console.log("\n▶ Test 11: Botón flotante de ayuda por WhatsApp...");
+  assert.strictEqual(debeMostrarAyuda("#/"), true);
+  assert.strictEqual(debeMostrarAyuda("#/producto/fortunne-n04"), true);
+  assert.strictEqual(debeMostrarAyuda("#/carrito"), false, "el carrito ya tiene su botón de WhatsApp");
+  assert.strictEqual(debeMostrarAyuda("#/confirmacion/VM-ABCDE"), false);
+  const ayuda = { whatsapp: "584125550101", texto: "Hola, tengo una pregunta", textoProducto: "Hola, pregunta sobre {{producto}}" };
+  assert.strictEqual(textoAyuda(ayuda, null), "Hola, tengo una pregunta");
+  assert.strictEqual(textoAyuda(ayuda, 'Turbo Fan 10"'), 'Hola, pregunta sobre Turbo Fan 10"');
+  assert.strictEqual(textoAyuda(null, "x"), "");
+  assert.strictEqual(
+    armarEnlaceAyuda("+58 412-555-0101", "Hola & chao"),
+    "https://wa.me/584125550101?text=Hola%20%26%20chao",
+  );
+  assert.strictEqual(armarEnlaceAyuda("584125550101", ""), "https://wa.me/584125550101");
+  assert.strictEqual(armarEnlaceAyuda("123", "x"), "", "número inválido: sin botón");
+  assert.strictEqual(armarEnlaceAyuda(null, "x"), "");
+  assert.ok(fs.existsSync(path.join(__dirname, "..", "catalogo", "img", "whatsapp.svg")), "ícono como archivo (CSP)");
+  assert.ok(appSrc.includes('rel: "noopener noreferrer"') && appSrc.includes('"aria-label"'), "enlace accesible y sin opener");
+  const cssSrc = fs.readFileSync(path.join(__dirname, "..", "catalogo", "css", "style.css"), "utf8");
+  assert.ok(cssSrc.includes("safe-area-inset-bottom") && cssSrc.includes("prefers-reduced-motion"), "zona segura y movimiento reducido");
+  console.log("  ✅ Test 11 superado (botón de ayuda: vistas, texto, enlace y accesibilidad)");
+
   console.log("\n================================================================================");
-  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (10/10)");
+  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (11/11)");
   console.log("================================================================================\n");
 }
 

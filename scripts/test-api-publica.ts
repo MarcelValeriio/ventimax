@@ -171,7 +171,7 @@ async function main() {
 
       const json = await res.json();
       assert.strictEqual(json.brandName, "VentiMax");
-      assert.deepStrictEqual(Object.keys(json).sort(), ["brandName", "theme"]);
+      assert.deepStrictEqual(Object.keys(json).sort(), ["ayuda", "brandName", "theme"]);
       assert.deepStrictEqual(
         Object.keys(json.theme).sort(),
         ["logoUrl", "primaryColor", "productBrandLogoUrl", "secondaryColor"].sort()
@@ -179,6 +179,28 @@ async function main() {
       assert.strictEqual(json.theme.primaryColor, "#1E8C88");
       assert.strictEqual(json.theme.secondaryColor, "#5CC0BB");
       assert.strictEqual(json.theme.productBrandLogoUrl, "/assets/brand/ventimax/fortunne-logo.png");
+    });
+
+    await prueba("Botón de ayuda: número público del negocio, nunca el del administrador", async () => {
+      const antes = { wa: process.env.WHATSAPP_PHONE, admin: process.env.ADMIN_PHONE_NUMBER };
+      // Sin Setting guardado, los datos del negocio salen de la marca, que no trae número
+      assert.ok(!require("../services/datosNegocioService").getDatosNegocioSync()?.contacto?.whatsapp);
+      try {
+        delete process.env.WHATSAPP_PHONE;
+        process.env.ADMIN_PHONE_NUMBER = "584149999999";
+        let json = await (await fetch(`${baseUrl}/api/public/marca`)).json();
+        assert.strictEqual(json.ayuda, null, "solo con el número del administrador no hay botón");
+        assert.ok(!JSON.stringify(json).includes("584149999999"), "el número del administrador no se publica");
+
+        process.env.WHATSAPP_PHONE = "+58 412-555-0101";
+        json = await (await fetch(`${baseUrl}/api/public/marca`)).json();
+        assert.strictEqual(json.ayuda.whatsapp, "584125550101");
+        assert.ok(json.ayuda.texto.length > 0);
+        assert.ok(json.ayuda.textoProducto.includes("{{producto}}"));
+      } finally {
+        if (antes.wa === undefined) delete process.env.WHATSAPP_PHONE; else process.env.WHATSAPP_PHONE = antes.wa;
+        if (antes.admin === undefined) delete process.env.ADMIN_PHONE_NUMBER; else process.env.ADMIN_PHONE_NUMBER = antes.admin;
+      }
     });
   });
 

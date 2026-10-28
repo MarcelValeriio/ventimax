@@ -100,6 +100,8 @@
     "pickupUnavailable": "Por ahora solo realizamos entregas a domicilio, pero un asesor puede coordinar contigo la mejor opción de entrega.",
     "advisorHandoff": "👨‍💼 Un asesor se comunicará contigo a la brevedad. Por favor déjanos tu consulta.",
     "webOrderPrefill": "Hola, quiero confirmar mi pedido web {{codigo}}",
+    "webHelpPrefill": "Hola, tengo una pregunta sobre sus productos",
+    "webHelpPrefillProducto": "Hola, tengo una pregunta sobre {{producto}}",
     "webOrderLoaded": "🛒 *Pedido Web {{codigo}} Recibido*\n\n{{resumen}}\n\n💰 *Total:* ${{totalUSD}} / Bs. {{totalVES}}\n\n¿Deseas confirmar tu pedido?",
     "webOrderChanged": "ℹ️ *Avisos sobre tu pedido web:*\n{{cambios}}",
     "webOrderEmpty": "⚠️ Los productos de tu pedido web ya no se encuentran disponibles en este momento. Te invitamos a consultar nuestro catálogo actualizado escribiendo *Menú*.",

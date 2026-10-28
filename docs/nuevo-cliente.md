@@ -58,7 +58,7 @@ mkdir -p public/assets/brand/<marca>
 | `botIdentity` | Nombre del bot |
 | `businessDescription` | Rubro en 1-2 frases |
 | `productBrand` | Marca de los productos, si vende una sola (si no, `""`) |
-| `whatsappPhone` | Valor inicial del WhatsApp del negocio, o `""`. Lo normal es cargarlo en el panel (Datos del negocio) |
+| `whatsappPhone` | Valor inicial del WhatsApp del negocio, o `""`. Lo normal es cargarlo en el panel (Datos del negocio). Ese número (o `WHATSAPP_PHONE`) es el del botón "¿Dudas? Escríbenos" de la tienda; sin él, la tienda no muestra el botón |
 | `contact.email`, `contact.website`, `contact.instagram` | Valor inicial del contacto, o `""`. Nunca inventarlos; lo normal es cargarlos en el panel (Datos del negocio) |
 | `sales.unitSingular`, `sales.unitPlural` | Unidad de venta ("unidad"/"unidades", "caja"/"cajas") |
 | `brandEmoji`, `categoryEmoji` | Emoji del negocio y de las categorías |

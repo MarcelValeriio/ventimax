@@ -769,3 +769,106 @@ body {
 .cart-item-thumb.img-sin-foto .img-sin-foto-texto {
   display: none;
 }
+
+/* Botón flotante de ayuda por WhatsApp: abajo a la derecha, área táctil de 56 px, respeta la zona segura del celular */
+.ayuda-wa {
+  position: fixed;
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 90;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  max-width: calc(100vw - 32px);
+  padding: 0 20px 0 14px;
+  border-radius: 999px;
+  background: var(--whatsapp-color);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.12);
+  transition: padding 0.3s ease, background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  animation: ayudaEntrada 0.4s ease-out 0.6s both;
+}
+
+.ayuda-wa:hover {
+  background: var(--whatsapp-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2), 0 3px 8px rgba(0, 0, 0, 0.14);
+}
+
+.ayuda-wa:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.ayuda-wa:focus-visible {
+  outline: 3px solid var(--primary-color);
+  outline-offset: 3px;
+}
+
+.ayuda-wa-icono {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.ayuda-wa-texto {
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 220px;
+  opacity: 1;
+  transition: max-width 0.3s ease, opacity 0.2s ease;
+}
+
+/* Tras unos segundos queda solo el ícono; al pasar el mouse o llegar con el teclado vuelve la etiqueta */
+.ayuda-wa--compacto {
+  padding: 0 14px;
+  gap: 0;
+}
+
+.ayuda-wa--compacto .ayuda-wa-texto {
+  max-width: 0;
+  opacity: 0;
+}
+
+.ayuda-wa--compacto:hover,
+.ayuda-wa--compacto:focus-visible {
+  padding: 0 20px 0 14px;
+  gap: 10px;
+}
+
+.ayuda-wa--compacto:hover .ayuda-wa-texto,
+.ayuda-wa--compacto:focus-visible .ayuda-wa-texto {
+  max-width: 220px;
+  opacity: 1;
+}
+
+@keyframes ayudaEntrada {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Que el botón no tape el final de la página ni los avisos */
+body.con-ayuda {
+  padding-bottom: 88px;
+}
+
+body.con-ayuda .toast-container {
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ayuda-wa,
+  .ayuda-wa-texto {
+    animation: none;
+    transition: none;
+  }
+}

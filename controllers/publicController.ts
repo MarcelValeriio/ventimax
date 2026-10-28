@@ -36,7 +36,7 @@ export function generarCodigoRandom(prefijo: string): string {
  * Resuelve el número de WhatsApp para enlace del catálogo:
  * Datos del negocio -> WHATSAPP_PHONE -> ADMIN_PHONE_NUMBER
  */
-function obtenerNumeroWhatsApp(): string | null {
+function obtenerNumeroWhatsApp(incluirAdmin = true): string | null {
   try {
     const deDatos = getDatosNegocioSync()?.contacto?.whatsapp;
     if (deDatos && typeof deDatos === "string" && deDatos.trim() !== "") {
@@ -52,6 +52,8 @@ function obtenerNumeroWhatsApp(): string | null {
     const limpio = deEnv.replace(/\D/g, "");
     if (limpio.length >= 10) return limpio;
   }
+
+  if (!incluirAdmin) return null;
 
   const deAdmin = process.env.ADMIN_PHONE_NUMBER;
   if (deAdmin && typeof deAdmin === "string" && deAdmin.trim() !== "") {
@@ -77,6 +79,17 @@ export async function getMarca(req: any, res: any) {
     const logoUrl = theme.logoUrl || "";
     const productBrandLogoUrl = theme.productBrandLogoUrl || logoUrl;
 
+    // Botón de ayuda de la tienda: solo con el número público del negocio. Nunca el ADMIN_PHONE_NUMBER
+    // (es el teléfono personal del administrador); sin número, la tienda no muestra el botón.
+    const numeroAyuda = obtenerNumeroWhatsApp(false);
+    const ayuda = numeroAyuda
+      ? {
+          whatsapp: numeroAyuda,
+          texto: configManager.get("settings.messages.webHelpPrefill") || "",
+          textoProducto: configManager.get("settings.messages.webHelpPrefillProducto") || "",
+        }
+      : null;
+
     return res.status(200).json({
       brandName,
       theme: {
@@ -85,6 +98,7 @@ export async function getMarca(req: any, res: any) {
         logoUrl,
         productBrandLogoUrl,
       },
+      ayuda,
     });
   } catch (error: any) {
     console.error("❌ Error en getMarca pública:", error);

@@ -36,6 +36,8 @@ const CLAVES_MENSAJES = [
   "pickupUnavailable",
   "advisorHandoff",
   "webOrderPrefill",
+  "webHelpPrefill",
+  "webHelpPrefillProducto",
   "webOrderLoaded",
   "webOrderChanged",
   "webOrderEmpty",

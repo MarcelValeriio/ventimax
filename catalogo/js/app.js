@@ -24,6 +24,8 @@ import {
 
 import { el, limpiarElemento } from "./dom.js";
 
+import { debeMostrarAyuda, textoAyuda, armarEnlaceAyuda } from "./ayuda.js";
+
 /** Solo se abre un enlace de WhatsApp (wa.me); cualquier otra cosa que llegara de la API se ignora. */
 function esEnlaceWhatsApp(url) {
   return typeof url === "string" && url.startsWith("https://wa.me/");
@@ -57,6 +59,41 @@ function mostrarToast(mensaje) {
       toast.parentNode.removeChild(toast);
     }
   }, 2500);
+}
+
+/**
+ * Botón flotante "¿Dudas? Escríbenos" (WhatsApp). Se crea una vez si la marca trae número de ayuda;
+ * en cada vista se actualiza el texto prellenado (el del producto que se mira) o se oculta
+ * (carrito y confirmación ya tienen su propio botón de WhatsApp).
+ */
+let botonAyuda = null;
+
+function crearBotonAyuda() {
+  if (botonAyuda || !state.marca?.ayuda) return;
+  const etiqueta = el("span", { className: "ayuda-wa-texto" }, "¿Dudas? Escríbenos");
+  botonAyuda = el(
+    "a",
+    {
+      className: "ayuda-wa",
+      target: "_blank",
+      rel: "noopener noreferrer",
+      "aria-label": "¿Dudas? Escríbenos por WhatsApp",
+    },
+    el("img", { className: "ayuda-wa-icono", src: "img/whatsapp.svg", alt: "", width: "28", height: "28" }),
+    etiqueta
+  );
+  document.body.appendChild(botonAyuda);
+  // La etiqueta se ve al llegar y después queda solo el ícono (vuelve a abrirse al pasar el mouse o con el teclado)
+  setTimeout(() => botonAyuda && botonAyuda.classList.add("ayuda-wa--compacto"), 6000);
+}
+
+function actualizarBotonAyuda(nombreProducto) {
+  if (!botonAyuda) return;
+  const enlace = armarEnlaceAyuda(state.marca.ayuda.whatsapp, textoAyuda(state.marca.ayuda, nombreProducto));
+  const visible = Boolean(enlace) && debeMostrarAyuda(window.location.hash || "#/");
+  botonAyuda.classList.toggle("hidden", !visible);
+  document.body.classList.toggle("con-ayuda", visible);
+  if (enlace) botonAyuda.setAttribute("href", enlace);
 }
 
 /**
@@ -778,6 +815,7 @@ function renderizarConfirmacion(codigo) {
  */
 function enrutar() {
   const hash = window.location.hash || "#/";
+  let productoEnVista = null;
 
   if (hash === "#/" || hash === "" || hash.startsWith("#/?")) {
     state.categoriaActiva = "todas";
@@ -788,6 +826,7 @@ function enrutar() {
     renderizarCatalogo();
   } else if (hash.startsWith("#/producto/")) {
     const pid = decodeURIComponent(hash.replace("#/producto/", "")).split("?")[0];
+    productoEnVista = (state.catalogo?.productos || []).find((p) => p.id === pid)?.nombre || null;
     renderizarDetalleProducto(pid);
   } else if (hash === "#/carrito") {
     renderizarCarrito();
@@ -798,6 +837,7 @@ function enrutar() {
     // Ruta desconocida: fallback al catálogo
     window.location.hash = "#/";
   }
+  actualizarBotonAyuda(productoEnVista);
 }
 
 /**
@@ -822,6 +862,7 @@ async function iniciar() {
 
     if (marcaData) {
       aplicarIdentidadMarca(marcaData);
+      crearBotonAyuda();
     }
     state.catalogo = catalogoData;
 
