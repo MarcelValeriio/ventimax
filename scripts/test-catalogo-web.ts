@@ -355,8 +355,15 @@ async function runTests() {
   assert.ok(appSrc.includes('"noopener"'), "window.open con noopener");
   console.log("  ✅ Test 9 superado (CORP solo en /assets, enlace de WhatsApp validado)");
 
+  // Test 10: sin imágenes rotas y botón que sigue a la cantidad (fallos vistos por el dueño en producción)
+  console.log("\n▶ Test 10: Foto de respaldo y texto del botón Agregar...");
+  assert.ok(!appSrc.includes('"data:,"'), "No usar src vacío: el navegador muestra el ícono de imagen rota");
+  assert.ok(appSrc.includes("img-sin-foto") && appSrc.includes('addEventListener("error"'), "Recuadro 'Sin foto' si falta la foto o no carga");
+  assert.ok((appSrc.match(/actualizarTextoAgregar\(\)/g) || []).length >= 2, "El texto del botón se actualiza con + y −");
+  console.log("  ✅ Test 10 superado (recuadro 'Sin foto' y botón con la cantidad elegida)");
+
   console.log("\n================================================================================");
-  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (9/9)");
+  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (10/10)");
   console.log("================================================================================\n");
 }
 

@@ -242,18 +242,32 @@ function renderizarCatalogo() {
 }
 
 /**
+ * Foto de un producto. Si no tiene foto, o si la foto no carga (p. ej. se borró en Cloudinary), muestra un
+ * recuadro neutro "Sin foto" en vez del ícono de imagen rota del navegador.
+ */
+function imagenProducto(url, alt, className, extra = {}) {
+  const recuadroSinFoto = () =>
+    el(
+      "div",
+      { className: `${className} img-sin-foto`, role: "img", "aria-label": `${alt} (sin foto)` },
+      el("span", { className: "img-sin-foto-icono" }, "📷"),
+      el("span", { className: "img-sin-foto-texto" }, "Sin foto")
+    );
+  const src = resolverUrlRecurso(url);
+  if (!src) return recuadroSinFoto();
+  const img = el("img", { className, src, alt, ...extra });
+  img.addEventListener("error", () => img.replaceWith(recuadroSinFoto()), { once: true });
+  return img;
+}
+
+/**
  * Crea una tarjeta individual de producto para la grilla.
  */
 function crearTarjetaProducto(prod) {
   const imgUrl =
     Array.isArray(prod.imagenes) && prod.imagenes.length > 0 ? prod.imagenes[0] : "";
 
-  const imgEl = el("img", {
-    className: "product-card-img",
-    src: resolverUrlRecurso(imgUrl) || "data:,",
-    alt: prod.nombre,
-    loading: "lazy",
-  });
+  const imgEl = imagenProducto(imgUrl, prod.nombre, "product-card-img", { loading: "lazy" });
 
   const imgWrap = el(
     "div",
@@ -345,13 +359,11 @@ function renderizarDetalleProducto(productoId) {
   const imagenes = Array.isArray(prod.imagenes) && prod.imagenes.length > 0 ? prod.imagenes : [""];
   let imgSeleccionada = imagenes[0];
 
-  const mainImgEl = el("img", {
-    className: "detail-main-img",
-    src: resolverUrlRecurso(imgSeleccionada) || "data:,",
-    alt: prod.nombre,
-  });
-
-  const mainImgWrap = el("div", { className: "detail-main-img-wrap" }, mainImgEl);
+  const mainImgWrap = el(
+    "div",
+    { className: "detail-main-img-wrap" },
+    imagenProducto(imgSeleccionada, prod.nombre, "detail-main-img")
+  );
   const thumbsWrap = el("div", { className: "detail-thumbs-wrap" });
 
   if (imagenes.length > 1) {
@@ -366,7 +378,8 @@ function renderizarDetalleProducto(productoId) {
           className: `detail-thumb ${url === imgSeleccionada ? "active" : ""}`,
           onclick: () => {
             imgSeleccionada = url;
-            mainImgEl.src = resolverUrlRecurso(url);
+            limpiarElemento(mainImgWrap);
+            mainImgWrap.appendChild(imagenProducto(url, prod.nombre, "detail-main-img"));
             for (const t of thumbsWrap.children) t.classList.remove("active");
             thumb.classList.add("active");
           },
@@ -408,6 +421,7 @@ function renderizarDetalleProducto(productoId) {
         if (cantidadSeleccionada > 1) {
           cantidadSeleccionada--;
           qtyInput.value = String(cantidadSeleccionada);
+          actualizarTextoAgregar();
         }
       },
     },
@@ -423,6 +437,7 @@ function renderizarDetalleProducto(productoId) {
         if (cantidadSeleccionada < 50) {
           cantidadSeleccionada++;
           qtyInput.value = String(cantidadSeleccionada);
+          actualizarTextoAgregar();
         }
       },
     },
@@ -448,6 +463,11 @@ function renderizarDetalleProducto(productoId) {
     },
     prod.disponible ? `Agregar al carrito (${cantidadSeleccionada})` : "Agotado"
   );
+
+  // El texto del botón sigue a la cantidad elegida con + y −
+  function actualizarTextoAgregar() {
+    if (prod.disponible) addBtn.textContent = `Agregar al carrito (${cantidadSeleccionada})`;
+  }
 
   const infoEl = el(
     "div",
@@ -504,11 +524,7 @@ function renderizarCarrito() {
     subtotalUsd += itemTotal;
 
     const imgUrl = prod && Array.isArray(prod.imagenes) && prod.imagenes[0] ? prod.imagenes[0] : "";
-    const thumbImg = el("img", {
-      className: "cart-item-thumb",
-      src: resolverUrlRecurso(imgUrl) || "data:,",
-      alt: nombre,
-    });
+    const thumbImg = imagenProducto(imgUrl, nombre, "cart-item-thumb");
 
     const info = el(
       "div",

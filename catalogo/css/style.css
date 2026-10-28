@@ -739,3 +739,33 @@ body {
 .hidden {
   display: none !important;
 }
+
+/* Producto sin foto, o foto que no cargó: recuadro neutro en vez del ícono de imagen rota */
+.img-sin-foto {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  background: #f1f5f9;
+  color: var(--text-muted);
+}
+
+.img-sin-foto-icono {
+  font-size: 2rem;
+  opacity: 0.5;
+}
+
+.img-sin-foto-texto {
+  font-size: 0.85rem;
+}
+
+.cart-item-thumb.img-sin-foto .img-sin-foto-icono {
+  font-size: 1.2rem;
+}
+
+.cart-item-thumb.img-sin-foto .img-sin-foto-texto {
+  display: none;
+}
