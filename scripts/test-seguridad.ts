@@ -56,6 +56,15 @@ async function main() {
     assert.strictEqual(await Usuario.countDocuments(), 0);
   });
 
+  await prueba("ADMIN_PASS con espacio o salto de línea en el borde: no crea; usuario sin espacios", async () => {
+    dbLocal.write({ usuarios: [] });
+    assert.strictEqual(await crearAdminInicial("dueno", "clave-larga-de-prueba \n"), "clave_con_espacios");
+    assert.strictEqual(await Usuario.countDocuments(), 0);
+    assert.strictEqual(await crearAdminInicial("  dueno ", "clave-larga-de-prueba"), "creado");
+    const [creado] = await Usuario.find({});
+    assert.strictEqual(creado.username, "dueno");
+  });
+
   await prueba("Sin ADMIN_USER/ADMIN_PASS: no crea", async () => {
     dbLocal.write({ usuarios: [] });
     assert.strictEqual(await crearAdminInicial(undefined, undefined), "faltan_variables");

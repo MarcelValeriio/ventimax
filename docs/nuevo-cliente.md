@@ -161,6 +161,7 @@ logs:
 | `✅ [Arranque] Administrador inicial '<usuario>' creado.` | Listo | Entrar al panel con ese usuario y crear las cuentas del equipo |
 | `⚠️ [Arranque] No hay usuarios y faltan ADMIN_USER/ADMIN_PASS` | La base está vacía y nadie puede entrar | Añadir las dos variables en Render y volver a desplegar |
 | `⚠️ [Arranque] ADMIN_PASS debe tener al menos 12 caracteres` | Clave demasiado corta; no se creó nada | Cambiar `ADMIN_PASS` y volver a desplegar |
+| `⚠️ [Arranque] ADMIN_PASS empieza o termina con un espacio o salto de línea…` | Se pegó la clave con un espacio de más en Render. Corregirla (escribirla de nuevo) y reiniciar el servicio |
 | (ninguno) | Ya había usuarios | Nada: las variables no hacen efecto |
 
 Una vez dentro, se pueden borrar `ADMIN_USER` y `ADMIN_PASS` de Render. **No usar**

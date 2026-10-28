@@ -32,7 +32,7 @@ export function comprobarJwtSecret(): void {
   console.warn(`⚠️ [Seguridad] ${problema}. En producción el servidor no arrancaría.`);
 }
 
-export type ResultadoAdminInicial = "creado" | "ya_hay_usuarios" | "faltan_variables" | "clave_corta";
+export type ResultadoAdminInicial = "creado" | "ya_hay_usuarios" | "faltan_variables" | "clave_corta" | "clave_con_espacios";
 
 export async function crearAdminInicial(
   usuario = process.env.ADMIN_USER,
@@ -42,9 +42,15 @@ export async function crearAdminInicial(
   const existentes = await Usuario.countDocuments();
   if (existentes > 0) return "ya_hay_usuarios";
 
+  // Un espacio o salto de línea pegado por error en Render quedaría como parte del usuario o de la clave
+  usuario = usuario?.trim();
   if (!usuario || !clave) {
     console.warn("⚠️ [Arranque] No hay usuarios y faltan ADMIN_USER/ADMIN_PASS: nadie podrá entrar al panel.");
     return "faltan_variables";
+  }
+  if (clave !== clave.trim()) {
+    console.warn("⚠️ [Arranque] ADMIN_PASS empieza o termina con un espacio o salto de línea (¿se pegó de más?). Corrígelo en Render: no se creó el administrador.");
+    return "clave_con_espacios";
   }
   if (clave.length < LONGITUD_MINIMA_ADMIN_PASS) {
     console.warn(`⚠️ [Arranque] ADMIN_PASS debe tener al menos ${LONGITUD_MINIMA_ADMIN_PASS} caracteres. No se creó el administrador.`);

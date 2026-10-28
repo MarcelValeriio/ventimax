@@ -195,7 +195,8 @@ app.post("/login", loginLimiter, validate(loginSchema), async (req, res) => {
   const { usuario, password } = req.body;
 
   try {
-    const user = await Usuario.findOne({ username: usuario, activo: true });
+    // Sin espacios en los bordes del usuario (teclados de celular suelen añadir uno al final)
+    const user = await Usuario.findOne({ username: String(usuario).trim(), activo: true });
     
     if (!user) {
       return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
