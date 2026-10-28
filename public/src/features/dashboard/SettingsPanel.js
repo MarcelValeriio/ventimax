@@ -329,6 +329,14 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
   const [flujoLoading, setFlujoLoading] = useState(false);
   const [flujoSaving, setFlujoSaving] = useState(false);
 
+  // Datos del negocio (política de privacidad y enlaces a WhatsApp)
+  const [datosNegocio, setDatosNegocio] = useState({
+    razonSocial: "", rif: "", direccion: "", email: "", website: "", instagram: "", whatsapp: "",
+  });
+  const [datosFecha, setDatosFecha] = useState("");
+  const [datosLoading, setDatosLoading] = useState(false);
+  const [datosSaving, setDatosSaving] = useState(false);
+
   const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
 
   // Si el usuario deja de ser admin, no puede quedarse en una sección solo para admin
@@ -392,6 +400,36 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       }
     };
     fetchHorarioConfig();
+  }, [isAdmin]);
+
+  // Carga los datos legales y de contacto del negocio (solo admin)
+  useEffect(() => {
+    if (!isAdmin) return;
+    const fetchDatosNegocio = async () => {
+      try {
+        setDatosLoading(true);
+        const client = window.apiClient || apiClient;
+        const res = await client.get("/api/admin/config/datos-negocio");
+        if (res.data?.success && res.data?.datos) {
+          const d = res.data.datos;
+          setDatosNegocio({
+            razonSocial: d.legal?.razonSocial || "",
+            rif: d.legal?.rif || "",
+            direccion: d.legal?.direccion || "",
+            email: d.contacto?.email || "",
+            website: d.contacto?.website || "",
+            instagram: d.contacto?.instagram || "",
+            whatsapp: d.contacto?.whatsapp || "",
+          });
+          setDatosFecha(d.fechaActualizacion || "");
+        }
+      } catch (err) {
+        console.warn("No se pudieron cargar los datos del negocio:", err);
+      } finally {
+        setDatosLoading(false);
+      }
+    };
+    fetchDatosNegocio();
   }, [isAdmin]);
 
   // Carga la configuración de Días No Laborables (solo admin)
@@ -547,6 +585,32 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
     }
   };
 
+  const handleSaveDatosNegocio = async () => {
+    setDatosSaving(true);
+    try {
+      const client = window.apiClient || apiClient;
+      const d = datosNegocio;
+      const res = await client.put("/api/admin/config/datos-negocio", {
+        legal: { razonSocial: d.razonSocial, rif: d.rif, direccion: d.direccion },
+        contacto: { email: d.email, website: d.website, instagram: d.instagram, whatsapp: d.whatsapp },
+      });
+      if (res.data?.success && res.data?.datos) {
+        const g = res.data.datos;
+        setDatosNegocio({
+          razonSocial: g.legal.razonSocial, rif: g.legal.rif, direccion: g.legal.direccion,
+          email: g.contacto.email, website: g.contacto.website, instagram: g.contacto.instagram, whatsapp: g.contacto.whatsapp,
+        });
+        setDatosFecha(g.fechaActualizacion || "");
+        toast("Datos del negocio guardados correctamente", "success");
+      }
+    } catch (err) {
+      console.error("Error guardando datos del negocio:", err);
+      toast(err.response?.data?.error || err.message || "Error al guardar los datos del negocio", "error");
+    } finally {
+      setDatosSaving(false);
+    }
+  };
+
   const handleSaveFlujo = async () => {
     if (flujoActivo && !entregaDiferidaActivo && !retiroEnPuntoActivo) {
       toast("Activa al menos una modalidad o apaga el flujo de días no laborables", "error");
@@ -690,6 +754,112 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
 
   const renderOperacion = () => [
     e(PageHeader, { key: "header", title: "Operación", description: "Herramientas de gestión del negocio." }),
+    e("section", { key: "datos-negocio", className: "space-y-3" },
+      e("h3", { className: "text-[11px] font-black uppercase tracking-widest text-gray-400 px-1" }, "Datos del negocio"),
+      e("div", { className: "bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-6 space-y-6" },
+        e("div", { className: "flex items-center gap-3" },
+          e("div", { className: `w-10 h-10 rounded-2xl flex items-center justify-center text-sm ${ICON_TONES.blue}` },
+            e("i", { className: "fas fa-building" })
+          ),
+          e("div", null,
+            e("h4", { className: "text-sm font-bold text-gray-800 dark:text-gray-100" }, "Datos legales y de contacto"),
+            e("p", { className: "text-xs text-gray-500 dark:text-gray-400 mt-0.5" },
+              "Aparecen en la política de privacidad (/privacidad), que revisa Meta. El WhatsApp es al que Instagram y Messenger envían a los clientes. Los campos vacíos no se muestran."
+            )
+          )
+        ),
+        e("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3" },
+          e("div", { className: "space-y-1" },
+            e("label", { className: "text-[11px] font-bold text-gray-600 dark:text-gray-400" }, "Razón social:"),
+            e("input", {
+              type: "text",
+              value: datosNegocio.razonSocial,
+              placeholder: "Inversiones Ejemplo, C.A.",
+              onChange: (ev) => setDatosNegocio({ ...datosNegocio, razonSocial: ev.target.value }),
+              className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
+            })
+          ),
+          e("div", { className: "space-y-1" },
+            e("label", { className: "text-[11px] font-bold text-gray-600 dark:text-gray-400" }, "RIF:"),
+            e("input", {
+              type: "text",
+              value: datosNegocio.rif,
+              placeholder: "J-12345678-9",
+              onChange: (ev) => setDatosNegocio({ ...datosNegocio, rif: ev.target.value }),
+              className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
+            }),
+            e("p", { className: "text-[10px] text-gray-400" }, "Letra V, E, J, P o G, 8 dígitos y el verificador.")
+          ),
+          e("div", { className: "space-y-1 sm:col-span-2" },
+            e("label", { className: "text-[11px] font-bold text-gray-600 dark:text-gray-400" }, "Dirección fiscal:"),
+            e("input", {
+              type: "text",
+              value: datosNegocio.direccion,
+              placeholder: "Av. Principal, Edificio, Ciudad",
+              onChange: (ev) => setDatosNegocio({ ...datosNegocio, direccion: ev.target.value }),
+              className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
+            })
+          ),
+        ),
+        e("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3" },
+          e("div", { className: "space-y-1" },
+            e("label", { className: "text-[11px] font-bold text-gray-600 dark:text-gray-400" }, "Correo de contacto:"),
+            e("input", {
+              type: "text",
+              value: datosNegocio.email,
+              placeholder: "contacto@minegocio.com",
+              onChange: (ev) => setDatosNegocio({ ...datosNegocio, email: ev.target.value }),
+              className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
+            })
+          ),
+          e("div", { className: "space-y-1" },
+            e("label", { className: "text-[11px] font-bold text-gray-600 dark:text-gray-400" }, "WhatsApp del negocio:"),
+            e("input", {
+              type: "text",
+              value: datosNegocio.whatsapp,
+              placeholder: "584121234567",
+              onChange: (ev) => setDatosNegocio({ ...datosNegocio, whatsapp: ev.target.value }),
+              className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
+            }),
+            e("p", { className: "text-[10px] text-gray-400" }, "Con código de país, sin + ni espacios.")
+          ),
+          e("div", { className: "space-y-1" },
+            e("label", { className: "text-[11px] font-bold text-gray-600 dark:text-gray-400" }, "Sitio web:"),
+            e("input", {
+              type: "text",
+              value: datosNegocio.website,
+              placeholder: "https://minegocio.com",
+              onChange: (ev) => setDatosNegocio({ ...datosNegocio, website: ev.target.value }),
+              className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
+            })
+          ),
+          e("div", { className: "space-y-1" },
+            e("label", { className: "text-[11px] font-bold text-gray-600 dark:text-gray-400" }, "Instagram:"),
+            e("input", {
+              type: "text",
+              value: datosNegocio.instagram,
+              placeholder: "@minegocio",
+              onChange: (ev) => setDatosNegocio({ ...datosNegocio, instagram: ev.target.value }),
+              className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
+            })
+          ),
+        ),
+        e("div", { className: "flex items-center justify-between gap-3 pt-2" },
+          e("p", { className: "text-[11px] text-gray-400" },
+            datosFecha ? `Última actualización de la política: ${datosFecha}` : "La fecha de actualización se pone sola al guardar."
+          ),
+          e("button", {
+            type: "button",
+            onClick: handleSaveDatosNegocio,
+            disabled: datosSaving || datosLoading,
+            className: "px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 transition disabled:opacity-50 flex items-center gap-2",
+          },
+            datosSaving && e("i", { className: "fas fa-spinner fa-spin" }),
+            datosSaving ? "Guardando..." : "Guardar datos del negocio"
+          )
+        )
+      )
+    ),
     e("section", { key: "horario", className: "space-y-3" },
       e("h3", { className: "text-[11px] font-black uppercase tracking-widest text-gray-400 px-1" }, "Horario de atención"),
       e("div", { className: "bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-6 space-y-6" },
@@ -802,11 +972,11 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
             )
           ),
           e("div", { className: "space-y-1.5" },
-            e("label", { className: "text-xs text-gray-600 dark:text-gray-400 font-semibold" }, "Texto descriptivo de la modalidad (ej. Delivery Gratis / Entrega en día hábil):"),
+            e("label", { className: "text-xs text-gray-600 dark:text-gray-400 font-semibold" }, "Texto descriptivo de la modalidad (ej. Entrega en día hábil):"),
             e("input", {
               type: "text",
               value: entregaDiferidaTexto,
-              placeholder: "Delivery Gratis",
+              placeholder: "Entrega en día hábil",
               onChange: (ev) => setEntregaDiferidaTexto(ev.target.value),
               className: "w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
             })
@@ -830,7 +1000,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
               e("input", {
                 type: "text",
                 value: retiroEnPuntoNombre,
-                placeholder: "Punto Aliado — Kelly Bakery",
+                placeholder: "Punto aliado",
                 onChange: (ev) => setRetiroEnPuntoNombre(ev.target.value),
                 className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
               })
@@ -840,7 +1010,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
               e("input", {
                 type: "text",
                 value: retiroEnPuntoDireccion,
-                placeholder: "Club Social Chino, Chacaíto",
+                placeholder: "Dirección del punto",
                 onChange: (ev) => setRetiroEnPuntoDireccion(ev.target.value),
                 className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
               })
@@ -850,7 +1020,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
               e("input", {
                 type: "text",
                 value: retiroEnPuntoHorario,
-                placeholder: "Lun a Dom de 8:30 am a 6:30 pm",
+                placeholder: "Lun a Vie de 9:00 am a 5:00 pm",
                 onChange: (ev) => setRetiroEnPuntoHorario(ev.target.value),
                 className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
               })

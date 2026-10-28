@@ -332,9 +332,25 @@ class DbLocal {
         return data.pedidos[idx];
       },
       findById: async (id) => {
-        const data = this.read();
+        const data = self.read();
         data.pedidos = data.pedidos || [];
-        return data.pedidos.find(p => String(p._id) === String(id)) || null;
+        const pedido = data.pedidos.find(p => String(p._id) === String(id));
+        if (!pedido) return null;
+        const doc: any = JSON.parse(JSON.stringify(pedido));
+        doc.markModified = function() {};
+        doc.save = async function() {
+          const currentData = self.read();
+          const idx = currentData.pedidos.findIndex(p => String(p._id) === String(this._id));
+          if (idx !== -1) {
+            const saveDoc = { ...this };
+            delete saveDoc.save;
+            delete saveDoc.markModified;
+            currentData.pedidos[idx] = saveDoc;
+            self.write(currentData);
+          }
+          return this;
+        };
+        return doc;
       },
       find: (query = {}, projection = null) => {
         const data = this.read();
@@ -370,16 +386,34 @@ class DbLocal {
         };
       },
       create: async (pedido) => {
-        const data = this.read();
+        const data = self.read();
         data.pedidos = data.pedidos || [];
-        const doc = {
+        const doc: any = {
           _id: pedido._id || `order-${Date.now()}`,
           timestamp: new Date(),
           ...pedido
         };
+        doc.markModified = function() {};
+        doc.save = async function() {
+          const currentData = self.read();
+          const idx = currentData.pedidos.findIndex(p => String(p._id) === String(this._id));
+          if (idx !== -1) {
+            const saveDoc = { ...this };
+            delete saveDoc.save;
+            delete saveDoc.markModified;
+            currentData.pedidos[idx] = saveDoc;
+            self.write(currentData);
+          }
+          return this;
+        };
         data.pedidos.push(doc);
-        this.write(data);
+        self.write(data);
         return doc;
+      },
+      deleteMany: async () => {
+        const data = self.read();
+        data.pedidos = [];
+        self.write(data);
       },
       exists: async (query) => {
         const data = this.read();
@@ -464,6 +498,21 @@ class DbLocal {
         createdAt: new Date(),
         updatedAt: new Date(),
       },
+      {
+        _id: "env-003",
+        nombre: "Retiro en persona",
+        tipo: "retiro",
+        descripcion: "Retiro en nuestro punto de encuentro",
+        costoTipo: "fijo",
+        costo: 0,
+        pideDatos: "",
+        direccion: "Punto de retiro de prueba",
+        horario: "",
+        activo: true,
+        orden: 3,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
     ];
     this.write(data);
     return data.metodosEnvio;
@@ -517,10 +566,23 @@ class DbLocal {
 
     return {
       find: (query) => findQuery(query),
-      findOne: async (query) => {
-        const data = self.read();
-        const methods = data.metodosEnvio || [];
-        return methods.find((m) => matchEnvioQuery(m, query)) || null;
+      findOne: (query) => {
+        const queryObj = findQuery(query);
+        return {
+          sort: (sortObj) => {
+            const sorted = queryObj.sort(sortObj);
+            return {
+              lean: () => sorted.then((res) => (res && res.length > 0 ? res[0] : null)),
+              then: (onFulfilled, onRejected) =>
+                sorted.then((res) => (res && res.length > 0 ? res[0] : null)).then(onFulfilled, onRejected),
+              catch: (onRejected) => sorted.catch(onRejected),
+            };
+          },
+          lean: () => queryObj.then((res) => (res && res.length > 0 ? res[0] : null)),
+          then: (onFulfilled, onRejected) =>
+            queryObj.then((res) => (res && res.length > 0 ? res[0] : null)).then(onFulfilled, onRejected),
+          catch: (onRejected) => queryObj.catch(onRejected),
+        };
       },
       findById: (id) => {
         const data = self.read();
@@ -1018,18 +1080,35 @@ class DbLocal {
         if (query.pedidoId) {
           list = list.filter(a => a.pedidoId === query.pedidoId);
         }
+        if (query.accion) {
+          list = list.filter(a => a.accion === query.accion);
+        }
+        if (query.recursoId) {
+          list = list.filter(a => a.recursoId === query.recursoId);
+        }
         return {
           sort: () => ({
             skip: (n = 0) => ({
-              limit: (l = 50) => list.slice(n, n + l)
+              limit: (l = 50) => list.slice(n, n + l),
+              then: (resolve) => resolve(list.slice(n, n + l)),
+              catch: () => {}
             }),
-            limit: (l = 50) => list.slice(0, l)
-          })
+            limit: (l = 50) => list.slice(0, l),
+            then: (resolve) => resolve(list),
+            catch: () => {}
+          }),
+          then: (resolve) => resolve(list),
+          catch: () => {}
         };
       },
       countDocuments: async () => {
         const data = this.read();
         return (data.auditorias || []).length;
+      },
+      deleteMany: async () => {
+        const data = this.read();
+        data.auditorias = [];
+        this.write(data);
       }
     };
   }

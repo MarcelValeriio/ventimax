@@ -40,12 +40,27 @@ const KanbanBoard = ({ socket, userRole, health }) => {
     return "";
   });
 
+  const [metodosPagoMap, setMetodosPagoMap] = useState({});
+
   useEffect(() => {
     apiClient
       .get("/api/config")
       .then((res) => {
         const name = res.data?.settings?.brandName || res.data?.brandName;
         if (name) setBrandName(name);
+      })
+      .catch(() => {});
+
+    apiClient
+      .get("/api/admin/payments")
+      .then((res) => {
+        if (res.data?.success && Array.isArray(res.data.data)) {
+          const map = {};
+          res.data.data.forEach((m) => {
+            if (m._id) map[String(m._id)] = m;
+          });
+          setMetodosPagoMap(map);
+        }
       })
       .catch(() => {});
   }, []);
@@ -351,7 +366,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
         ${clienteCedula ? `<p style="margin: 0 0 4px 0;"><strong>Cédula:</strong> ${esc(clienteCedula)}</p>` : ""}
         ${clienteTelefono ? `<p style="margin: 0 0 4px 0;"><strong>Teléfono:</strong> ${esc(clienteTelefono)}</p>` : ""}
         ${direccion ? `<p style="margin: 0 0 4px 0;"><strong>Dirección:</strong> ${esc(direccion)}</p>` : ""}
-        ${order.envio && order.envio.nombre ? `<p style="margin: 0 0 4px 0;"><strong>Envío:</strong> ${esc(order.envio.nombre)}${order.envio.aConvenir ? " (A convenir)" : (order.envio.costo ? ` ($${Number(order.envio.costo).toFixed(2)})` : "")}</p>` : ""}
+        ${order.envio && order.envio.nombre ? `<p style="margin: 0 0 4px 0;"><strong>Envío:</strong> ${esc(order.envio.nombre)}${order.envio.costoAcordado ? ` ($${Number(order.envio.costo).toFixed(2)}, acordado con el asesor)` : (order.envio.aConvenir ? " (A convenir)" : (order.envio.costo ? ` ($${Number(order.envio.costo).toFixed(2)})` : ""))}</p>` : ""}
       </div>
 
       <div style="margin-bottom: 14px; border-bottom: 1px dashed #000; padding-bottom: 10px;">
@@ -390,7 +405,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
             ? `
           <div style="display: flex; justify-content: space-between; font-size: 14px; color: #444; margin-bottom: 6px;">
             <span>Envío (${esc(order.envio.nombre)}):</span>
-            <span>${order.envio.aConvenir ? "A convenir" : `$${Number(order.envio.costo || 0).toFixed(2)}`}</span>
+            <span>${order.envio.costoAcordado ? `$${Number(order.envio.costo || 0).toFixed(2)} (Acordado)` : (order.envio.aConvenir ? "A convenir" : `$${Number(order.envio.costo || 0).toFixed(2)}`)}</span>
           </div>
         `
             : ""
@@ -759,7 +774,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
                           "text-[10px] font-medium text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1",
                       },
                       e("i", { className: "fas fa-truck text-[9px]" }),
-                      `${order.envio.nombre}${order.envio.aConvenir ? " (A convenir)" : (order.envio.costo ? ` ($${order.envio.costo})` : "")}`,
+                      `${order.envio.nombre}${order.envio.costoAcordado ? ` ($${Number(order.envio.costo).toFixed(2)}, acordado con el asesor)` : (order.envio.aConvenir ? " (A convenir)" : (order.envio.costo ? ` ($${Number(order.envio.costo).toFixed(2)})` : ""))}`,
                     ),
                   order.notas &&
                     e(
@@ -797,70 +812,76 @@ const KanbanBoard = ({ socket, userRole, health }) => {
                         "p-2.5 bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-100 dark:border-gray-700 flex justify-between items-center",
                     },
                     [
-                      e("div", { className: "flex items-center gap-2" }, [
-                        e(
-                          "span",
-                          { className: "text-[12px]" },
-                          order.pago?.metodo?.tipo === "efectivo" ||
-                            order.pago?.metodo === "efectivo" ||
-                            order.metodoPago === "efectivo"
-                            ? "💵"
-                            : "💳",
-                        ),
+                    (() => {
+                      const metodoInfo = (() => {
+                        const m = order.pago?.metodo;
+                        if (typeof m === "object" && m !== null) {
+                          return {
+                            nombre: m.nombre || "Sin método",
+                            tipo: m.tipo || "",
+                            esEfectivo: m.tipo === "efectivo" || (m.nombre && m.nombre.toLowerCase().includes("efectivo")),
+                          };
+                        }
+
+                        if (!m) {
+                          if (order.estado === "pendiente_pago" || order.estado === "inicio") {
+                            return { nombre: "Pendiente", tipo: "", esEfectivo: false };
+                          }
+                          return { nombre: "Sin método", tipo: "", esEfectivo: false };
+                        }
+
+                        if (typeof m === "string" && metodosPagoMap[m]) {
+                          const found = metodosPagoMap[m];
+                          return {
+                            nombre: found.nombre || "Sin método",
+                            tipo: found.tipo || "",
+                            esEfectivo: found.tipo === "efectivo" || (found.nombre && found.nombre.toLowerCase().includes("efectivo")),
+                          };
+                        }
+
+                        const isID = typeof m === "string" && /^[0-9a-fA-F]{24}$/.test(m);
+                        if (isID) {
+                          if (order.estado === "pendiente_pago" || order.estado === "inicio") {
+                            return { nombre: "Pendiente", tipo: "", esEfectivo: false };
+                          }
+                          return { nombre: "Sin método", tipo: "", esEfectivo: false };
+                        }
+
+                        const str = String(m);
+                        return {
+                          nombre: str,
+                          tipo: "",
+                          esEfectivo: str.toLowerCase().includes("efectivo"),
+                        };
+                      })();
+
+                      return [
+                        e("div", { key: "metodo-box", className: "flex items-center gap-2" }, [
+                          e(
+                            "span",
+                            { className: "text-[12px]" },
+                            metodoInfo.esEfectivo ? "💵" : "💳",
+                          ),
+                          e(
+                            "span",
+                            {
+                              className:
+                                "text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-tighter",
+                            },
+                            metodoInfo.nombre,
+                          ),
+                        ]),
                         e(
                           "span",
                           {
+                            key: "monto-box",
                             className:
-                              "text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-tighter",
+                              "text-xs font-black text-emerald-600 dark:text-emerald-400",
                           },
-                          (() => {
-                            // 1. Caso: Objeto poblado (nuevo sistema)
-                            if (
-                              typeof order.pago?.metodo === "object" &&
-                              order.pago.metodo !== null
-                            ) {
-                              return order.pago.metodo.nombre;
-                            }
-
-                            // 2. Caso: Es un ID o falta dato (Simulación para Pruebas)
-                            const isID =
-                              typeof order.pago?.metodo === "string" &&
-                              order.pago.metodo.length === 24;
-                            if (isID || !order.pago?.metodo) {
-                              if (
-                                order.estado === "pendiente_pago" ||
-                                order.estado === "inicio"
-                              )
-                                return "Pendiente";
-                              // Asignación aleatoria para que no se vea vacío en pruebas
-                              const randoms = [
-                                "Pago Móvil",
-                                "Zelle",
-                                "Efectivo",
-                                "Transferencia",
-                              ];
-                              const hash = order._id
-                                .split("")
-                                .reduce((a, b) => {
-                                  a = (a << 5) - a + b.charCodeAt(0);
-                                  return a & a;
-                                }, 0);
-                              return randoms[Math.abs(hash) % randoms.length];
-                            }
-
-                            // 3. Caso: Es un String legible (histórico)
-                            return order.pago.metodo;
-                          })(),
+                          `$${order.pago?.montoUSD || 0}`,
                         ),
-                      ]),
-                      e(
-                        "span",
-                        {
-                          className:
-                            "text-xs font-black text-emerald-600 dark:text-emerald-400",
-                        },
-                        `$${order.pago?.montoUSD || 0}`,
-                      ),
+                      ];
+                    })(),
                     ],
                   ),
                 );

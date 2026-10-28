@@ -2,7 +2,7 @@
 
 > Para el dueño del proyecto (y para Claude/Antigravity cuando preparen la marca).
 > Estado: **Fase 0, actualizada el 2026-10-28.** Las secciones marcadas ⏳ dependen de tareas de
-> `AGENTS.md` que aún no están aprobadas (F0-5 envíos, F0-12 retiro, F0-9 fotos): se confirman al cerrarlas.
+> `AGENTS.md` que aún no están aprobadas (F0-9 fotos): se confirman al cerrarlas.
 
 El código es el mismo para todos los clientes. Lo que cambia por cliente es:
 
@@ -67,7 +67,7 @@ mkdir -p public/assets/brand/<marca>
 | `theme.productBrandLogoUrl` | Logo de la marca de producto para el catálogo, o `""` |
 | `horarioAtencion` | Horario inicial: `dias` (0 = domingo … 6 = sábado), `apertura` y `cierre` en `HH:mm`, `zonaHoraria`. Después se cambia desde el panel |
 | `flujoNoLaborable` | Comportamiento inicial en días no laborables (sección 5.6). Dejar el de VentiMax (entrega en día hábil, sin punto aliado) salvo que el cliente pida otra cosa; se cambia desde el panel |
-| `legal` | Razón social, RIF, dirección y fecha para la política de privacidad (sección 1.7) |
+| `legal` | Valor inicial de razón social, RIF y dirección. Lo normal es dejarlo vacío y cargarlo en el panel (sección 1.7) |
 | `watchdog` | Días sin alertas (0 = domingo) y franja horaria de alertas al admin. Es independiente del horario de atención |
 | `messages.*` | Textos del bot. Revisar **todos**: no pueden quedar referencias al negocio anterior (ventiladores, Fortunne). `{{brandName}}`, `{{botIdentity}}` y las demás variables entre llaves se dejan tal cual |
 
@@ -122,15 +122,17 @@ Después, la verificación completa de `AGENTS.md` (build y suites).
 
 ### 1.7 Política de privacidad
 
-Se genera sola desde la marca en `https://<servicio>.onrender.com/privacidad` (sirve para WhatsApp,
-Instagram y Messenger). Solo hay que completar en `settings.json`:
+Se genera sola en `https://<servicio>.onrender.com/privacidad` (sirve para WhatsApp, Instagram y
+Messenger). La razón social, el RIF, la dirección fiscal y los datos de contacto se cargan **en el panel**
+(Configuración → Operación → **Datos del negocio**) y cambian al guardar, sin desplegar. La fecha de
+"Última actualización" se pone sola cada vez que se guardan.
 
-```json
-"legal": { "razonSocial": "Inversiones Ejemplo, C.A.", "rif": "J-12345678-9",
-           "direccion": "Caracas, Venezuela", "fechaActualizacion": "1 de noviembre de 2026" }
-```
+En `settings.json` (`legal`, `contact`, `whatsappPhone`) pueden quedar vacíos: solo sirven de valor inicial
+mientras nadie los cargue en el panel. El WhatsApp de ese bloque es también el número al que Instagram y
+Messenger mandan a los clientes; si está vacío se usa `WHATSAPP_PHONE` y, si tampoco existe, el del
+administrador.
 
-y los datos de `contact` y `whatsappPhone`. En Meta se registran:
+En Meta se registran:
 - URL de la política de privacidad: `https://<servicio>.onrender.com/privacidad`
 - URL de instrucciones de eliminación de datos: `https://<servicio>.onrender.com/privacidad#eliminacion-de-datos`
 
@@ -281,22 +283,39 @@ Entrar en `https://<servicio>.onrender.com/panel`.
    principal es la que el bot envía al cliente.
 3. **Inventario → Pagos:** crear cada método de pago con sus datos reales y activarlo. Sin métodos activos
    el bot no puede cerrar ventas.
-4. **Inventario → Envíos** ⏳ (F0-5, F0-12): crear un método por cada forma de entrega y activarlo.
-   - Tipos: delivery local, envío nacional, retiro u otro. Costo **fijo** (se suma al total que paga el
-     cliente) o **a convenir** (el resumen dice "a convenir con el asesor" y el asesor fija el precio).
-   - "Datos que pide el bot": lo que el bot pregunta después, p. ej. "estado, ciudad y agencia de envío".
-   - **Retiro:** dirección y horario del punto (si el horario queda vacío, se usa el de atención). El costo
-     es siempre 0 y el bot no pide dirección. Si el cliente escribe "voy en persona" al elegir el envío o
-     al pagar, el bot cambia el pedido a retiro.
-   - Con un solo método activo, el bot lo elige solo; con varios, muestra una lista; sin ninguno, salta el
-     paso.
-   - El asesor puede cambiar el envío o poner el costo acordado de un pedido ya creado desde el Kanban.
-5. **Configuración → Operación → Horario de atención:** días y horas en que el negocio despacha. Los días
+4. **Inventario → Envíos:** botón **Añadir Método**, uno por cada forma de entrega. Cada tarjeta tiene un
+   interruptor para activarlo o desactivarlo sin borrarlo; un método inactivo no se le ofrece al cliente.
+   - **Tipo:** Delivery Local, Envío Nacional, Retiro u Otro.
+   - **Costo fijo:** se suma al total que paga el cliente (en $ y en Bs, en el resumen, las instrucciones de
+     pago, el efectivo y el vuelto). **A convenir:** no suma nada y el resumen dice "a convenir con el
+     asesor"; el asesor da el precio por chat.
+   - **Orden:** el de la lista que ve el cliente.
+   - Con un solo método activo, el bot lo elige solo; con varios, muestra una lista después de los datos
+     personales y antes de la dirección; sin ninguno, salta el paso.
+   - El envío aparece en el resumen del bot, la tarjeta del Kanban, la comanda y la notificación al
+     administrador. En la venta manual del Inbox se elige con un selector.
+   - **Datos que pide el bot:** texto libre con lo que el bot pregunta después de elegir el
+     método, p. ej. "estado, ciudad y agencia de envío". Vacío: pide la dirección normal.
+   - **Retiro:** dirección y horario del punto (si el horario queda vacío, se usa el de
+     atención). El costo es siempre 0 y el bot no pide dirección. Si el cliente escribe "voy en persona" al
+     elegir el envío, al confirmar sus datos o al pagar, el bot cambia el pedido a retiro.
+   - Sin método de retiro activo, si el cliente pide retirar, el bot responde que por ahora solo hay
+     entregas y le ofrece hablar con un asesor.
+   - El asesor puede cambiar el envío de un pedido ya creado desde su detalle en el Kanban, y en un método
+     "a convenir" anotar el **costo acordado**: se suma al total (en $ y en Bs, con la tasa del día) y la
+     comanda dice "acordado con el asesor", no "a convenir". Con la casilla "Avisar al cliente" le llega por
+     WhatsApp el envío y el total nuevos. No se puede en pedidos entregados o cancelados; si el pago ya
+     estaba verificado, el panel avisa que la diferencia se arregla con el cliente.
+5. **Configuración → Operación → Datos del negocio:** razón social, RIF, dirección fiscal, correo,
+   WhatsApp, web e Instagram. Salen en la política de privacidad (`/privacidad`) y el WhatsApp es al que
+   Instagram y Messenger mandan a los clientes. Se aplican al guardar; la fecha de actualización de la
+   política se pone sola. Campos vacíos no se muestran.
+6. **Configuración → Operación → Horario de atención:** días y horas en que el negocio despacha. Los días
    desmarcados son "no laborables" para el bot, y el texto del horario que ve el cliente se actualiza al
    guardar, sin reiniciar. El valor inicial sale de `horarioAtencion` en `settings.json`.
    - Solo los **días** cambian el flujo del bot. La hora de apertura y cierre se muestra en los mensajes,
      pero en un día laborable el bot atiende igual fuera de hora.
-6. **Configuración → Operación → Días no laborables:** qué hace el bot cuando un cliente escribe en un día
+7. **Configuración → Operación → Días no laborables:** qué hace el bot cuando un cliente escribe en un día
    desmarcado. Cambia al guardar, sin reiniciar.
    - **Interruptor general apagado:** el bot atiende normal, como un día laborable.
    - **Entrega en día hábil:** el bot avisa que hoy no se despacha y ofrece pedir para el próximo día
@@ -309,8 +328,8 @@ Entrar en `https://<servicio>.onrender.com/panel`.
      guardar sin ninguna.
    - Este punto aliado es independiente del método de envío "Retiro" del punto 4. Si el cliente usa el mismo
      lugar para los dos casos, cargar la misma dirección en ambos.
-7. **Configuración → Notificaciones:** días y horas de las alertas al administrador.
-8. **FAQ y respuestas rápidas:** borrar las que no apliquen al negocio y cargar las suyas. El token `{menu}`
+8. **Configuración → Notificaciones:** días y horas de las alertas al administrador.
+9. **FAQ y respuestas rápidas:** borrar las que no apliquen al negocio y cargar las suyas. El token `{menu}`
    muestra el catálogo vigente con precios y stock.
 
 ---
@@ -327,7 +346,7 @@ Desde un teléfono que **no** sea del negocio:
 - [ ] Confirmar el pago, despachar y entregar desde el panel: el cliente recibe cada aviso.
 - [ ] Preguntar algo libre al bot: responde según el rubro del cliente, sin mencionar otros negocios.
 - [ ] Con un método de envío de costo fijo: el resumen y el monto a pagar (en $ y en Bs) incluyen el envío.
-- [ ] Escribir "voy en persona" al elegir el envío: el pedido pasa a retiro y muestra la dirección ⏳ (F0-12).
+- [ ] Escribir "voy en persona" al elegir el envío: el pedido pasa a retiro y muestra la dirección.
 - [ ] Día no laborable: desmarcar hoy en el horario, escribir "hola" y comprobar que el bot ofrece la
       opción configurada. Volver a marcar el día al terminar.
 - [ ] Instagram y Messenger, si se activaron: un mensaje desde una cuenta ajena llega al Inbox.
@@ -343,7 +362,8 @@ Desde un teléfono que **no** sea del negocio:
 - [ ] Métodos de envío y punto de retiro cargados y activos.
 - [ ] Horario de atención y días no laborables revisados.
 - [ ] Ningún texto del negocio anterior: probar bienvenida, catálogo, resumen de pedido y una pregunta libre.
-- [ ] `settings.legal` completo y `/privacidad` muestra razón social, RIF y contacto correctos.
+- [ ] Datos del negocio cargados en el panel y `/privacidad` muestra razón social, RIF y contacto correctos.
+- [ ] El enlace a WhatsApp que manda Instagram/Messenger abre el número del negocio.
 - [ ] Meta: webhooks verificados, plantilla `order_notification` aprobada, app en modo *Live*.
 - [ ] Teléfonos de alerta probados: la comanda de prueba llegó.
 - [ ] Prueba final (sección 6) completa y pedido de prueba borrado.
@@ -354,7 +374,5 @@ Desde un teléfono que **no** sea del negocio:
 
 | Tema | Tarea |
 |---|---|
-| Métodos de envío (sección 5.4): confirmar nombres de campos y pantallas al aprobar | F0-5 |
-| Retiro en persona y cambio de envío desde el Kanban (sección 5.4) | F0-12 |
 | Imágenes de producto (requieren cuenta de Cloudinary por cliente) | F0-9 |
 | Cabeceras de seguridad (CSP): puede pedir revisar el panel tras desplegar | F0-11 |

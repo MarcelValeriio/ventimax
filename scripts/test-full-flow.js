@@ -31,6 +31,7 @@ async function runTest() {
         data.metodosPago = [
             { _id: 'pm_001', tipo: 'pago_movil', nombre: 'Pago Móvil', activo: true, datos: { banco: 'Banesco', telefono: '04121234567', cedula: '12345678' } }
         ];
+        data.metodosEnvio = [];
         dbLocal.write(data);
         await orderService.setEstado(from, {
             paso: 'esperando_cedula',

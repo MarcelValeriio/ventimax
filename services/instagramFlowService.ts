@@ -15,6 +15,7 @@ const instagram = require("./instagram");
 const messenger = require("./messenger");
 const configManager = require("./configManager");
 const { getConfig } = require("./configStore");
+const { getDatosNegocioSync } = require("./datosNegocioService");
 
 function buildWaLink(waPhone: string, etiqueta: any, baseText: string = "pedir") {
   let adTag = "";
@@ -195,15 +196,17 @@ async function isIgBotEnabled(canal = CANAL_IG) {
 }
 
 /**
- * Obtiene el número de WhatsApp oficial configurado
+ * Obtiene el número de WhatsApp oficial: el del panel (Datos del negocio, que si está vacío toma
+ * settings.whatsappPhone de la marca), luego WHATSAPP_PHONE y por último el del administrador.
+ * Sin número fijo en el código: si no hay ninguno configurado, devuelve "".
  */
 function getWhatsAppPhoneNumber() {
   const phone =
+    getDatosNegocioSync().contacto.whatsapp ||
     getConfig("WHATSAPP_PHONE") ||
-    configManager.get("settings.whatsappPhone") ||
     getConfig("ADMIN_PHONE_NUMBER") ||
-    "584122781982";
-  return phone.replace(/[^0-9]/g, "");
+    "";
+  return String(phone).replace(/[^0-9]/g, "");
 }
 
 /**

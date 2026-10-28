@@ -50,6 +50,7 @@ async function runWhatsAppEdgeCasesTest() {
   data.etiquetas = {};
   data.pedidos = [];
   data.mensajes = [];
+  data.metodosEnvio = [];
   
   data.categorias = [
     { _id: "cat_dumplings", nombre: "Dumplings Artesanales", slug: "dumplings", activo: true, padre: null },

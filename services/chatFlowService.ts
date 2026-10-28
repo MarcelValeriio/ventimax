@@ -46,6 +46,7 @@ const { buscarFAQ, getSaboresEnStock, getMenuDinamico } = require("./faqMatcher"
 const { obtenerTasaUSD } = require("./bcv");
 const {
   enviarTexto,
+  enviarBotones,
   enviarLista,
   notificarAdminConFallback,
 } = require("./whatsapp");
@@ -59,9 +60,67 @@ const {
 const pushService = require("./pushService");
 const { filtroPorCategoria } = require("./catalogQuery");
 const { getFlujoNoLaborableSync } = require("./flujoNoLaborableService");
-const { getProximoDiaHabil, getHoraAperturaFormateada } = require("./horarioService");
+const {
+  getProximoDiaHabil,
+  getHoraAperturaFormateada,
+  formatearHorarioAtencion,
+} = require("./horarioService");
 const axios = require("axios");
 const { getConfig } = require("./configStore");
+
+/**
+ * Detecta si el texto del usuario expresa intención de retirar el pedido en persona.
+ */
+function quiereRetirar(texto: string): boolean {
+  if (!texto || typeof texto !== "string") return false;
+  const normalizado = texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!normalizado) return false;
+
+  // Evitar falsos positivos como trámites de garantía o devolución
+  if (normalizado.includes("garantia") || normalizado.includes("devolucion")) {
+    return false;
+  }
+
+  const frases = [
+    "voy en persona",
+    "lo busco",
+    "la busco",
+    "lo paso buscando",
+    "la paso buscando",
+    "paso a buscar",
+    "pasar a buscar",
+    "paso por alla",
+    "pick up",
+    "pickup",
+    "retiro en persona",
+    "retiro en tienda",
+    "quiero retirar",
+    "puedo retirar",
+    "prefiero retirar",
+    "lo retiro",
+    "la retiro",
+    "retiro yo",
+    "voy a buscar",
+    "voy a retirar",
+  ];
+
+  for (const frase of frases) {
+    if (normalizado.includes(frase)) return true;
+  }
+
+  if (/\b(retiro|retirar)\b/.test(normalizado)) {
+    return true;
+  }
+
+  return false;
+}
 
 const WEBHOOK_DEBOUNCE_MS_DEFAULT = 1200;
 
@@ -456,6 +515,28 @@ class ChatFlowService {
         io,
       );
       await this.handleInicio({ from, io });
+      return;
+    }
+
+    // Solicitud explícita de hablar con un asesor o botón hablar_asesor
+    const asesorItem = batch.find((item) => {
+      const l = (item.text || "").toLowerCase().trim();
+      const clean = l.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return (
+        l === "hablar_asesor" ||
+        clean === "asesor" ||
+        clean === "humano" ||
+        clean === "hablar con asesor" ||
+        clean === "agente"
+      );
+    });
+
+    if (asesorItem) {
+      await orderService.setModo(from, "manual", io);
+      const msgAsesor =
+        configManager.get("settings.messages.advisorHandoff") ||
+        "👨‍💼 Un asesor se comunicará contigo a la brevedad. Por favor déjanos tu consulta.";
+      await this._sendYGuardar(from, msgAsesor, io);
       return;
     }
 
@@ -1546,14 +1627,34 @@ class ChatFlowService {
       }
     } else if (metodos.length === 1) {
       const m = metodos[0];
+      const esRetiro = m.tipo === "retiro";
       carrito.envio = {
         metodoId: m._id ? m._id.toString() : undefined,
         nombre: m.nombre,
         tipo: m.tipo,
-        costo: m.costoTipo === "fijo" ? (Number(m.costo) || 0) : 0,
-        aConvenir: m.costoTipo === "a_convenir",
+        costo: esRetiro ? 0 : (m.costoTipo === "fijo" ? (Number(m.costo) || 0) : 0),
+        costoTipo: esRetiro ? "fijo" : m.costoTipo,
+        aConvenir: esRetiro ? false : (m.costoTipo === "a_convenir"),
+        direccion: m.direccion || "",
+        horario: m.horario || "",
       };
       await orderService.actualizarPedido(from, { envio: carrito.envio });
+
+      if (esRetiro) {
+        const horarioTexto =
+          m.horario && m.horario.trim()
+            ? m.horario.trim()
+            : formatearHorarioAtencion();
+        const msgRetiro = `📍 *Punto de retiro:* ${m.direccion || "Dirección de retiro"}\n⏰ *Horario de entrega:* ${horarioTexto}`;
+        await this._sendYGuardar(from, msgRetiro, io);
+        await orderService.setEstado(
+          from,
+          { paso: "esperando_confirmacion_datos", carrito },
+          io,
+        );
+        await chatFlow.solicitarConfirmacionDatos(from, carrito, io);
+        return;
+      }
 
       if (carrito.ubicacion || carrito.direccion_manual) {
         await orderService.setEstado(
@@ -1613,10 +1714,69 @@ class ChatFlowService {
     }
   }
 
+  async procesarIntencionRetiro({ from, io, estado }) {
+    let carrito = estado.carrito || { items: [] };
+    if (!carrito.items) carrito.items = [];
+
+    const metodoRetiro = await MetodoEnvio.findOne({
+      tipo: "retiro",
+      activo: true,
+    }).sort({ orden: 1, createdAt: 1 });
+    if (!metodoRetiro) {
+      const msgNoDisponible =
+        configManager.get("settings.messages.pickupUnavailable") ||
+        "Actualmente no disponemos de punto de retiro físico activo. Todas nuestras entregas se coordinan por delivery o envío nacional. Si tienes alguna duda, un asesor puede atenderte.";
+      const buttons = [{ id: "hablar_asesor", title: "💬 Hablar con Asesor" }];
+      await enviarBotones(from, msgNoDisponible, buttons);
+      if (orderService.emitirYGuardar) {
+        await orderService.emitirYGuardar(from, msgNoDisponible, "bot", io);
+      }
+      return false;
+    }
+
+    const tipoAnterior = carrito.envio?.tipo;
+    const cambioTrasCotizar = Boolean(tipoAnterior && tipoAnterior !== "retiro");
+
+    carrito.envio = {
+      metodoId: metodoRetiro._id ? metodoRetiro._id.toString() : undefined,
+      nombre: metodoRetiro.nombre,
+      tipo: "retiro",
+      costo: 0,
+      costoTipo: "fijo",
+      aConvenir: false,
+      direccion: metodoRetiro.direccion || "",
+      horario: metodoRetiro.horario || "",
+      cambioTrasCotizar,
+    };
+
+    await orderService.actualizarPedido(from, { envio: carrito.envio });
+
+    const horarioTexto =
+      metodoRetiro.horario && metodoRetiro.horario.trim()
+        ? metodoRetiro.horario.trim()
+        : formatearHorarioAtencion();
+    const msgRetiro = `📍 *Punto de retiro:* ${metodoRetiro.direccion || "Dirección de retiro"}\n⏰ *Horario de entrega:* ${horarioTexto}`;
+    await this._sendYGuardar(from, msgRetiro, io);
+
+    await orderService.setEstado(
+      from,
+      { paso: "esperando_confirmacion_datos", carrito },
+      io,
+    );
+    await chatFlow.solicitarConfirmacionDatos(from, carrito, io);
+    return true;
+  }
+
   async handleEsperandoMetodoEnvio({ from, text, listReplyId, io, estado }) {
     try {
       let carrito = estado.carrito || { items: [] };
       if (!carrito.items) carrito.items = [];
+
+      // Interceptar si el usuario escribe una frase de retiro
+      if (text && quiereRetirar(text)) {
+        await this.procesarIntencionRetiro({ from, io, estado });
+        return;
+      }
 
       const metodos = await MetodoEnvio.find({ activo: true }).sort({ orden: 1, createdAt: 1 });
       if (!metodos || metodos.length === 0) {
@@ -1654,15 +1814,45 @@ class ChatFlowService {
         return;
       }
 
+      const esRetiro = seleccionado.tipo === "retiro";
+      const tipoAnterior = carrito.envio?.tipo;
+      const cambioTrasCotizar = Boolean(
+        tipoAnterior && tipoAnterior !== seleccionado.tipo,
+      );
+
       carrito.envio = {
         metodoId: seleccionado._id ? seleccionado._id.toString() : undefined,
         nombre: seleccionado.nombre,
         tipo: seleccionado.tipo,
-        costo: seleccionado.costoTipo === "fijo" ? (Number(seleccionado.costo) || 0) : 0,
-        aConvenir: seleccionado.costoTipo === "a_convenir",
+        costo: esRetiro
+          ? 0
+          : seleccionado.costoTipo === "fijo"
+            ? Number(seleccionado.costo) || 0
+            : 0,
+        costoTipo: esRetiro ? "fijo" : seleccionado.costoTipo,
+        aConvenir: esRetiro ? false : seleccionado.costoTipo === "a_convenir",
+        direccion: seleccionado.direccion || "",
+        horario: seleccionado.horario || "",
+        cambioTrasCotizar,
       };
 
       await orderService.actualizarPedido(from, { envio: carrito.envio });
+
+      if (esRetiro) {
+        const horarioTexto =
+          seleccionado.horario && seleccionado.horario.trim()
+            ? seleccionado.horario.trim()
+            : formatearHorarioAtencion();
+        const msgRetiro = `📍 *Punto de retiro:* ${seleccionado.direccion || "Dirección de retiro"}\n⏰ *Horario de entrega:* ${horarioTexto}`;
+        await this._sendYGuardar(from, msgRetiro, io);
+        await orderService.setEstado(
+          from,
+          { paso: "esperando_confirmacion_datos", carrito },
+          io,
+        );
+        await chatFlow.solicitarConfirmacionDatos(from, carrito, io);
+        return;
+      }
 
       if (carrito.ubicacion || carrito.direccion_manual) {
         await orderService.setEstado(
@@ -1711,7 +1901,7 @@ class ChatFlowService {
         } else if (location.latitude && location.longitude) {
           try {
             const brandName = configManager.get("settings.brandName") || "ReplyBot";
-            const contactEmail = configManager.get("settings.contact.email");
+            const contactEmail = require("./datosNegocioService").getDatosNegocioSync().contacto.email;
             const userAgent = contactEmail ? `${brandName}/1.0 (${contactEmail})` : `${brandName}/1.0`;
             const geoRes = await axios.get(
               `https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.latitude}&lon=${location.longitude}`,
@@ -1819,9 +2009,15 @@ class ChatFlowService {
     }
   }
 
-  async handleEsperandoConfirmacionDatos({ from, low, io, estado }) {
+  async handleEsperandoConfirmacionDatos({ from, text, low, io, estado }) {
     let carrito = estado.carrito || { items: [] };
     if (!carrito.items) carrito.items = [];
+
+    // Si el usuario expresa intención de retirar en persona tras haber cotizado delivery
+    if (quiereRetirar(text || low)) {
+      await this.procesarIntencionRetiro({ from, io, estado });
+      return;
+    }
 
     if (low === "datos_correctos") {
       await orderService.setEstado(from, { paso: "esperando_pago_metodo" }, io);
@@ -1875,9 +2071,16 @@ class ChatFlowService {
     }
   }
 
-  async handleEsperandoPagoMetodo({ from, low, io, estado }) {
+  async handleEsperandoPagoMetodo({ from, text, low, io, estado }) {
     let carrito = estado.carrito || { items: [] };
     if (!carrito.items) carrito.items = [];
+
+    // Si el usuario en el paso de pago decide retirar en persona
+    if (quiereRetirar(text || low)) {
+      await this.procesarIntencionRetiro({ from, io, estado });
+      return;
+    }
+
     const totalUsd = orderService.calcularTotalCarrito(carrito);
 
     if (low === "efectivo") {
@@ -2165,4 +2368,7 @@ class ChatFlowService {
   }
 }
 
-module.exports = new ChatFlowService();
+const chatFlowServiceInstance = new ChatFlowService();
+(chatFlowServiceInstance as any).quiereRetirar = quiereRetirar;
+module.exports = chatFlowServiceInstance;
+module.exports.quiereRetirar = quiereRetirar;

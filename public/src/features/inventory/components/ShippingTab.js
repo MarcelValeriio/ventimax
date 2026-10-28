@@ -11,14 +11,8 @@ const e = React.createElement;
 const TIPOS_ENVIO = [
   { value: "delivery_local", label: "Delivery Local", icon: "fa-motorcycle" },
   { value: "envio_nacional", label: "Envío Nacional", icon: "fa-shipping-fast" },
-  { value: "retiro_tienda", label: "Retiro en Tienda / Punto", icon: "fa-store" },
+  { value: "retiro", label: "Retiro en persona / tienda", icon: "fa-store" },
   { value: "otro", label: "Otro / Especial", icon: "fa-truck" },
-];
-
-const PIDE_DATOS_OPCIONES = [
-  { value: "direccion", label: "Dirección de entrega" },
-  { value: "agencia", label: "Datos de agencia / casillero" },
-  { value: "ninguno", label: "Ninguno (Retiro presencial)" },
 ];
 
 const ShippingTab = () => {
@@ -34,7 +28,9 @@ const ShippingTab = () => {
     descripcion: "",
     costoTipo: "a_convenir",
     costo: 0,
-    pideDatos: "direccion",
+    pideDatos: "",
+    direccion: "",
+    horario: "",
     activo: true,
     orden: 0,
   });
@@ -67,7 +63,9 @@ const ShippingTab = () => {
         descripcion: method.descripcion || "",
         costoTipo: method.costoTipo || "a_convenir",
         costo: Number(method.costo) || 0,
-        pideDatos: method.pideDatos || "direccion",
+        pideDatos: method.pideDatos || "",
+        direccion: method.direccion || "",
+        horario: method.horario || "",
         activo: method.activo !== false,
         orden: Number(method.orden) || 0,
       });
@@ -79,7 +77,9 @@ const ShippingTab = () => {
         descripcion: "",
         costoTipo: "a_convenir",
         costo: 0,
-        pideDatos: "direccion",
+        pideDatos: "",
+        direccion: "",
+        horario: "",
         activo: true,
         orden: 0,
       });
@@ -110,15 +110,28 @@ const ShippingTab = () => {
       window.showToast?.("⚠️ El nombre del método es obligatorio", "error");
       return;
     }
-    if (formData.costoTipo === "fijo" && Number(formData.costo) < 0) {
-      window.showToast?.("⚠️ El costo no puede ser negativo", "error");
-      return;
+
+    const isRetiro = formData.tipo === "retiro";
+    if (isRetiro) {
+      if (!formData.direccion || !formData.direccion.trim()) {
+        window.showToast?.("⚠️ La dirección es obligatoria para el método de retiro", "error");
+        return;
+      }
+    } else {
+      if (formData.costoTipo === "fijo" && Number(formData.costo) < 0) {
+        window.showToast?.("⚠️ El costo no puede ser negativo", "error");
+        return;
+      }
     }
 
     try {
       const payload = {
         ...formData,
-        costo: formData.costoTipo === "fijo" ? Number(formData.costo) : 0,
+        costoTipo: isRetiro ? "fijo" : formData.costoTipo,
+        costo: isRetiro ? 0 : (formData.costoTipo === "fijo" ? Number(formData.costo) : 0),
+        pideDatos: isRetiro ? "" : (formData.pideDatos ? formData.pideDatos.trim() : ""),
+        direccion: isRetiro ? formData.direccion.trim() : (formData.direccion || "").trim(),
+        horario: isRetiro ? (formData.horario || "").trim() : (formData.horario || "").trim(),
         orden: Number(formData.orden) || 0,
       };
 
@@ -131,7 +144,7 @@ const ShippingTab = () => {
       fetchMethods();
       window.showToast?.("✅ Método de envío guardado");
     } catch (err) {
-      const msg = err.response?.data?.message || err.message;
+      const msg = err.response?.data?.error || err.response?.data?.message || err.message;
       window.showToast?.("❌ Error al guardar: " + msg, "error");
     }
   };
@@ -147,7 +160,7 @@ const ShippingTab = () => {
           fetchMethods();
           window.showToast?.("🗑️ Método de envío eliminado");
         } catch (err) {
-          const msg = err.response?.data?.message || err.message;
+          const msg = err.response?.data?.error || err.response?.data?.message || err.message;
           window.showToast?.("❌ " + msg, "error");
         }
       },
@@ -162,11 +175,6 @@ const ShippingTab = () => {
   const getTipoLabel = (tipo) => {
     const item = TIPOS_ENVIO.find((t) => t.value === tipo);
     return item ? item.label : tipo.replace("_", " ");
-  };
-
-  const getPideDatosLabel = (val) => {
-    const item = PIDE_DATOS_OPCIONES.find((p) => p.value === val);
-    return item ? item.label : val;
   };
 
   if (loading && methods.length === 0) {
@@ -298,34 +306,57 @@ const ShippingTab = () => {
                 e(
                   "div",
                   { key: "detalles", className: "mb-5 space-y-2 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-xl border border-gray-100 dark:border-gray-700/50" },
-                  e(
-                    "div",
-                    { className: "flex justify-between text-xs items-center" },
-                    e("span", { className: "text-gray-400 font-medium" }, "Costo:"),
-                    e(
-                      "span",
-                      {
-                        className: `font-bold ${
-                          m.costoTipo === "fijo"
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-amber-600 dark:text-amber-400"
-                        }`,
-                      },
-                      m.costoTipo === "fijo"
-                        ? `$${Number(m.costo || 0).toFixed(2)} USD`
-                        : "A convenir con el asesor",
-                    ),
-                  ),
-                  e(
-                    "div",
-                    { className: "flex justify-between text-xs items-center" },
-                    e("span", { className: "text-gray-400 font-medium" }, "Pide al cliente:"),
-                    e(
-                      "span",
-                      { className: "text-gray-700 dark:text-gray-300 font-semibold text-right" },
-                      getPideDatosLabel(m.pideDatos),
-                    ),
-                  ),
+                  m.tipo === "retiro"
+                    ? [
+                        e(
+                          "div",
+                          { key: "costo-ret", className: "flex justify-between text-xs items-center" },
+                          e("span", { className: "text-gray-400 font-medium" }, "Costo:"),
+                          e("span", { className: "font-bold text-emerald-600 dark:text-emerald-400" }, "Gratis ($0.00)"),
+                        ),
+                        e(
+                          "div",
+                          { key: "dir-ret", className: "flex justify-between text-xs items-start gap-2" },
+                          e("span", { className: "text-gray-400 font-medium whitespace-nowrap" }, "Dirección:"),
+                          e("span", { className: "text-gray-700 dark:text-gray-300 font-semibold text-right text-[11px]" }, m.direccion || "No especificada"),
+                        ),
+                        e(
+                          "div",
+                          { key: "hor-ret", className: "flex justify-between text-xs items-center" },
+                          e("span", { className: "text-gray-400 font-medium" }, "Horario:"),
+                          e("span", { className: "text-gray-600 dark:text-gray-400 text-right text-[11px]" }, m.horario || "Horario de atención"),
+                        ),
+                      ]
+                    : [
+                        e(
+                          "div",
+                          { key: "costo-del", className: "flex justify-between text-xs items-center" },
+                          e("span", { className: "text-gray-400 font-medium" }, "Costo:"),
+                          e(
+                            "span",
+                            {
+                              className: `font-bold ${
+                                m.costoTipo === "fijo"
+                                  ? "text-emerald-600 dark:text-emerald-400"
+                                  : "text-amber-600 dark:text-amber-400"
+                              }`,
+                            },
+                            m.costoTipo === "fijo"
+                              ? `$${Number(m.costo || 0).toFixed(2)} USD`
+                              : "A convenir con el asesor",
+                          ),
+                        ),
+                        e(
+                          "div",
+                          { key: "pide-del", className: "flex justify-between text-xs items-center" },
+                          e("span", { className: "text-gray-400 font-medium" }, "Pide al cliente:"),
+                          e(
+                            "span",
+                            { className: "text-gray-700 dark:text-gray-300 font-semibold text-right truncate max-w-[160px]" },
+                            m.pideDatos && m.pideDatos.trim() ? m.pideDatos : "Dirección habitual",
+                          ),
+                        ),
+                      ],
                   m.orden !== undefined && m.orden !== 0
                     ? e(
                         "div",
@@ -466,88 +497,140 @@ const ShippingTab = () => {
               }),
             ),
 
-            // Modalidad de Costo
-            e(
-              "div",
-              { className: "grid grid-cols-2 gap-3" },
-              e(
-                "div",
-                null,
-                e(
-                  "label",
-                  { className: "text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1" },
-                  "Modalidad de Costo",
-                ),
-                e(
-                  "select",
-                  {
-                    value: formData.costoTipo,
-                    onChange: (ev) => setFormData({ ...formData, costoTipo: ev.target.value }),
-                    className:
-                      "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm",
-                  },
-                  e("option", { value: "a_convenir" }, "A convenir con asesor"),
-                  e("option", { value: "fijo" }, "Costo Fijo ($)"),
-                ),
-              ),
-              formData.costoTipo === "fijo"
-                ? e(
+            // Campos específicos según tipo (Retiro vs Delivery/Nacional/Otro)
+            formData.tipo === "retiro"
+              ? [
+                  e(
                     "div",
-                    null,
+                    { key: "input-direccion-retiro" },
                     e(
                       "label",
                       { className: "text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1" },
-                      "Monto en USD ($)",
+                      "Dirección del Punto de Retiro *",
                     ),
-                    e("input", {
-                      type: "number",
-                      min: "0",
-                      step: "0.01",
-                      value: formData.costo,
+                    e("textarea", {
+                      rows: 2,
+                      maxLength: 200,
                       required: true,
-                      onChange: (ev) => setFormData({ ...formData, costo: parseFloat(ev.target.value) || 0 }),
+                      value: formData.direccion || "",
+                      onChange: (ev) => setFormData({ ...formData, direccion: ev.target.value }),
                       className:
-                        "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm",
+                        "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm resize-none",
+                      placeholder: "Dirección exacta del punto de retiro",
                     }),
-                  )
-                : e(
+                  ),
+                  e(
                     "div",
-                    null,
+                    { key: "input-horario-retiro" },
                     e(
                       "label",
                       { className: "text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1" },
-                      "Detalle del Costo",
+                      "Horario de Retiro (Opcional)",
                     ),
                     e("input", {
                       type: "text",
-                      disabled: true,
-                      value: "Se acuerda con el cliente",
+                      maxLength: 100,
+                      value: formData.horario || "",
+                      onChange: (ev) => setFormData({ ...formData, horario: ev.target.value }),
                       className:
-                        "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-100 dark:bg-gray-900/50 text-gray-400 text-sm cursor-not-allowed",
+                        "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm",
+                      placeholder: "Ej: Lunes a Viernes de 9:00 am a 4:00 pm",
                     }),
+                    e(
+                      "p",
+                      { className: "text-[11px] text-gray-400 mt-1" },
+                      "Si lo dejas vacío, se usa el horario de atención configurado.",
+                    ),
                   ),
-            ),
+                ]
+              : [
+                  // Modalidad de Costo
+                  e(
+                    "div",
+                    { key: "modalidad-costo-grid", className: "grid grid-cols-2 gap-3" },
+                    e(
+                      "div",
+                      null,
+                      e(
+                        "label",
+                        { className: "text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1" },
+                        "Modalidad de Costo",
+                      ),
+                      e(
+                        "select",
+                        {
+                          value: formData.costoTipo,
+                          onChange: (ev) => setFormData({ ...formData, costoTipo: ev.target.value }),
+                          className:
+                            "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm",
+                        },
+                        e("option", { value: "a_convenir" }, "A convenir con asesor"),
+                        e("option", { value: "fijo" }, "Costo Fijo ($)"),
+                      ),
+                    ),
+                    formData.costoTipo === "fijo"
+                      ? e(
+                          "div",
+                          null,
+                          e(
+                            "label",
+                            { className: "text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1" },
+                            "Monto en USD ($)",
+                          ),
+                          e("input", {
+                            type: "number",
+                            min: "0",
+                            step: "0.01",
+                            value: formData.costo,
+                            required: true,
+                            onChange: (ev) => setFormData({ ...formData, costo: parseFloat(ev.target.value) || 0 }),
+                            className:
+                              "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm",
+                          }),
+                        )
+                      : e(
+                          "div",
+                          null,
+                          e(
+                            "label",
+                            { className: "text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1" },
+                            "Detalle del Costo",
+                          ),
+                          e("input", {
+                            type: "text",
+                            disabled: true,
+                            value: "Se acuerda con el cliente",
+                            className:
+                              "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-100 dark:bg-gray-900/50 text-gray-400 text-sm cursor-not-allowed",
+                          }),
+                        ),
+                  ),
 
-            // Pide Datos
-            e(
-              "div",
-              null,
-              e(
-                "label",
-                { className: "text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1" },
-                "Datos que solicita el Bot",
-              ),
-              e(
-                "select",
-                {
-                  value: formData.pideDatos,
-                  onChange: (ev) => setFormData({ ...formData, pideDatos: ev.target.value }),
-                  className:
-                    "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm",
-                },
-                PIDE_DATOS_OPCIONES.map((p) => e("option", { key: p.value, value: p.value }, p.label)),
-              ),
-            ),
+                  // Datos que pide el bot
+                  e(
+                    "div",
+                    { key: "input-pide-datos" },
+                    e(
+                      "label",
+                      { className: "text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1" },
+                      "Datos que solicita el Bot (Opcional)",
+                    ),
+                    e("input", {
+                      type: "text",
+                      maxLength: 120,
+                      value: formData.pideDatos || "",
+                      onChange: (ev) => setFormData({ ...formData, pideDatos: ev.target.value }),
+                      className:
+                        "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm",
+                      placeholder: "ej: estado, ciudad y agencia de envío",
+                    }),
+                    e(
+                      "p",
+                      { className: "text-[11px] text-gray-400 mt-1" },
+                      "Si lo dejas vacío, el bot pedirá la dirección de entrega habitual.",
+                    ),
+                  ),
+                ],
 
             // Orden y Activo
             e(

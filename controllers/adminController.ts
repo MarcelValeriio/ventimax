@@ -46,7 +46,8 @@ if (process.env.NODE_ENV === "test") {
 }
 const configManager = require("../services/configManager");
 const orderService = require("../services/orderService");
-const { obtenerTasas, obtenerTasaUSD } = require("../services/bcv");
+const bcv = require("../services/bcv");
+const { obtenerTasas, obtenerTasaUSD } = bcv;
 const {
   enviarTexto,
   enviarImagenPorMediaId,
@@ -2401,6 +2402,165 @@ const deleteOrder = async (req, res, io) => {
   }
 };
 
+const updateOrderShipping = async (req, res, io) => {
+  try {
+    const { id } = req.params;
+    const { metodoId, costoAcordado, avisarCliente } = req.body || {};
+
+    if (!metodoId) {
+      return res.status(400).json({ success: false, error: "metodoId es obligatorio" });
+    }
+
+    const pedido = await Pedido.findById(id);
+    if (!pedido) {
+      return res.status(404).json({ success: false, error: "Pedido no encontrado" });
+    }
+
+    const estadosBloqueados = ["entregado", "cancelado", "anulado"];
+    if (estadosBloqueados.includes(pedido.estado)) {
+      return res.status(400).json({
+        success: false,
+        error: "No se puede modificar el envío de un pedido entregado o cancelado",
+      });
+    }
+
+    const metodo = await MetodoEnvio.findById(metodoId);
+    if (!metodo || metodo.activo === false) {
+      return res.status(400).json({
+        success: false,
+        error: "Método de envío no válido o inactivo",
+      });
+    }
+
+    const esAConvenir = metodo.costoTipo === "a_convenir";
+    if (!esAConvenir && costoAcordado !== undefined) {
+      return res.status(400).json({
+        success: false,
+        error: "costoAcordado solo se permite para métodos con costo a convenir",
+      });
+    }
+
+    let costoFinal = 0;
+    let tieneCostoAcordado = false;
+    let aConvenirFinal = false;
+
+    if (esAConvenir) {
+      if (costoAcordado !== undefined) {
+        const c = Number(costoAcordado);
+        if (isNaN(c) || c < 0) {
+          return res.status(400).json({
+            success: false,
+            error: "costoAcordado debe ser un número mayor o igual a 0",
+          });
+        }
+        costoFinal = c;
+        tieneCostoAcordado = true;
+        aConvenirFinal = false;
+      } else {
+        costoFinal = 0;
+        tieneCostoAcordado = false;
+        aConvenirFinal = true;
+      }
+    } else {
+      costoFinal = Number(metodo.costo) || 0;
+      tieneCostoAcordado = false;
+      aConvenirFinal = false;
+    }
+
+    const envioAnterior = pedido.envio ? JSON.parse(JSON.stringify(pedido.envio)) : null;
+    const montoUSDAnterior = Number(pedido.pago?.montoUSD) || 0;
+    const tipoAnterior = envioAnterior?.tipo || null;
+    const cambioTrasCotizar = Boolean(tipoAnterior && tipoAnterior !== metodo.tipo);
+
+    pedido.envio = {
+      metodoId: metodo._id,
+      nombre: metodo.nombre,
+      tipo: metodo.tipo,
+      costo: costoFinal,
+      aConvenir: aConvenirFinal,
+      costoAcordado: tieneCostoAcordado,
+      direccion: metodo.direccion || "",
+      horario: metodo.horario || "",
+      cambioTrasCotizar,
+    };
+
+    const montoUSDNuevo = orderService.calcularTotalCarrito({
+      items: pedido.items || [],
+      envio: pedido.envio,
+    });
+
+    if (!pedido.pago) pedido.pago = {};
+    pedido.pago.montoUSD = montoUSDNuevo;
+
+    let tasa = 0;
+    try {
+      const bcvRes = await bcv.obtenerTasaUSD();
+      tasa = Number(bcvRes?.tasa) || 0;
+    } catch (_) {
+      tasa = 0;
+    }
+
+    if (tasa > 0) {
+      pedido.pago.tasa = tasa;
+    } else {
+      tasa = Number(pedido.pago?.tasa) || 0;
+    }
+
+    pedido.pago.montoVES = tasa > 0 ? Math.round(montoUSDNuevo * tasa * 100) / 100 : (pedido.pago.montoVES || 0);
+
+    await pedido.save();
+
+    const difMonto = montoUSDNuevo - montoUSDAnterior;
+    await registrarAuditoria(req, {
+      pedidoId: pedido._id,
+      correlativo: pedido.idFormateado || pedido.correlativo || id,
+      recursoId: pedido._id.toString(),
+      tipoRecurso: "pedido",
+      accion: "modificar_envio_pedido",
+      detalles: `Modificación de método de envío en pedido ${pedido.idFormateado || pedido.correlativo || id}. Anterior: ${JSON.stringify(envioAnterior)}, Nuevo: ${JSON.stringify(pedido.envio)}, Diferencia de monto: ${difMonto >= 0 ? "+" : ""}${difMonto.toFixed(2)} USD`,
+      anterior: envioAnterior,
+      nuevo: pedido.envio,
+    });
+
+    if (io) {
+      io.emit("pedido_actualizado", pedido);
+      io.emit("order_updated", pedido);
+    }
+
+    let aviso: string | undefined = undefined;
+    if (pedido.estado === "verificado" || pedido.estado === "en_ruta") {
+      aviso = "El pago ya estaba verificado. La diferencia debe coordinarse con el cliente.";
+    }
+
+    if (avisarCliente && (pedido.whatsappId || pedido.cliente?.telefono)) {
+      const telefonoDestino = pedido.whatsappId || pedido.cliente?.telefono;
+      try {
+        const orderIdForm = pedido.idFormateado || pedido.correlativo || "";
+        const msgTexto = `🚚 Hola${pedido.cliente?.nombre ? ` *${pedido.cliente.nombre}*` : ""}, el método de envío de tu pedido${orderIdForm ? ` *${orderIdForm}*` : ""} ha sido actualizado a *${metodo.nombre}*.\n*Total actualizado:* $${montoUSDNuevo.toFixed(2)}${pedido.pago.montoVES ? ` (Bs. ${pedido.pago.montoVES.toFixed(2)})` : ""}.${metodo.tipo === "retiro" && metodo.direccion ? `\n📍 *Punto de retiro:* ${metodo.direccion}` : ""}`;
+        const { enviarTexto } = require("../services/whatsapp");
+        await enviarTexto(telefonoDestino, msgTexto);
+        if (orderService.emitirYGuardar) {
+          await orderService.emitirYGuardar(telefonoDestino, msgTexto, "bot", io);
+        }
+      } catch (notifErr: any) {
+        console.error("⚠️ Error notificando al cliente sobre cambio de envío:", notifErr.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      data: pedido,
+      ...(aviso ? { aviso } : {}),
+    });
+  } catch (error: any) {
+    console.error("❌ Error en updateOrderShipping:", error.message);
+    return res.status(500).json({
+      success: false,
+      error: "Error modificando el método de envío",
+    });
+  }
+};
+
 const getSalesSummary = async (req, res) => {
   try {
     const {
@@ -3281,7 +3441,15 @@ const postManualSale = async (req, res, io) => {
         }
 
         if (pedido.envio && pedido.envio.nombre) {
-          adminMsg += `\n🚚 Envío: ${pedido.envio.nombre}${pedido.envio.aConvenir ? " (A convenir)" : (pedido.envio.costo ? ` ($${pedido.envio.costo})` : "")}`;
+          let detalleCosto = "";
+          if (pedido.envio.costoAcordado) {
+            detalleCosto = ` ($${Number(pedido.envio.costo).toFixed(2)}, acordado con el asesor)`;
+          } else if (pedido.envio.aConvenir) {
+            detalleCosto = " (A convenir)";
+          } else if (pedido.envio.costo) {
+            detalleCosto = ` ($${Number(pedido.envio.costo).toFixed(2)})`;
+          }
+          adminMsg += `\n🚚 Envío: ${pedido.envio.nombre}${detalleCosto}`;
         }
 
         if (pedido.notas) {
@@ -4018,6 +4186,7 @@ module.exports = {
   updateOrderStatus,
   assignRepartidor,
   deleteOrder,
+  updateOrderShipping,
   getOrder,
   getSalesSummary,
   getBackup,

@@ -86,6 +86,8 @@
     "stockEmpty": "En este momento no hay sabores disponibles.",
     "stockHeader": "🥟 *Sabores y Rellenos Disponibles para hoy:*",
     "faqFallbackMenu": "1. Sabores y rellenos disponibles\n2. ¿Cuántas unidades trae cada caja?\n3. Horarios de atención y delivery",
-    "igCatalogHeader": "{{brandEmoji}} *Catálogo y Sabores Disponibles:*"
+    "igCatalogHeader": "{{brandEmoji}} *Catálogo y Sabores Disponibles:*",
+    "pickupUnavailable": "Por ahora solo realizamos entregas a domicilio, pero un asesor puede coordinar contigo la mejor opción de entrega.",
+    "advisorHandoff": "👨‍💼 Un asesor se comunicará contigo a la brevedad. Por favor déjanos tu consulta."
   }
 }

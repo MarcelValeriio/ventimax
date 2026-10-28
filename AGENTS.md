@@ -2,8 +2,10 @@
 
 > **Proyecto:** VentiMax. Bot de ventas por WhatsApp, Instagram y Messenger con panel administrativo
 > (Node.js + TypeScript + Express 5 + MongoDB, SPA React 18 sin build).
-> Nace como copia de `reply-bot-pachi` (Mr. Pachi). El historial de Mr. Pachi queda en git
-> (hasta el commit `77e1102`) y ya no se arrastra en este archivo.
+> Nace como copia de `reply-bot-pachi` (Mr. Pachi, hasta su commit `77e1102`). El repositorio de VentiMax
+> empieza con **historial nuevo** (2026-10-28): el heredado traía el `.env` de Pachi en commits viejos. Ese
+> historial queda solo en el repo de Pachi y en una rama local del dueño (`historial-pachi-local`) que
+> **nunca se sube**.
 >
 > **Objetivo:** convertir el sistema en una **plantilla multimarca**. VentiMax (ventiladores marca
 > Fortunne) es la marca piloto. El siguiente cliente es una venta de repuestos de vehículos.
@@ -112,7 +114,7 @@ Firmas en el historial: `— Ejecutado por **Antigravity**`, `— Ejecutado por 
 
 | Fase | Contenido | Estado |
 |---|---|---|
-| **F0** | Plantilla multimarca: marca `ventimax`, código sin textos de Mr. Pachi, horario, fin de semana y métodos de envío editables desde el panel, arranque seguro, imágenes de producto, guía para nuevos clientes. Orden de Antigravity: F0-10 → F0-4 → F0-5 → F0-12 + F0-13 → F0-9 → F0-11. En paralelo, Claude: F0-8 y F0-6 | **En curso** |
+| **F0** | Plantilla multimarca: marca `ventimax`, código sin textos de Mr. Pachi, horario, fin de semana y métodos de envío editables desde el panel, arranque seguro, imágenes de producto, guía para nuevos clientes. Orden de Antigravity: F0-10 → F0-4 → F0-5 → F0-12 + F0-13 → F0-9 → F0-11. En paralelo, Claude: F0-8, F0-14 y F0-6 | **En curso** |
 | F1 | Producto ampliado: SKU, marca fabricante, códigos OEM, atributos, compatibilidad por vehículo (marca, modelo, años, motor, versión), grupos de equivalencia; importación desde Excel; bot por vehículo. **Diseño: `docs/f1-producto-ampliado.md`** | Diseñada (espera cierre de F0) |
 | F2 | Catálogo web público con carrito y pedido a WhatsApp con código no adivinable. **Diseño: `docs/f2-catalogo-web.md`.** Requisitos de seguridad obligatorios: `docs/auditoria-seguridad-2026-10.md` (sección F2) | Diseñada (espera cierre de F0) |
 | F3 | Búsqueda con IA sobre la BD (texto y notas de voz), registro de búsquedas sin resultado, pase a asesor | Pendiente |
@@ -1152,7 +1154,7 @@ Hallazgos S-09 a S-11 de `docs/auditoria-seguridad-2026-10.md`.
 
 **Cierre:** el panel funciona entero en el entorno local con la CSP activa y sin errores de CSP en consola (captura o lista de pantallas revisadas en la entrega). Todas las suites en verde.
 
-### F0-12 · Retiro en persona y cambio de envío — Backend + Frontend · `Pendiente` (después de aprobar F0-5)
+### F0-12 · Retiro en persona y cambio de envío — Backend + Frontend · `Aprobada`
 
 Pedido por el dueño el 2026-10-28. Caso: el cliente ve el costo del delivery, no le conviene y escribe "voy en persona". Hoy el bot no lo entiende y el asesor no puede cambiar el envío de un pedido ya creado. **Base obligatoria:** el helper único del total del carrito que se pide en la corrección de F0-5; esta tarea no calcula totales por su cuenta.
 
@@ -1161,6 +1163,10 @@ Pedido por el dueño el 2026-10-28. Caso: el cliente ve el costo del delivery, n
    - Con `tipo: "retiro"`: `direccion` obligatoria (400 si falta) y el costo es siempre 0 (`costoTipo: "fijo"`, `costo: 0`, sin "a convenir").
    - **La dirección no se escribe en el código ni en `config/`:** se carga desde el panel. En `dbLocal` la semilla de prueba usa un punto genérico ("Punto de retiro de prueba").
 2. **Panel, pestaña Envíos** (`ShippingTab.js`): con tipo "Retiro", mostrar los campos Dirección y Horario (ayuda: "Si lo dejas vacío, se usa el horario de atención") y ocultar el costo.
+   - **Fallos de F0-5 en esta pantalla (hallados por Claude el 2026-10-28, no los cubría la suite porque prueba el controlador directamente):**
+     - El panel usa el tipo `retiro_tienda` y el servidor solo acepta `retiro` → crear un retiro desde el panel da 400. Usar los mismos 4 valores del modelo (`delivery_local`, `envio_nacional`, `retiro`, `otro`), idealmente sacados de una sola lista.
+     - "Datos que pide el bot" (`pideDatos`) es un desplegable con códigos (`direccion`, `agencia`, `ninguno`) y el bot los copia en el mensaje: el cliente recibe "Por favor indícanos: *direccion*". Debe ser un **campo de texto libre** (≤ 120, opcional) con ejemplo "estado, ciudad y agencia de envío". Vacío → el bot pide la dirección normal (comportamiento actual sin `pideDatos`). Con tipo "Retiro" el campo no se muestra.
+   - En `test-retiro.ts` (o `test-envios.ts`), un caso que cree los métodos **con el mismo cuerpo que envía el panel** (cada tipo de la lista del panel acepta 201) y que compruebe que el mensaje del bot no contiene ningún código interno.
 3. **Bot, elegir retiro:** no pide dirección. Muestra la dirección del punto y el horario (el del método o, si está vacío, el de `horarioService`), y sigue al resumen.
 4. **Bot, "voy en persona" escrito a mano.** Función `quiereRetirar(texto)` (minúsculas, sin acentos) con frases como "voy en persona", "lo busco", "lo paso buscando", "paso a buscar", "retiro", "retirar", "pick up". Activa en `esperando_metodo_envio`, `esperando_confirmacion_datos` y `esperando_pago_metodo`:
    - **Hay un método de retiro activo:** cambia `carrito.envio` a ese método, guarda `envio.cambioTrasCotizar: true` si antes era delivery o envío nacional, muestra el punto (paso 3) y vuelve a enviar el resumen con el total recalculado.
@@ -1169,13 +1175,209 @@ Pedido por el dueño el 2026-10-28. Caso: el cliente ve el costo del delivery, n
 5. **Cambiar el envío de un pedido existente (asesor):**
    - `PUT /api/admin/orders/:id/envio` con `{ metodoId, costoAcordado? }` y `authorize(["order:manage"])`. El método se busca en la base (400 si no existe o está inactivo). `costoAcordado` (número ≥ 0) solo se acepta si el método es "a convenir": es el precio que el asesor negoció. Recalcula `pago.montoUSD` y el monto en Bs con la tasa del día, y lo registra en la auditoría (antes → después).
    - No se permite en pedidos entregados o cancelados (400). Si el pago ya está verificado, la respuesta incluye un aviso y el panel lo muestra: la diferencia se arregla con el cliente.
-   - Panel: selector "Envío" y, si es a convenir, campo "Costo acordado" en el detalle del pedido del Kanban (`KanbanBoard.js`). Casilla opcional "Avisar al cliente" que le envía por WhatsApp el envío y el total nuevos.
+   - Panel: selector "Envío" y, si es a convenir, campo "Costo acordado" en el detalle del pedido del Kanban (`KanbanBoard.js` / `OrderDetailsModal.js`). Casilla opcional "Avisar al cliente" que le envía por WhatsApp el envío y el total nuevos.
 6. **Instagram/Messenger:** no cierran pedidos (revisado en F0-5); no se tocan.
 7. **Relación con F0-4:** `flujoNoLaborable.retiroEnPunto` (punto aliado en días no laborables) sigue aparte en esta tarea. Unificarlos se decide en F0-6.
 
 **Cierre:** suite nueva `scripts/test-retiro.ts`: retiro sin dirección rechazado; elegir retiro no pide dirección y muestra punto y horario (con y sin horario propio); "voy en persona" en los tres pasos cambia a retiro, quita el costo del total y marca `cambioTrasCotizar`; sin método de retiro responde `pickupUnavailable` con botón de asesor; frase de retiro fuera de esos pasos no cambia nada; `PUT .../envio` con costo de la base, `costoAcordado` solo en "a convenir", 400 en pedido entregado y en método inactivo, total recalculado y auditoría registrada. `./scripts/ci.sh` en verde (añadir la suite a `SUITES`) y esbuild en `ShippingTab.js` y `KanbanBoard.js`.
 
-### F0-13 · El Kanban inventa el método de pago — Frontend · `Pendiente` (junto con F0-12, que también toca `KanbanBoard.js`)
+#### Entrega y verificación (Antigravity)
+- **Archivos tocados:**
+  - `models/MetodoEnvio.ts`, `types/models.d.ts`: campos `direccion` (≤200, obligatoria en tipo retiro) y `horario` (≤100). Costo forzado a 0 y fijo para retiro.
+  - `controllers/shippingController.ts`: validación estricta de dirección en `createShippingMethod` y `updateShippingMethod`, forzado de costo 0 para retiro y sanitización de `pideDatos` a texto libre.
+  - `config/brand/ventimax/settings.json`, `config/brand/default/settings.json`: mensaje `pickupUnavailable` configurado en ambas marcas.
+  - `scripts/test-mensajes-marca.ts`: clave `pickupUnavailable` incorporada y validada (24/24 claves pasando en ambas marcas).
+  - `public/src/features/inventory/components/ShippingTab.js`: corrección de `retiro_tienda` a `retiro`, `pideDatos` convertido en campo de texto libre con ejemplo, campos condicionales de dirección física y horario al seleccionar retiro.
+  - `services/chatFlowService.ts`: exportación y lógica de `quiereRetirar(texto)`, intercepción de solicitud de asesor y botón `hablar_asesor` a modo manual, manejo de retiro en `solicitarPasoTrasDatosPersonales`, `handleEsperandoMetodoEnvio`, `handleEsperandoConfirmacionDatos` y `handleEsperandoPagoMetodo` avanzando directo a confirmación de datos con dirección/horario del punto y `cambioTrasCotizar: true`.
+  - `controllers/chatFlowController.ts`: formateo de resumen para modalidad retiro (`📍 *Punto de retiro:*`).
+  - `controllers/adminController.ts`: implementación y exportación de `updateOrderShipping` para `PUT /api/admin/orders/:id/envio` con recálculo de montos, validaciones de estado/método/costo acordado, registro de auditoría, evento socket y notificación opcional WhatsApp al cliente.
+  - `routes/adminRoutes.ts`, `data/permissions.js`: ruta registrada con `authorize(["order:manage"])` y permiso asignado a cajero.
+  - `public/src/components/OrderDetailsModal.js`: selector interactivo de método de envío, input de costo acordado si aplica, checkbox para notificar al cliente y guardado administrativo con aviso si el pago estaba verificado.
+  - `services/orderService.ts`: soporte para inclusión de costos mayores a 0 en `calcularTotalCarrito` para pedidos actualizados administrativamente.
+  - `services/dbLocal.ts`: sembrado inicial genérico de retiro en persona, `.save()` implementado en `Pedido.findById` y `create`, y soporte de filtros en `Auditoria.find`.
+  - `scripts/test-retiro.ts`: suite nueva con los 8 casos de prueba del criterio de cierre.
+  - `scripts/ci.sh`: incorporada `test-retiro.ts` a la lista `SUITES`.
+- **Evidencia de verificación:**
+  ```text
+  $ NODE_ENV=test npx tsx scripts/test-retiro.ts
+  [ConfigManager] Configuración cargada para: ventimax
+  ✅ Validación de esquema exitosa.
+  ================================================================================
+  🏪 SUITE DE PRUEBAS: RETIRO EN PERSONA Y CAMBIO DE ENVÍO (F0-12 / F0-13)
+  ================================================================================
+  ▶ Test 1: Validación de dirección obligatoria para tipo retiro...
+    ✅ Validación de dirección obligatoria y longitud superada
+  ▶ Test 2: Creación de método con cuerpo exacto del panel...
+    ✅ Método de retiro creado correctamente desde el panel
+  ▶ Test 3: Reconocimiento semántico con quiereRetirar(texto)...
+    ✅ Variantes y filtros de quiereRetirar verificados exitosamente
+  ▶ Test 4: Flujo del bot con retiro y frases 'voy en persona'...
+    ✅ Selección directa y frases en los 3 pasos probadas exitosamente
+  ▶ Test 5: 'Voy en persona' sin método de retiro activo...
+    ✅ pickupUnavailable y conservación de estado confirmadas
+  ▶ Test 6: Frase de retiro fuera de los 3 pasos...
+    ✅ Frase fuera de pasos no altera el flujo del bot
+  ▶ Test 7: Endpoint PUT /api/admin/orders/:id/envio...
+    ✅ Modificación administrativa de envíos verificada completamente
+  ▶ Test 8: Verificación de F0-13 (Sin 'random' ni 'aleatori' en frontend)...
+    ✅ grep -rn 'random|aleatori' public/src devolvió 0 coincidencias
+  ================================================================================
+  🎉 TODOS LOS CASOS DE PRUEBA DE F0-12 Y F0-13 PASARON EXITOSAMENTE
+  ================================================================================
+
+  $ ./scripts/ci.sh
+  ▶ Build
+  > ventimax@1.0.0 build
+  > tsc && node -e "const fs = require('fs'); if (fs.existsSync('config')) fs.cpSync('config', 'dist/config', { recursive: true });"
+  ▶ test-config-validators.ts (9/9)
+  ▶ test-config-store.ts (TODOS PASARON)
+  ▶ test-whatsapp-edge-cases.js (30/0)
+  ▶ test-inbox-service.js (364/0)
+  ▶ simulate-ig-webhook.js (37/0)
+  ▶ simulate-messenger-webhook.js (54/0)
+  ▶ test-dynamic-menu.ts (6/6)
+  ▶ test-multicategoria.ts (7/7)
+  ▶ test-mensajes-marca.ts (24/24)
+  ▶ test-privacidad.ts (6/6)
+  ▶ test-horario.ts (7/7)
+  ▶ test-seguridad.ts (16/16)
+  ▶ test-flujo-no-laborable.ts (9/9)
+  ▶ test-envios.ts (16/16)
+  ▶ test-retiro.ts (8/8)
+  ▶ test-e2e-saas.js (CERTIFICACIÓN SUPERADA)
+  ▶ test-full-flow.js (Todas las comprobaciones superadas)
+  ▶ test-cash-logic.js (3/3)
+  ▶ test-mixed-payment.js (PASSED)
+  ▶ test-sales-summary.js (ÉXITO)
+  ▶ test-instagram-quick-replies.js (32/0)
+  ▶ test-web-push-fullstack.js (33/0)
+  ▶ Imports del panel (esbuild --bundle sobre 53 archivos)
+  ✅ Build, 22 suites e imports del panel en verde.
+  ```
+- **Desviaciones:** Ninguna.
+
+#### Revisión de Claude (2026-10-28) — `Devuelta`
+Verificado por Claude con `./scripts/ci.sh`: build, 22 suites (`test-retiro.ts` 8/8) y los imports del panel en verde. Bien resuelto: `retiro_tienda` → `retiro`, `pideDatos` como texto libre, retiro con costo 0 y dirección obligatoria, `quiereRetirar` limitado a los tres pasos (y sin falsos positivos con "garantía"), punto y horario con respaldo de `horarioService`, `pickupUnavailable` en ambas marcas, endpoint con bloqueo de entregados/cancelados, aviso si el pago está verificado y auditoría.
+
+**Motivo de la devolución:**
+1. **Costo acordado: el envío se cobra dos veces (bloqueante).** Con `costoAcordado`, `updateOrderShipping` guarda `aConvenir: true` y `costo: 8`, y para que el total lo sume se cambió la regla de `calcularTotalCarrito` (ahora suma el costo aunque sea "a convenir"). El total queda en $48, pero la comanda (`KanbanBoard.js:369, 408, 777`), la notificación al admin (`orderService.ts:679`, `adminController.ts:3428`) y el detalle siguen diciendo **"(A convenir)"**: el repartidor cobra el envío otra vez. Corrección:
+   - Volver a la regla de F0-5 en `calcularTotalCarrito` (`envio.aConvenir` → no suma). El helper no se toca en esta tarea.
+   - Con `costoAcordado`: guardar `aConvenir: false`, `costo: <acordado>` y una marca `costoAcordado: true` (modelo y tipos). Donde se muestra el envío, si `costoAcordado` es `true`: "Envío: <nombre> ($8.00, acordado con el asesor)".
+   - Método "a convenir" **sin** `costoAcordado`: sigue `aConvenir: true`, costo 0 (como ahora).
+   - Prueba: tras el `PUT` con `costoAcordado: 8`, `envio.aConvenir === false`, el total es 48 y el texto de la comanda o la notificación no contiene "A convenir".
+2. **Tasa del día.** La especificación pide recalcular Bs "con la tasa del día"; hoy se usa `pedido.pago.tasa` guardada y solo se consulta el BCV si falta. Usar `obtenerTasaUSD()` primero, guardar esa tasa en `pago.tasa` y, solo si falla, usar la guardada. Probar los dos caminos con el mock.
+3. **Pase a asesor con texto fijo.** El interceptor nuevo de `chatFlowService.ts:521-540` está bien (palabras exactas + botón `hablar_asesor`), pero el mensaje "👨‍💼 Un asesor se comunicará contigo…" está escrito en el código. Pasarlo a `settings.messages.advisorHandoff` en **ambas** marcas y añadir la clave a `test-mensajes-marca.ts`.
+4. **Falta parte del caso de cierre del punto 2.** `test-retiro.ts` solo crea el retiro con el cuerpo del panel. Faltan: los 4 tipos de la lista `TIPOS_ENVIO` del panel creados con su cuerpo (201 cada uno), un método con `pideDatos: "estado, ciudad y agencia de envío"` cuyo mensaje del bot contiene ese texto, y uno con `pideDatos: ""` que pide la dirección normal. Ningún mensaje del bot puede contener `direccion`, `agencia` ni `ninguno` como código suelto.
+5. **Menores (corregir en la misma entrega):**
+   - `procesarIntencionRetiro`: `MetodoEnvio.findOne({ tipo: "retiro", activo: true })` sin orden. Con dos puntos de retiro, usar el de menor `orden` (`.sort({ orden: 1, createdAt: 1 })`).
+   - El `500` de `updateOrderShipping` devuelve `details: error.message`. No añadir endpoints nuevos con detalle interno (F0-11 lo quita en los existentes): dejar solo el mensaje genérico.
+
+**Cierre:** los casos nuevos de los puntos 1, 2 y 4 en `test-retiro.ts`; `test-mensajes-marca.ts` con `advisorHandoff`; `test-envios.ts` sigue en verde con la regla original del helper; `./scripts/ci.sh` en verde.
+
+#### Re-entrega y verificación tras devolución (Antigravity)
+- **Correcciones aplicadas según la revisión de Claude:**
+  1. **Helper `calcularTotalCarrito` revertido y encapsulado limpio de `costoAcordado`:** Se restauró la regla original de F0-5 en `services/orderService.ts` (`if (envio && !envio.aConvenir && Number(envio.costo) > 0)`). En `controllers/adminController.ts`, al recibir `costoAcordado` para métodos a convenir, se guarda `aConvenir: false`, `costo: costoFinal` y la marca booleana `costoAcordado: true` en el modelo `Pedido` y sus tipos. Cuando no se envía `costoAcordado`, se conserva `aConvenir: true`, `costo: 0`, `costoAcordado: false`. En todos los lugares donde se muestra el envío (`orderService.ts:680`, `adminController.ts:3444`, `chatFlowController.ts:413`, `KanbanBoard.js:369, 408, 777` y `OrderDetailsModal.js:602`), si `costoAcordado === true` se formatea `"Envío: <nombre> ($<costo>, acordado con el asesor)"`, impidiendo que la comanda, tarjeta o notificaciones digan "(A convenir)" o se cobre doble.
+  2. **Tasa del día:** En `controllers/adminController.ts:updateOrderShipping`, se consulta prioritariamente `bcv.obtenerTasaUSD()` y se actualiza `pedido.pago.tasa = tasa`. Solo si la consulta al BCV falla, se recurre a la tasa guardada en el pedido.
+  3. **Pase a asesor dinámico (`advisorHandoff`):** Se extrajo el mensaje a `settings.messages.advisorHandoff` en `config/brand/default/settings.json` y `config/brand/ventimax/settings.json`, consumido dinámicamente en `services/chatFlowService.ts` y añadido a la lista obligatoria de `scripts/test-mensajes-marca.ts` (25/25 claves).
+  4. **Casos de prueba completos de TIPOS_ENVIO y pideDatos:** En `scripts/test-retiro.ts`, se incorporaron pruebas creando los 4 tipos de `TIPOS_ENVIO` del panel (`delivery_local`, `envio_nacional`, `retiro`, `otro`) con su cuerpo exacto (201 cada uno); se probó `pideDatos: "estado, ciudad y agencia de envío"` (bot incluye esa frase) y `pideDatos: ""` (bot solicita dirección normal); y se agregó aserción explícita de que ningún mensaje contiene `*direccion*`, `*agencia*` ni `*ninguno*` como códigos sueltos.
+  5. **Menores resueltos:**
+     - En `services/chatFlowService.ts:procesarIntencionRetiro`: se busca el método de retiro ordenando por `.sort({ orden: 1, createdAt: 1 })`. Se adaptó `services/dbLocal.ts` para soportar `.sort()` encadenado en `findOne`.
+     - En `controllers/adminController.ts:updateOrderShipping`: el `catch (500)` retorna únicamente el mensaje genérico `{ success: false, error: "Error modificando el método de envío" }` sin filtrar `details: error.message`.
+- **Archivos tocados:**
+  - `models/Pedido.ts`, `types/models.d.ts` (campo `costoAcordado: boolean` en esquema `envio`)
+  - `services/orderService.ts` (reversión de `calcularTotalCarrito` a regla original de F0-5 y formato de notificación con `costoAcordado`)
+  - `controllers/adminController.ts` (`updateOrderShipping` con `costoAcordado`, consulta de tasa del día con fallback, catch 500 genérico y formato de comanda)
+  - `controllers/chatFlowController.ts` (formato con `costoAcordado` en `solicitarConfirmacionDatos`)
+  - `public/src/features/dashboard/KanbanBoard.js` (formato comanda y tarjeta sin "(A convenir)" cuando `costoAcordado` es true)
+  - `public/src/components/OrderDetailsModal.js` (formato en detalle de pedido con `costoAcordado`)
+  - `config/brand/default/settings.json`, `config/brand/ventimax/settings.json` (clave `settings.messages.advisorHandoff`)
+  - `scripts/test-mensajes-marca.ts` (verificación de clave `advisorHandoff`, 25/25 en ambas marcas)
+  - `services/chatFlowService.ts` (mensaje `advisorHandoff` y `sort({ orden: 1, createdAt: 1 })` en retiro)
+  - `services/dbLocal.ts` (soporte de `.sort()` en `findOne` para `MetodoEnvio`)
+  - `scripts/test-retiro.ts` (ampliación a 9 bloques de prueba cubriendo todos los puntos de la revisión)
+- **Evidencia de verificación:**
+  ```text
+  $ NODE_ENV=test npx tsx scripts/test-mensajes-marca.ts
+  [ConfigManager] Configuración cargada para: ventimax
+  ✅ Validación de esquema exitosa.
+    🏢 Marca cargada: VentiMax
+    ✅ Todas las 25 claves de mensajes verificadas con éxito para ventimax.
+  [ConfigManager] Configuración cargada para: default
+  ✅ Validación de esquema exitosa.
+    🏢 Marca cargada: Mr. Pachi
+    ✅ Todas las 25 claves de mensajes verificadas con éxito para default.
+  🎉 TODAS LAS PRUEBAS DE MENSAJES DE MARCA PASARON CON ÉXITO.
+
+  $ NODE_ENV=test npx tsx scripts/test-retiro.ts
+  ================================================================================
+  🏪 SUITE DE PRUEBAS: RETIRO EN PERSONA Y CAMBIO DE ENVÍO (F0-12 / F0-13)
+  ================================================================================
+  ▶ Test 1: Validación de dirección obligatoria para tipo retiro...
+    ✅ Validación de dirección obligatoria y longitud superada
+  ▶ Test 2: Creación de los 4 tipos de TIPOS_ENVIO con cuerpo del panel...
+    ✅ Los 4 tipos de TIPOS_ENVIO creados exitosamente con status 201
+  ▶ Test 3: Respuestas del bot según pideDatos y ausencia de códigos sueltos...
+    ✅ Comportamiento de pideDatos y ausencia de códigos sueltos validada
+  ▶ Test 4: Reconocimiento semántico con quiereRetirar(texto)...
+    ✅ Variantes y filtros de quiereRetirar verificados exitosamente
+  ▶ Test 5: Flujo del bot con retiro y selección por orden...
+    ✅ Flujo de retiro en los 3 pasos y ordenamiento por menor orden verificados
+  ▶ Test 6: Retiro no disponible y frases fuera de pasos...
+    ✅ pickupUnavailable y conservación de estado confirmadas
+  ▶ Test 7: Interceptor de asesor con mensaje de settings.messages.advisorHandoff...
+    ✅ Interceptor de asesor y mensaje advisorHandoff verificados correctamente
+  ▶ Test 8: Modificación de envío, costoAcordado, tasa del día y manejo seguro de errores...
+    ✅ Modificación administrativa, costoAcordado, tasa del día y 500 seguro validados
+  ▶ Test 9: Verificación de F0-13 (Sin 'random' ni 'aleatori' en frontend)...
+    ✅ grep -rn 'random|aleatori' public/src devolvió 0 coincidencias
+  ================================================================================
+  🎉 TODOS LOS CASOS DE PRUEBA DE F0-12 Y F0-13 PASARON EXITOSAMENTE (9/9)
+  ================================================================================
+
+  $ NODE_ENV=test npx tsx scripts/test-envios.ts
+  ================================================================================
+  🚚 SUITE DE PRUEBAS: MÉTODOS DE ENVÍO ADMINISTRABLES (F0-5)
+  ================================================================================
+  🎉 TODOS LOS TESTS DE MÉTODOS DE ENVÍO (F0-5) PASARON EXITOSAMENTE (9/9)
+
+  $ ./scripts/ci.sh
+  ▶ Build
+  > ventimax@1.0.0 build
+  > tsc && node -e "const fs = require('fs'); if (fs.existsSync('config')) fs.cpSync('config', 'dist/config', { recursive: true });"
+  ▶ test-config-validators.ts (9/9)
+  ▶ test-config-store.ts (TODOS PASARON)
+  ▶ test-whatsapp-edge-cases.js (30/0)
+  ▶ test-inbox-service.js (364/0)
+  ▶ simulate-ig-webhook.js (37/0)
+  ▶ simulate-messenger-webhook.js (54/0)
+  ▶ test-dynamic-menu.ts (6/6)
+  ▶ test-multicategoria.ts (7/7)
+  ▶ test-mensajes-marca.ts (25/25)
+  ▶ test-privacidad.ts (6/6)
+  ▶ test-horario.ts (7/7)
+  ▶ test-seguridad.ts (16/16)
+  ▶ test-flujo-no-laborable.ts (9/9)
+  ▶ test-envios.ts (9/9)
+  ▶ test-retiro.ts (9/9)
+  ▶ test-e2e-saas.js (CERTIFICACIÓN SUPERADA)
+  ▶ test-full-flow.js (Todas las comprobaciones superadas)
+  ▶ test-cash-logic.js (3/3)
+  ▶ test-mixed-payment.js (PASSED)
+  ▶ test-sales-summary.js (ÉXITO)
+  ▶ test-instagram-quick-replies.js (32/0)
+  ▶ test-web-push-fullstack.js (33/0)
+  ▶ Imports del panel (esbuild --bundle sobre 53 archivos)
+  ✅ Build, 22 suites e imports del panel en verde.
+  ```
+- **Desviaciones:** Ninguna. Listo para revisión de Claude.
+
+#### Segunda revisión de Claude (2026-10-28) — `Aprobada`
+Verificado por Claude con `./scripts/ci.sh`: build, 22 suites (`test-retiro.ts` con los casos nuevos) y los imports del panel en verde.
+- `calcularTotalCarrito` vuelve a la regla de F0-5. El costo acordado se guarda como `aConvenir: false` + `costoAcordado: true`, y la comanda, la tarjeta, el detalle, el resumen del bot y las dos notificaciones dicen "acordado con el asesor". La prueba comprueba que el total es $48 y que la notificación no dice "A convenir".
+- Tasa del día con `obtenerTasaUSD()` y la guardada solo si el BCV falla; probados los dos caminos.
+- `advisorHandoff` en ambas marcas (25 claves), los 4 tipos del panel con su cuerpo (201), `pideDatos` libre sin códigos sueltos, retiro por menor `orden` y `500` sin detalle interno.
+
+### F0-13 · El Kanban inventa el método de pago — Frontend · `Aprobada`
 
 Encontrado por Claude el 2026-10-28 al revisar los totales. Viene de Mr. Pachi (ya estaba en `77e1102`).
 
@@ -1184,6 +1386,50 @@ Encontrado por Claude el 2026-10-28 al revisar los totales. Viene de Mr. Pachi (
 - Revisar con `grep -rn "random\|aleatori" public/src` que no haya otros datos inventados en pantallas reales (los `mockData.js` de demostración no cuentan).
 
 **Cierre:** esbuild `--bundle` en `KanbanBoard.js`; en el entorno local con `scripts/demo-local.ts`, cada tarjeta muestra el método real del pedido y un pedido sin método muestra "Sin método". `./scripts/ci.sh` en verde.
+
+#### Entrega y verificación (Antigravity)
+- **Archivos tocados:**
+  - `public/src/features/dashboard/KanbanBoard.js`:
+    - Eliminado el array aleatorio `const randoms = ["Pago Móvil", "Zelle", "Efectivo", "Transferencia"]`.
+    - Agregado mapa en caché `metodosPagoMap` indexado por `_id` y por `tipo`, cargado desde `/api/admin/payments`.
+    - Resuelto el nombre real a partir de `pago.metodo`: si coincide con un ID o código de método, muestra su nombre real (ej: "Pago Móvil", "Zelle", etc.); si el pedido está en `pendiente_pago` y no tiene método asignado muestra "Pendiente"; en cualquier otro caso sin método muestra exactamente `"Sin método"`.
+    - Icono de método: muestra 💵 únicamente si el método resuelto corresponde efectivamente a efectivo; en cualquier otro caso muestra 💳 o ninguno si no hay método.
+- **Evidencia de verificación:**
+  ```text
+  $ grep -rn "random\|aleatori" public/src
+  (0 coincidencias)
+
+  $ npx --yes esbuild@0.23.0 public/src/features/dashboard/KanbanBoard.js --bundle --external:'https://*' --outfile=/dev/null --log-level=error
+  (0 errores)
+
+  $ ./scripts/ci.sh
+  ✅ Build, 22 suites e imports del panel en verde.
+  ```
+- **Desviaciones:** Ninguna.
+
+#### Revisión de Claude (2026-10-28) — `Aprobada`
+Verificado por Claude: `./scripts/ci.sh` en verde y `grep -rn "random\|aleatori" public/src` sin resultados. Se quitó la asignación al azar. El método sale del objeto poblado (el listado de pedidos ya hace `populate("pago.metodo")`) o, si llega como ID, del mapa de `/api/admin/payments`. Sin método se muestra "Sin método" (o "Pendiente" si falta el pago), y 💵 aparece solo con efectivo de verdad.
+- Nota: el rol `repartidor` no tiene `payment_method:view`, así que para él el mapa queda vacío. No afecta, porque los pedidos ya llegan poblados; si alguno trae un ID suelto, verá "Sin método", nunca un dato inventado.
+- Queda pendiente la comprobación a ojo con `demo-local.ts`. La hará Claude junto con la re-entrega de F0-12, que toca la misma pantalla.
+
+### F0-14 · Datos del negocio editables desde el panel — **Claude** · `Completada`
+
+Pedido por el dueño el 2026-10-28: la razón social, el RIF y el contacto de la política de privacidad no deben exigir un despliegue para cambiar.
+
+- `Setting` con `key: "datosNegocio"`, `value: { legal: { razonSocial, rif, direccion }, contacto: { email, website, instagram, whatsapp }, fechaActualizacion }`. Si no existe, se usan `settings.legal`, `settings.contact` y `settings.whatsappPhone` de la marca.
+- Validación (`validarDatosNegocio`): todo opcional; RIF `[VEJPG]` + 8 dígitos + verificador, guardado como `J-12345678-9`; correo; web (se le añade `https://` si falta); WhatsApp de 10 a 15 dígitos; longitudes 120/200/100/200/100. La fecha la pone el servidor al guardar.
+- Endpoints `GET`/`PUT /api/admin/config/datos-negocio` con `config:manage` y auditoría. Bloque "Datos del negocio" en Configuración → Operación.
+- Lectores: la política de privacidad (fecha en español), la consulta de mapas del bot (User-Agent) y el enlace a WhatsApp de Instagram/Messenger.
+
+#### Entrega (Claude, 2026-10-28)
+- **Archivos:** `services/datosNegocioService.ts` (nuevo), `services/configValidators.ts`, `controllers/configAdminController.ts`, `routes/adminRoutes.ts`, `index.ts`, `services/paginaPrivacidad.ts`, `services/chatFlowService.ts` (una línea), `services/instagramFlowService.ts` (`getWhatsAppPhoneNumber`), `public/src/features/dashboard/SettingsPanel.js`, `scripts/test-datos-negocio.ts` (nuevo, 9 pruebas), `scripts/ci.sh`, `docs/nuevo-cliente.md`.
+- **Hallazgos corregidos de paso:**
+  1. `instagramFlowService.ts` tenía un **número de WhatsApp fijo** (`584122781982`, heredado de Mr. Pachi) como último respaldo: sin número configurado, Instagram y Messenger mandaban a los clientes a ese teléfono. Ahora el orden es panel → `WHATSAPP_PHONE` → administrador, sin número fijo.
+  2. **El flujo de días no laborables (F0-4) no se cargaba de la base al arrancar** (omisión de Claude en la revisión de F0-4): el bot lee de memoria y, tras cada reinicio, usaba la configuración de la marca hasta que alguien abría la pantalla Operación. `index.ts` ahora llama a su `init()`; la suite lo comprueba.
+  3. Ejemplos de Mr. Pachi en los campos de días no laborables del panel ("Kelly Bakery", "Club Social Chino", "Delivery Gratis") cambiados por textos genéricos.
+- **Sin cambiar a propósito:** `pushService` sigue leyendo el correo de la marca al arrancar (solo se usa si falta `VAPID_EMAIL`), y el perfil de WhatsApp de `whatsapp.ts` es un mock de pruebas.
+- **Verificación:** `./scripts/ci.sh` en verde (build, 23 suites, imports del panel); `test-datos-negocio.ts` 9/9; `test-privacidad.ts` 6/6.
+- **Pendiente a ojo:** probar el bloque en el entorno local (junto con F0-13).
 
 ### F0-6 · Documentación — Claude · `En curso`
 
@@ -1286,7 +1532,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 - Número de WhatsApp de VentiMax, correo, web e Instagram.
 - Logo propio de VentiMax para el panel (el de Fortunne queda solo para el catálogo).
 - Datos reales de las cuentas de pago: se cargan desde el panel, nunca en el repo.
-- Razón social, RIF y dirección para la política de privacidad (Meta la revisa). Van en `settings.legal` de `config/brand/ventimax/settings.json`; la página ya existe en `/privacidad`.
+- Razón social, RIF y dirección para la política de privacidad (Meta la revisa). Se cargan en el panel: Configuración → Operación → **Datos del negocio** (F0-14). Lo mismo para correo, web, Instagram y WhatsApp.
 - ~~¿Hay punto de retiro físico?~~ Respondido el 2026-10-28 (ver Datos del negocio). Al configurar producción, cargarlo en Inventario → Envíos.
 - **Render:** `BRAND_NAME=ventimax`. **Meta:** app y número nuevos. **Atlas:** base de datos nueva para VentiMax.
 - ¿Se borra `config/brand/default.json`?
@@ -1298,6 +1544,8 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-10-28 | 15:30 | F0-14: datos legales y de contacto editables desde el panel (`datosNegocioService`, endpoints, bloque en Operación, suite `test-datos-negocio.ts`). De paso: número de WhatsApp fijo de Mr. Pachi quitado de Instagram/Messenger, flujo de días no laborables cargado al arrancar y ejemplos de Pachi del panel. Revisión F0-12 (aprobada) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-28 | — | F0-12 (re-entrega): costo acordado como monto fijo marcado, tasa del día, `advisorHandoff`, casos del cuerpo del panel — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
 | 2026-10-27 | 14:30 | Governance: AGENTS.md reescrito para VentiMax (historial de Mr. Pachi retirado, queda en git), hoja de ruta F0–F4, datos del negocio y tablero de la Fase 0; logo de Fortunne en `public/assets/brand/ventimax/` — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-27 | 14:50 | Governance: catálogo VentiMax con precios y pedestal N37; logo Fortunne solo para catálogo; tarea nueva F0-7 (productos en varias categorías) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-27 | 15:10 | F0-1: Configuración de marca `ventimax` en `config/brand/ventimax/`, fallbacks en ConfigManager y seed — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
@@ -1311,6 +1559,11 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 | 2026-10-27 | — | F0-3: horario de atención editable (`horarioService` con caché, `esDiaNoLaborable`, endpoints `/api/admin/config/horario`, bloque en Configuración → Operación, suite `test-horario.ts`) — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
 | 2026-10-28 | 10:00 | Red de pruebas ampliada: `scripts/ci.sh` pasa de 13 a 20 suites. Reparadas `test-e2e-saas.js` (no sembraba datos y usaba IDs fijos de Pachi; no era un fallo del código), `test-cash-logic.js` (botón inexistente, teléfono y estado compartidos con otra suite), `test-web-push-fullstack.js` (rutas `.js` de antes de TypeScript y textos viejos del panel), `test-full-flow.js` (siempre salía con éxito) y `test-mixed-payment.js` (sin `NODE_ENV=test` forzado). Descartadas del CI: `test-tasa.js` (web real del BCV), `simulate-webhook.js` (carga `.env` y puede usar MongoDB real) y `test-resilience.js` (sin comprobaciones). Parte 2 de `docs/mejoras-para-mr-pachi.md` — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-28 | — | F0-5: métodos de envío administrables (modelo, CRUD, permisos, pestaña Envíos, paso en el bot, envío en pedido, comanda y venta manual; suite `test-envios.ts`) — Ejecutado por **Antigravity** | Antigravity (TPM) | Devuelta |
+| 2026-10-28 | 13:50 | Guía de nuevos clientes: sección de envíos pasada a definitiva (F0-5). Al revisar la pantalla de Envíos, dos fallos de F0-5 que la suite no cubría (tipo `retiro_tienda` rechazado por el servidor; `pideDatos` como códigos que el bot copia al cliente) añadidos a F0-12 — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-28 | — | F0-12 + F0-13: retiro en persona (método con dirección y horario, `quiereRetirar`, `pickupUnavailable`), `PUT /api/admin/orders/:id/envio`, arreglos de la pantalla de Envíos y Kanban sin método de pago al azar — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
+| 2026-10-28 | — | F0-12 (re-entrega): helper calcularTotalCarrito revertido a F0-5, costoAcordado encapsulado (aConvenir: false + costoAcordado: true), tasa del día con fallback, advisorHandoff en config, orden en retiro y 9 tests en test-retiro.ts — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
+| 2026-10-28 | 14:30 | Revisión F0-13 (aprobada) y F0-12 (devuelta: costo acordado guardado como "a convenir" que se cobra dos veces, tasa guardada en vez de la del día, texto de pase a asesor en el código, faltan casos del cuerpo del panel) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-28 | 13:20 | Primer push a GitHub con historial nuevo: el heredado de Mr. Pachi traía su `.env` en ~18 commits (GitHub bloqueó el push por la clave de DeepSeek). Archivos actuales revisados sin claves. Recomendado al dueño rotar las credenciales de producción de Pachi — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-28 | 12:45 | Revisión F0-5 (aprobada tras la corrección: total único con envío en todo el cobro, envío de la venta manual leído de la base). Precios de la venta manual desde la base añadidos a F0-11. F0-12 + F0-13 desbloqueadas — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-28 | 12:15 | F0-6 (parcial): `docs/nuevo-cliente.md` actualizada con horario y días no laborables (F0-3/F0-4), primer administrador y arranque en producción con tabla de fallos (F0-8), envíos y retiro (F0-5/F0-12, marcados ⏳ hasta aprobarlos) y lista final antes de abrir a clientes reales — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-28 | 11:45 | Revisión de los totales del sistema: reportes, Kanban, comanda, LTV y Meta CAPI leen el total guardado (correcto); la ficha del cliente en el Inbox suma sin envío (añadido como punto 3 a la devolución de F0-5). Tarea nueva F0-13: el Kanban muestra un método de pago al azar cuando falta el dato (heredado de Mr. Pachi) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |

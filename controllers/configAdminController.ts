@@ -2,9 +2,10 @@ import { Request, Response } from "express";
 const axios = require("axios");
 const { configStore, EDITABLE_KEYS, SECRET_KEYS, getConfig, setConfig } = require("../services/configStore");
 const { registrarAuditoria } = require("../services/auditService");
-const { validarValorConfig, validarHorarioAtencion, validarFlujoNoLaborable } = require("../services/configValidators");
+const { validarValorConfig, validarHorarioAtencion, validarFlujoNoLaborable, validarDatosNegocio } = require("../services/configValidators");
 const { getHorario, setHorario, formatearHorarioAtencion } = require("../services/horarioService");
 const { getFlujoNoLaborable, setFlujoNoLaborable } = require("../services/flujoNoLaborableService");
+const { getDatosNegocio, setDatosNegocio } = require("../services/datosNegocioService");
 
 /**
  * Obtiene la configuración completa para el panel administrativo.
@@ -267,12 +268,55 @@ export const updateFlujoNoLaborableConfig = async (req: Request, res: Response) 
   }
 };
 
+/**
+ * Obtiene los datos legales y de contacto del negocio (política de privacidad, enlaces a WhatsApp).
+ */
+export const getDatosNegocioConfig = async (req: Request, res: Response) => {
+  try {
+    const datos = await getDatosNegocio();
+    res.json({ success: true, datos });
+  } catch (error: any) {
+    console.error("❌ Error obteniendo datos del negocio:", error);
+    res.status(500).json({ success: false, error: "Error al obtener los datos del negocio" });
+  }
+};
+
+/**
+ * Actualiza los datos legales y de contacto del negocio. La fecha de actualización la pone el servidor.
+ */
+export const updateDatosNegocioConfig = async (req: Request, res: Response) => {
+  try {
+    const payload = req.body?.datos !== undefined ? req.body.datos : req.body;
+    const validacion = validarDatosNegocio(payload);
+    if (!validacion.ok) {
+      return res.status(400).json({ success: false, error: validacion.error });
+    }
+
+    const anterior = await getDatosNegocio();
+    const guardado = await setDatosNegocio(validacion.value);
+
+    await registrarAuditoria(req, {
+      tipoRecurso: "config",
+      accion: "update",
+      recursoId: "datosNegocio",
+      detalles: { previo: anterior, nuevo: guardado },
+    });
+
+    res.json({ success: true, message: "Datos del negocio guardados correctamente", datos: guardado });
+  } catch (error: any) {
+    console.error("❌ Error actualizando datos del negocio:", error);
+    res.status(500).json({ success: false, error: "Error al guardar los datos del negocio" });
+  }
+};
+
 module.exports = {
   getConfigAdmin,
   updateConfigAdmin,
   testWhatsAppConnection,
   getHorarioConfig,
   updateHorarioConfig,
+  getDatosNegocioConfig,
+  updateDatosNegocioConfig,
   getFlujoNoLaborableConfig,
   updateFlujoNoLaborableConfig,
 };

@@ -676,7 +676,15 @@ class OrderService {
         
         let envioTexto = "";
         if (doc.envio?.nombre) {
-          envioTexto = `\n*Envío:* ${doc.envio.nombre}${doc.envio.aConvenir ? " (A convenir)" : (doc.envio.costo ? ` ($${doc.envio.costo})` : "")}`;
+          let detalleCosto = "";
+          if (doc.envio.costoAcordado) {
+            detalleCosto = ` ($${Number(doc.envio.costo).toFixed(2)}, acordado con el asesor)`;
+          } else if (doc.envio.aConvenir) {
+            detalleCosto = " (A convenir)";
+          } else if (doc.envio.costo) {
+            detalleCosto = ` ($${Number(doc.envio.costo).toFixed(2)})`;
+          }
+          envioTexto = `\n*Envío:* ${doc.envio.nombre}${detalleCosto}`;
         }
 
         const miniComandaText = `🧾 *NUEVO PAGO RECIBIDO*\n\n` +

@@ -52,6 +52,7 @@ const PERMISSIONS = {
     "order:confirm_payment",
     "order:cancel",
     "order:manage_status",
+    "order:manage",
     "order:create",
     // No delete permissions for products or payment methods
   ],

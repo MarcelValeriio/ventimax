@@ -7,9 +7,20 @@
  * - pedidos conservados para contabilidad;
  * - proveedores: Meta, MongoDB Atlas, Render, Cloudinary (comprobantes) y DeepSeek (IA);
  * - la eliminación de datos se pide por los canales de contacto (CANCELAR solo reinicia el chat).
- * Los datos del negocio salen de `settings.legal` y `settings.contact`; si faltan, se omiten.
+ * Los datos del negocio salen de datosNegocioService (panel → Configuración → Operación, o la marca
+ * si no se han cargado); si faltan, se omiten.
  */
 const configManager = require("./configManager");
+const { getDatosNegocioSync } = require("./datosNegocioService");
+
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+/** "2026-10-28" → "28 de octubre de 2026"; cualquier otro texto se deja igual. */
+function formatearFecha(fecha: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fecha || "");
+  if (!m) return fecha || "";
+  return `${Number(m[3])} de ${MESES[Number(m[2]) - 1]} de ${m[1]}`;
+}
 
 const escapar = (valor: unknown): string =>
   String(valor ?? "")
@@ -20,10 +31,7 @@ const escapar = (valor: unknown): string =>
     .replace(/'/g, "&#39;");
 
 function contactos(): string[] {
-  const email = configManager.get("settings.contact.email");
-  const telefono = configManager.get("settings.whatsappPhone");
-  const instagram = configManager.get("settings.contact.instagram");
-  const web = configManager.get("settings.contact.website");
+  const { email, whatsapp: telefono, instagram, website: web } = getDatosNegocioSync().contacto;
   const lista: string[] = [];
   if (email) lista.push(`Correo: <a href="mailto:${escapar(email)}">${escapar(email)}</a>`);
   if (telefono) lista.push(`WhatsApp: +${escapar(String(telefono).replace(/\D/g, ""))}`);
@@ -36,11 +44,11 @@ export function generarPaginaPrivacidad(): string {
   const marca = escapar(configManager.get("settings.brandName"));
   const bot = escapar(configManager.get("settings.botIdentity") || "nuestro asistente virtual");
   const color = escapar(configManager.get("settings.theme.primaryColor") || "#333333");
-  const legal = configManager.get("settings.legal") || {};
-  const razonSocial = escapar(legal.razonSocial);
-  const rif = escapar(legal.rif);
-  const direccion = escapar(legal.direccion);
-  const actualizacion = escapar(legal.fechaActualizacion);
+  const datos = getDatosNegocioSync();
+  const razonSocial = escapar(datos.legal.razonSocial);
+  const rif = escapar(datos.legal.rif);
+  const direccion = escapar(datos.legal.direccion);
+  const actualizacion = escapar(formatearFecha(datos.fechaActualizacion));
   const anio = new Date().getFullYear();
 
   const responsable = razonSocial

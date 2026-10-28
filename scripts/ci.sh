@@ -20,6 +20,8 @@ SUITES=(
   test-seguridad.ts
   test-flujo-no-laborable.ts
   test-envios.ts
+  test-retiro.ts
+  test-datos-negocio.ts
   test-e2e-saas.js
   test-full-flow.js
   test-cash-logic.js

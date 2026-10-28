@@ -123,6 +123,20 @@ module.exports = function (io) {
     configAdminController.updateFlujoNoLaborableConfig,
   );
 
+  // Datos legales y de contacto del negocio (Solo Admin con config:manage)
+  router.get(
+    "/config/datos-negocio",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.getDatosNegocioConfig,
+  );
+  router.put(
+    "/config/datos-negocio",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.updateDatosNegocioConfig,
+  );
+
   // Gestión de Categorías (Solo Admin)
   router.get(
     "/categorias",
@@ -503,6 +517,12 @@ module.exports = function (io) {
     isAuthenticated,
     authorize(["order:delete"]),
     (req, res) => adminController.deleteOrder(req, res, io),
+  );
+  router.put(
+    "/orders/:id/envio",
+    isAuthenticated,
+    authorize(["order:manage"]),
+    (req, res) => adminController.updateOrderShipping(req, res, io),
   );
 
   // Salud del Sistema (Watchdog) — disponible para cualquier usuario autenticado

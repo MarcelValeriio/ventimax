@@ -397,16 +397,23 @@ class ChatFlowController {
         envio,
         notas,
       } = carrito;
-      const direccion =
-        direccion_manual ||
-        ubicacion?.direccion ||
-        ubicacion?.address ||
-        "Ubicación GPS";
+      const esRetiro = envio?.tipo === "retiro";
+      const direccion = esRetiro
+        ? (envio.direccion || "Punto de retiro")
+        : (direccion_manual ||
+          ubicacion?.direccion ||
+          ubicacion?.address ||
+          "Ubicación GPS");
       const notaFinal = notas ? `\n📝 *Notas:* ${notas}` : "";
 
       let envioTexto = "";
       if (envio && envio.nombre) {
-        if (envio.aConvenir) {
+        if (esRetiro) {
+          envioTexto = `\n🏪 *Modalidad:* ${envio.nombre} (Sin costo)`;
+        } else if (envio.costoAcordado) {
+          const costoEnvio = Number(envio.costo) || 0;
+          envioTexto = `\n🚚 *Envío:* ${envio.nombre} ($${formatUsd(costoEnvio)}, acordado con el asesor)`;
+        } else if (envio.aConvenir) {
           envioTexto = `\n🚚 *Envío:* ${envio.nombre} (a convenir con el asesor)`;
         } else {
           const costoEnvio = Number(envio.costo) || 0;
@@ -424,12 +431,14 @@ class ChatFlowController {
         .map((i) => `${i.producto} x${i.cantidad}`)
         .join("\n");
 
+      const etiquetaDir = esRetiro ? "📍 *Punto de retiro:*" : "📍 *Dirección:*";
+
       const msg =
         `📝 *Resumen de tu Pedido*\n` +
         `🕒 *Fecha:* ${getCaracasTime().toLocaleString("es-VE")}\n\n` +
         `👤 *Cliente:* ${nombre}\n` +
         `🆔 *Cédula:* ${cedula}\n` +
-        `📍 *Dirección:* ${direccion}${envioTexto}${notaFinal}\n\n` +
+        `${etiquetaDir} ${direccion}${envioTexto}${notaFinal}\n\n` +
         `📦 *Items:* \n${itemsString}\n\n` +
         `💰 *Total a pagar:* $${formatUsd(totalUSD)} / Bs. ${totalVES}\n\n` +
         `¿Tus datos son correctos?\n\n` +

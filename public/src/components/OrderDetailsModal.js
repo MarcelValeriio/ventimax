@@ -32,14 +32,79 @@ const OrderDetailsModal = ({
   const [editForm, setEditForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [comprobanteFile, setComprobanteFile] = useState(null);
+  const [shippingMethods, setShippingMethods] = useState([]);
+  const [isChangingShipping, setIsChangingShipping] = useState(false);
+  const [selectedShippingId, setSelectedShippingId] = useState("");
+  const [customShippingCost, setCustomShippingCost] = useState(0);
+  const [notifyCustomerShipping, setNotifyCustomerShipping] = useState(false);
+  const [savingShipping, setSavingShipping] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      apiClient
+        .get("/api/admin/shipping?activo=true")
+        .then((res) => {
+          if (res.data?.success && Array.isArray(res.data.data)) {
+            setShippingMethods(res.data.data);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && order) {
       setEditForm(JSON.parse(JSON.stringify(order)));
       setIsEditing(false);
+      setIsChangingShipping(false);
+      setSelectedShippingId(order.envio?.metodoId || "");
+      setCustomShippingCost(Number(order.envio?.costo) || 0);
+      setNotifyCustomerShipping(false);
       setComprobanteFile(null);
     }
   }, [isOpen, order]);
+
+  const handleSaveShipping = async () => {
+    if (!selectedShippingId) {
+      alert("Por favor selecciona un método de envío");
+      return;
+    }
+    const metodoSel = shippingMethods.find((m) => String(m._id) === String(selectedShippingId));
+    if (!metodoSel) {
+      alert("Método de envío seleccionado no válido");
+      return;
+    }
+    try {
+      setSavingShipping(true);
+      const payload = {
+        metodoId: selectedShippingId,
+        avisarCliente: notifyCustomerShipping,
+      };
+      if (metodoSel.costoTipo === "a_convenir") {
+        payload.costoAcordado = Number(customShippingCost) || 0;
+      }
+      const res = await apiClient.put(`/api/admin/orders/${order._id}/envio`, payload);
+      if (res.data?.success) {
+        if (res.data.aviso) {
+          alert(`⚠️ ${res.data.aviso}`);
+        }
+        window.showToast?.("✅ Método de envío actualizado");
+        if (res.data.data) {
+          setEditForm(JSON.parse(JSON.stringify(res.data.data)));
+          if (order) {
+            order.envio = res.data.data.envio;
+            if (res.data.data.pago) order.pago = res.data.data.pago;
+          }
+        }
+        setIsChangingShipping(false);
+        if (onUpdateStatus) onUpdateStatus(order._id, order.estado);
+      }
+    } catch (err) {
+      alert("❌ Error actualizando envío: " + (err.response?.data?.error || err.message));
+    } finally {
+      setSavingShipping(false);
+    }
+  };
 
   const handleSaveEdit = async () => {
     try {
@@ -508,6 +573,110 @@ const OrderDetailsModal = ({
                     "Ver en Google Maps",
                   ],
                 ),
+            ]),
+        ]),
+        // Sección Método de Envío
+        e("div", { className: "bg-gray-50 dark:bg-gray-700/30 p-4 rounded-xl border border-gray-100 dark:border-gray-700 space-y-3" }, [
+          e("div", { className: "flex justify-between items-center" }, [
+            e("div", { className: "flex items-center gap-2" }, [
+              e("i", { className: "fas fa-truck text-emerald-600 dark:text-emerald-400 text-xs" }),
+              e("span", { className: "text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest" }, "Método de Entrega / Envío"),
+            ]),
+            !["entregado", "cancelado", "anulado"].includes(order?.estado) &&
+              e("button", {
+                type: "button",
+                onClick: () => setIsChangingShipping(prev => !prev),
+                className: "text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 underline cursor-pointer",
+              }, isChangingShipping ? "Cancelar cambio" : "Cambiar Envío"),
+          ]),
+          
+          // Información actual del envío
+          e("div", { className: "text-sm text-gray-700 dark:text-gray-200" }, [
+            order?.envio?.nombre
+              ? e("div", { className: "space-y-1" }, [
+                  e("p", { className: "font-bold flex items-center justify-between" }, [
+                    e("span", null, order.envio.nombre),
+                    e("span", { className: "text-xs px-2 py-0.5 rounded font-black bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" },
+                      order.envio.tipo === "retiro"
+                        ? "Retiro (Gratis)"
+                        : (order.envio.costoAcordado
+                            ? `$${Number(order.envio.costo).toFixed(2)} USD (Acordado con asesor)`
+                            : (order.envio.aConvenir
+                                ? "A convenir con asesor"
+                                : `$${Number(order.envio.costo || 0).toFixed(2)} USD`
+                              )
+                          )
+                    ),
+                  ]),
+                  order.envio.tipo === "retiro" && order.envio.direccion &&
+                    e("p", { className: "text-xs text-gray-500 dark:text-gray-400 italic" }, `📍 Punto: ${order.envio.direccion}`),
+                  order.envio.tipo === "retiro" && order.envio.horario &&
+                    e("p", { className: "text-xs text-gray-500 dark:text-gray-400 italic" }, `🕒 Horario: ${order.envio.horario}`),
+                ])
+              : e("p", { className: "text-xs text-gray-400 italic" }, "Sin método de envío seleccionado"),
+          ]),
+
+          // Formulario para cambiar el envío (si está activo el modo cambio)
+          isChangingShipping &&
+            e("div", { className: "pt-3 border-t dark:border-gray-600 space-y-3" }, [
+              e("div", null, [
+                e("label", { className: "text-[10px] font-bold text-gray-500 block mb-1 uppercase" }, "Selecciona Nuevo Método"),
+                e("select", {
+                  value: selectedShippingId,
+                  onChange: (ev) => {
+                    const id = ev.target.value;
+                    setSelectedShippingId(id);
+                    const m = shippingMethods.find((item) => String(item._id) === String(id));
+                    if (m && m.costoTipo === "fijo") {
+                      setCustomShippingCost(Number(m.costo) || 0);
+                    } else if (m && m.costoTipo === "a_convenir") {
+                      setCustomShippingCost(Number(order.envio?.costo) || 0);
+                    }
+                  },
+                  className: "w-full p-2 border rounded-lg text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white outline-none",
+                }, [
+                  e("option", { key: "none", value: "" }, "-- Seleccionar método --"),
+                  ...shippingMethods.map((m) =>
+                    e("option", { key: m._id, value: m._id },
+                      `${m.nombre} (${m.tipo === "retiro" ? "Retiro Gratis" : (m.costoTipo === "fijo" ? `$${Number(m.costo).toFixed(2)}` : "A convenir")})`
+                    )
+                  ),
+                ]),
+              ]),
+              (() => {
+                const sel = shippingMethods.find((m) => String(m._id) === String(selectedShippingId));
+                if (sel && sel.costoTipo === "a_convenir") {
+                  return e("div", null, [
+                    e("label", { className: "text-[10px] font-bold text-gray-500 block mb-1 uppercase" }, "Costo Acordado con el Cliente ($ USD)"),
+                    e("input", {
+                      type: "number",
+                      min: "0",
+                      step: "0.01",
+                      value: customShippingCost,
+                      onChange: (ev) => setCustomShippingCost(parseFloat(ev.target.value) || 0),
+                      className: "w-full p-2 border rounded-lg text-sm bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white outline-none",
+                    }),
+                  ]);
+                }
+                return null;
+              })(),
+              e("label", { className: "flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300 cursor-pointer" }, [
+                e("input", {
+                  type: "checkbox",
+                  checked: notifyCustomerShipping,
+                  onChange: (ev) => setNotifyCustomerShipping(ev.target.checked),
+                  className: "w-4 h-4 text-emerald-600 rounded",
+                }),
+                "Avisar al cliente por WhatsApp con el nuevo total",
+              ]),
+              e("div", { className: "flex justify-end gap-2 pt-1" }, [
+                e("button", {
+                  type: "button",
+                  onClick: handleSaveShipping,
+                  disabled: savingShipping || !selectedShippingId,
+                  className: "px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow transition disabled:opacity-50 cursor-pointer",
+                }, savingShipping ? "Guardando..." : "Guardar Cambio de Envío"),
+              ]),
             ]),
         ]),
         e("div", null, [

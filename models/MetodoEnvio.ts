@@ -18,6 +18,8 @@ const MetodoEnvioSchema = new Schema<IMetodoEnvio>(
     },
     costo: { type: Number, default: 0 },
     pideDatos: { type: String, default: "" },
+    direccion: { type: String, default: "", trim: true, maxlength: 200 },
+    horario: { type: String, default: "", trim: true, maxlength: 100 },
     activo: { type: Boolean, default: true },
     orden: { type: Number, default: 0 },
   },

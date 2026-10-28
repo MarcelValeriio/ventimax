@@ -264,3 +264,125 @@ export function validarFlujoNoLaborable(
     },
   };
 }
+
+// ==========================================
+// Datos del negocio (F0-14): legales y de contacto, editables desde el panel
+// ==========================================
+
+export interface DatosNegocio {
+  legal: {
+    razonSocial: string;
+    rif: string;
+    direccion: string;
+  };
+  contacto: {
+    email: string;
+    website: string;
+    instagram: string;
+    whatsapp: string;
+  };
+  fechaActualizacion: string;
+}
+
+export type ResultadoValidacionDatosNegocio =
+  | { ok: true; value: DatosNegocio }
+  | { ok: false; error: string };
+
+const LIMITES_DATOS_NEGOCIO: Record<string, number> = {
+  razonSocial: 120,
+  direccion: 200,
+  email: 100,
+  website: 200,
+  instagram: 100,
+};
+
+/**
+ * Valida y normaliza los datos legales y de contacto del negocio.
+ * Todos los campos son opcionales (vacío = no se muestra). La fecha de actualización
+ * no se acepta del cliente: la pone el servicio al guardar.
+ */
+export function validarDatosNegocio(val: any): ResultadoValidacionDatosNegocio {
+  if (!val || typeof val !== "object" || Array.isArray(val)) {
+    return { ok: false, error: "Los datos del negocio deben ser un objeto." };
+  }
+  const legal = val.legal ?? {};
+  const contacto = val.contacto ?? {};
+  if (typeof legal !== "object" || Array.isArray(legal)) {
+    return { ok: false, error: "El campo 'legal' debe ser un objeto." };
+  }
+  if (typeof contacto !== "object" || Array.isArray(contacto)) {
+    return { ok: false, error: "El campo 'contacto' debe ser un objeto." };
+  }
+
+  const campos: Record<string, unknown> = {
+    razonSocial: legal.razonSocial,
+    rif: legal.rif,
+    direccion: legal.direccion,
+    email: contacto.email,
+    website: contacto.website,
+    instagram: contacto.instagram,
+    whatsapp: contacto.whatsapp,
+  };
+  const limpio: Record<string, string> = {};
+  for (const [nombre, valor] of Object.entries(campos)) {
+    if (valor !== undefined && valor !== null && typeof valor !== "string") {
+      return { ok: false, error: `El campo '${nombre}' debe ser texto.` };
+    }
+    limpio[nombre] = String(valor ?? "").trim().replace(/\s+/g, " ");
+    const max = LIMITES_DATOS_NEGOCIO[nombre];
+    if (max && limpio[nombre].length > max) {
+      return { ok: false, error: `El campo '${nombre}' no puede exceder ${max} caracteres.` };
+    }
+  }
+
+  // RIF venezolano: letra (V, E, J, P o G), 8 dígitos y dígito verificador. Se guarda como J-12345678-9.
+  if (limpio.rif) {
+    const m = limpio.rif.toUpperCase().replace(/[\s.]/g, "").match(/^([VEJPG])-?(\d{8})-?(\d)$/);
+    if (!m) {
+      return { ok: false, error: "RIF inválido. Formato esperado: J-12345678-9 (letra V, E, J, P o G)." };
+    }
+    limpio.rif = `${m[1]}-${m[2]}-${m[3]}`;
+  }
+
+  if (limpio.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(limpio.email)) {
+    return { ok: false, error: "Correo inválido." };
+  }
+
+  if (limpio.website) {
+    const conProtocolo = /^https?:\/\//i.test(limpio.website) ? limpio.website : `https://${limpio.website}`;
+    let url: URL | null = null;
+    try {
+      url = new URL(conProtocolo);
+    } catch {
+      url = null;
+    }
+    if (!url || !url.hostname.includes(".")) {
+      return { ok: false, error: "Sitio web inválido. Ejemplo: https://minegocio.com" };
+    }
+    limpio.website = conProtocolo;
+  }
+
+  if (limpio.whatsapp) {
+    const digitos = limpio.whatsapp.replace(/[\s+\-()]/g, "");
+    if (!/^\d{10,15}$/.test(digitos)) {
+      return { ok: false, error: "WhatsApp inválido. Escribe el número con código de país, por ejemplo 584121234567." };
+    }
+    limpio.whatsapp = digitos;
+  }
+
+  const fecha = typeof val.fechaActualizacion === "string" ? val.fechaActualizacion.trim() : "";
+
+  return {
+    ok: true,
+    value: {
+      legal: { razonSocial: limpio.razonSocial, rif: limpio.rif, direccion: limpio.direccion },
+      contacto: {
+        email: limpio.email,
+        website: limpio.website,
+        instagram: limpio.instagram,
+        whatsapp: limpio.whatsapp,
+      },
+      fechaActualizacion: fecha.slice(0, 40),
+    },
+  };
+}

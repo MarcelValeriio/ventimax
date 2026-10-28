@@ -71,6 +71,10 @@ export interface IEnvioPedido {
   tipo?: TipoMetodoEnvio | string;
   costo?: number;
   aConvenir?: boolean;
+  costoAcordado?: boolean;
+  direccion?: string;
+  horario?: string;
+  cambioTrasCotizar?: boolean;
 }
 
 // ==========================================
@@ -262,6 +266,8 @@ export interface IMetodoEnvio {
   costoTipo: CostoTipoEnvio;
   costo?: number;
   pideDatos?: string;
+  direccion?: string;
+  horario?: string;
   activo?: boolean;
   orden?: number;
   createdAt?: Date;

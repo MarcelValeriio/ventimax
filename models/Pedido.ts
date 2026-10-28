@@ -25,7 +25,11 @@ const PedidoSchema = new Schema<IPedido>({
     nombre: { type: String },
     tipo: { type: String },
     costo: { type: Number, default: 0 },
-    aConvenir: { type: Boolean, default: false }
+    aConvenir: { type: Boolean, default: false },
+    costoAcordado: { type: Boolean, default: false },
+    direccion: { type: String, default: "" },
+    horario: { type: String, default: "" },
+    cambioTrasCotizar: { type: Boolean, default: false },
   },
   notas: { type: String, default: null },
   pago: {

@@ -387,6 +387,16 @@ mongoose
     await initHorario();
     console.log("✅ Horario comercial inicializado");
 
+    // Flujo de días no laborables: el bot lo lee de memoria, así que se carga de la base al arrancar
+    const { init: initFlujoNoLaborable } = require("./services/flujoNoLaborableService");
+    await initFlujoNoLaborable();
+    console.log("✅ Flujo de días no laborables inicializado");
+
+    // Datos legales y de contacto del negocio (política de privacidad, enlaces a WhatsApp)
+    const { init: initDatosNegocio } = require("./services/datosNegocioService");
+    await initDatosNegocio();
+    console.log("✅ Datos del negocio inicializados");
+
     // Inicializar Agenda para trabajos en segundo plano
     const { initAgenda } = require("./services/agendaService");
     await initAgenda(io);

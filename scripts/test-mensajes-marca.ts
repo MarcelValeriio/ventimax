@@ -33,6 +33,8 @@ const CLAVES_MENSAJES = [
   "weekendDeliveryConfirm",
   "weekendButtonPedir",
   "weekendButtonPuntoAliado",
+  "pickupUnavailable",
+  "advisorHandoff",
 ];
 
 function testMarca(brandNameTarget: string) {
