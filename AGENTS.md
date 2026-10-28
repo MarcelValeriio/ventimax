@@ -2143,7 +2143,7 @@ Verificado por Claude con `./scripts/ci.sh`: build, 29 suites (`test-catalogo-we
 **Antes de publicar la tienda** (no es tarea de código): en `render.yaml`, la URL `https://ventimax.onrender.com` de `API_URL` y de la CSP del sitio estático tiene que coincidir con la dirección real del servicio que asigne Render; en el servicio del servidor hay que poner `CATALOGO_ORIGEN` con la dirección del sitio estático. Claude lo ajusta cuando el servidor esté desplegado. Hasta entonces **no se sube** el cambio de `render.yaml`: el Blueprint crearía el sitio estático con una dirección equivocada.
 
 
-### F2-4 · El panel muestra y configura el catálogo web — Backend + Frontend · `Pendiente` (siguiente de Antigravity)
+### F2-4 · El panel muestra y configura el catálogo web — Backend + Frontend · `En curso`
 
 Diseño: `docs/f2-catalogo-web.md` §4. Requisito R14. Es la última tarea de F2.
 
@@ -2263,6 +2263,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-10-29 | 01:20 | `render.yaml`: VentiMax en plan `free` (decisión del dueño; el cliente de repuestos irá en `starter`) y bloque del sitio estático de la tienda comentado hasta conocer la dirección real del servidor — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 01:00 | Revisión F2-3 (aprobada con 2 ajustes de Claude: `Cross-Origin-Resource-Policy` relajado en todo el servidor → solo `/assets`; enlace de WhatsApp de la tienda validado). Tarea nueva F2-4 (panel del catálogo web: configuración, insignias, métrica y registro de abuso) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-28 | — | F2-3: Páginas de la tienda como sitio estático `catalogo/` (SPA sin frameworks ni innerHTML, carrito puro, build.js, cabeceras CSP en render.yaml, servidor local y 0 errores CSP en navegador); suite `test-catalogo-web.ts` en CI — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
 | 2026-10-29 | 00:15 | Revisión F2-2 (aprobada con 3 ajustes de Claude: respaldos con la marca, código ya convertido en pedido que se podía recargar, stock exacto en el aviso). F2-3 pasa a ser la siguiente de Antigravity — Ejecutado por **Claude** | Claude (Cerebro) | Completado |

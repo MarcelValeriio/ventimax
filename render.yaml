@@ -5,9 +5,10 @@ services:
   - type: web
     name: ventimax
     runtime: node
-    # starter (de pago) no se duerme. El plan free se apaga tras 15 min sin tráfico: los mensajes de WhatsApp
-    # llegarían con retraso y el Watchdog y los trabajos programados se detendrían.
-    plan: starter
+    # VentiMax arranca en el plan free (decisión del dueño, 2026-10-29). El free se apaga tras 15 min sin
+    # tráfico: el primer mensaje tras una pausa tarda 30-60 s y el Watchdog y los trabajos programados se
+    # detienen mientras duerme. Para clientes con ventas diarias usar `plan: starter` (no se duerme).
+    plan: free
     region: oregon
     buildCommand: npm ci && npm run build
     startCommand: npm start
@@ -73,26 +74,29 @@ services:
       # Opcionales (Instagram, Messenger, anuncios, audio): se añaden a mano en Render cuando se activen.
       # Lista completa y comentada en .env.example.
 
-  # ── Catálogo Web Estático (F2-3) ──────────────────────────────────
-  - type: static
-    name: ventimax-tienda
-    buildCommand: node catalogo/build.js
-    staticPublishPath: catalogo
-    headers:
-      - path: /*
-        name: Content-Security-Policy
-        # Nota: https://ventimax.onrender.com (<API_URL>) se cambia por la URL del servidor de cada cliente
-        value: "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://res.cloudinary.com https://ventimax.onrender.com; connect-src 'self' https://ventimax.onrender.com; object-src 'none'; frame-ancestors 'none'; base-uri 'self'"
-      - path: /*
-        name: Strict-Transport-Security
-        value: max-age=31536000; includeSubDomains; preload
-      - path: /*
-        name: X-Content-Type-Options
-        value: nosniff
-      - path: /*
-        name: Referrer-Policy
-        value: strict-origin-when-cross-origin
-    envVars:
-      - key: API_URL
-        value: https://ventimax.onrender.com # Cambiar por la URL del servidor del cliente
-
+  # ── Catálogo web (F2-3): EN PAUSA hasta conocer la dirección real del servidor ─────────────────
+  # Para publicar la tienda: descomentar el bloque, cambiar https://ventimax.onrender.com por la dirección
+  # real del servicio en API_URL y en la CSP, y poner CATALOGO_ORIGEN (dirección del sitio estático) en el
+  # servicio del servidor. Si se sube con una dirección equivocada, la tienda no podrá leer el catálogo.
+  # # ── Catálogo Web Estático (F2-3) ──────────────────────────────────
+  # - type: static
+  #   name: ventimax-tienda
+  #   buildCommand: node catalogo/build.js
+  #   staticPublishPath: catalogo
+  #   headers:
+  #     - path: /*
+  #       name: Content-Security-Policy
+  #       # Nota: https://ventimax.onrender.com (<API_URL>) se cambia por la URL del servidor de cada cliente
+  #       value: "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://res.cloudinary.com https://ventimax.onrender.com; connect-src 'self' https://ventimax.onrender.com; object-src 'none'; frame-ancestors 'none'; base-uri 'self'"
+  #     - path: /*
+  #       name: Strict-Transport-Security
+  #       value: max-age=31536000; includeSubDomains; preload
+  #     - path: /*
+  #       name: X-Content-Type-Options
+  #       value: nosniff
+  #     - path: /*
+  #       name: Referrer-Policy
+  #       value: strict-origin-when-cross-origin
+  #   envVars:
+  #     - key: API_URL
+  #       value: https://ventimax.onrender.com # Cambiar por la URL del servidor del cliente

@@ -49,7 +49,8 @@ funcionando.
 ## C. Render
 
 - [ ] Render → *New* → *Blueprint* → el repositorio de VentiMax. `render.yaml` ya trae el nombre `ventimax`,
-      `BRAND_NAME=ventimax`, `NODE_ENV=production`, el plan *starter* y un `JWT_SECRET` generado.
+      `BRAND_NAME=ventimax`, `NODE_ENV=production`, el plan *free* (decisión del dueño: se duerme tras
+      15 min sin tráfico; pasar a *starter* cuando haya ventas diarias) y un `JWT_SECRET` generado.
 - [ ] Pegar las variables que pide (todas las de A y B). (Guía §4)
 - [ ] Desplegar y revisar en los logs: `Configuración cargada para: ventimax`, `Conectado a MongoDB`,
       `Sembrando catálogo inicial` y `Administrador inicial '<usuario>' creado`. Si algo falla, la tabla de la
