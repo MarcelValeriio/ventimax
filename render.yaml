@@ -81,7 +81,8 @@ services:
   # La tienda vive en otro origen que el panel [R1]. Para otro cliente: cambiar el name y
   # https://ventimax.onrender.com (dirección del servidor) en API_URL y en la CSP; y en el servidor,
   # CATALOGO_ORIGEN con la dirección que Render asigne a este sitio.
-  - type: static
+  - type: web
+    runtime: static
     name: ventimax-tienda
     buildCommand: node catalogo/build.js
     staticPublishPath: catalogo

@@ -298,7 +298,8 @@ async function runTests() {
   console.log("\n▶ Test 7: Cabeceras de seguridad del sitio estático en render.yaml...");
   const renderYamlContent = fs.readFileSync(path.resolve(__dirname, "../render.yaml"), "utf8");
 
-  assert.ok(renderYamlContent.includes("type: static"), "render.yaml debe definir un servicio type: static");
+  // Formato actual de los Blueprints de Render: los sitios estáticos son type: web con runtime: static
+  assert.ok(renderYamlContent.includes("runtime: static"), "render.yaml debe definir el sitio estático (runtime: static)");
   assert.ok(renderYamlContent.includes("staticPublishPath: catalogo"), "Debe publicar la carpeta catalogo");
   assert.ok(renderYamlContent.includes("Content-Security-Policy"), "Debe configurar cabecera CSP");
   assert.ok(renderYamlContent.includes("Strict-Transport-Security"), "Debe configurar cabecera HSTS");

@@ -2355,6 +2355,8 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 ## Pendientes del dueño
 
+- **URGENTE: cambiar la contraseña del usuario de base de datos de Atlas.** La `MONGODB_URI` real (usuario y contraseña de producción) se subió a GitHub dentro de `.env.example` en el commit `3391fa5` (2026-10-28). Claude devolvió la plantilla a `MONGODB_URI=` vacío el 2026-10-29. Pasos: Atlas → Database Access → usuario → Edit → Edit Password → Autogenerate → Update User; después actualizar `MONGODB_URI` en Render (Environment) con la contraseña nueva. Con la contraseña cambiada, la vieja que quedó en el historial ya no sirve.
+
 - **Render → Blueprints → ventimax → Manual Sync** para crear la tienda (`ventimax-tienda`) y aplicar `CATALOGO_ORIGEN` en el servidor; el push no lo hizo solo (2026-10-29).
 
 - **Limpiar el historial de GitHub** de los datos de clientes de Mr. Pachi (comandos dados por Claude el 2026-10-28). Hacerlo cuando el working tree esté limpio, después del commit de F0-9.
@@ -2375,6 +2377,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-10-29 | 04:40 | Hallada la `MONGODB_URI` de producción (con contraseña) en `.env.example`, subida a GitHub en `3391fa5`. Plantilla restaurada a `MONGODB_URI=` vacío; pedido al dueño cambiar la contraseña del usuario de Atlas. Revisado: ninguna otra clave en ese archivo, `dist/` ignorado por git — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 04:20 | Comprobado en producción tras el push de F2-4/M-3: servidor sin errores (push activo, sin el aviso IPv6, catálogo inicializado), `/api/public/catalogo` con 6 productos y precio en Bs, `/privacidad` 200, `/health` ok. La tienda **no se creó**: el Blueprint no sincronizó solo (pendiente del dueño: Blueprints → ventimax → Manual Sync). Arreglo: el catálogo público ya no publica categorías vacías ("General" de la siembra) + prueba — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 04:00 | M-2 hecha por el subagente Haiku 5.5 y revisada por Claude (aprobada, con un ajuste en productos y categorías). Primera tarea con el equipo nuevo — Ejecutado por **Claude** + subagente | Claude (Cerebro) | Completado |
 | 2026-10-29 | 03:30 | Revisión F2-4 (aprobada): **Fase 2 cerrada**. Cambio de equipo: Antigravity sin tokens; desde ahora Claude con un subagente Haiku 5.5 para la ejecución — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
