@@ -2,6 +2,7 @@ import express from "express";
 const router = express.Router();
 const publicController = require("../controllers/publicController");
 const rateLimit = require("express-rate-limit");
+const { registrarEventoCatalogo } = require("../services/catalogoAbusoService");
 
 // 1. CORS para CATALOGO_ORIGEN y cabecera Vary: Origin [R12]
 router.use((req: any, res: any, next: any) => {
@@ -49,6 +50,7 @@ const pedidosWebLimiter = rateLimit({
   legacyHeaders: false,
   handler: (req: any, res: any) => {
     console.warn(`⚠️ [Catálogo] POST /api/public/pedidos: límite excedido para IP ${req.ip}`);
+    registrarEventoCatalogo("limite").catch(() => {});
     res.status(429).json({
       error: "Has creado varios carritos recientemente. Por favor, espera unos minutos antes de intentar de nuevo.",
     });

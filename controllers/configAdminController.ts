@@ -2,10 +2,12 @@ import { Request, Response } from "express";
 const axios = require("axios");
 const { configStore, EDITABLE_KEYS, SECRET_KEYS, getConfig, setConfig } = require("../services/configStore");
 const { registrarAuditoria } = require("../services/auditService");
-const { validarValorConfig, validarHorarioAtencion, validarFlujoNoLaborable, validarDatosNegocio } = require("../services/configValidators");
+const { validarValorConfig, validarHorarioAtencion, validarFlujoNoLaborable, validarDatosNegocio, validarConfigCatalogo } = require("../services/configValidators");
 const { getHorario, setHorario, formatearHorarioAtencion } = require("../services/horarioService");
 const { getFlujoNoLaborable, setFlujoNoLaborable } = require("../services/flujoNoLaborableService");
 const { getDatosNegocio, setDatosNegocio } = require("../services/datosNegocioService");
+const { getConfigCatalogo, setConfigCatalogo } = require("../services/catalogoConfigService");
+const { obtenerReporteAbuso } = require("../services/catalogoAbusoService");
 
 /**
  * Obtiene la configuración completa para el panel administrativo.
@@ -309,6 +311,60 @@ export const updateDatosNegocioConfig = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Obtiene la configuración del catálogo web (F2-4).
+ */
+export const getCatalogoConfig = async (req: Request, res: Response) => {
+  try {
+    const catalogo = await getConfigCatalogo();
+    res.json({ success: true, catalogo });
+  } catch (error: any) {
+    console.error("❌ Error obteniendo configuración del catálogo:", error);
+    res.status(500).json({ success: false, error: "Error al obtener la configuración del catálogo" });
+  }
+};
+
+/**
+ * Actualiza la configuración del catálogo web (activo, prefijo, prefill de WhatsApp).
+ */
+export const updateCatalogoConfig = async (req: Request, res: Response) => {
+  try {
+    const payload = req.body?.catalogo !== undefined ? req.body.catalogo : req.body;
+    const validacion = validarConfigCatalogo(payload);
+    if (!validacion.ok) {
+      return res.status(400).json({ success: false, error: validacion.error });
+    }
+
+    const anterior = await getConfigCatalogo();
+    const guardado = await setConfigCatalogo(validacion.value);
+
+    await registrarAuditoria(req, {
+      tipoRecurso: "config",
+      accion: "update",
+      recursoId: "catalogo",
+      detalles: { previo: anterior, nuevo: guardado },
+    });
+
+    res.json({ success: true, message: "Configuración del catálogo web guardada correctamente", catalogo: guardado });
+  } catch (error: any) {
+    console.error("❌ Error actualizando configuración del catálogo:", error);
+    res.status(500).json({ success: false, error: "Error al guardar la configuración del catálogo" });
+  }
+};
+
+/**
+ * Obtiene el reporte de eventos anti-abuso del catálogo web de los últimos 14 días.
+ */
+export const getCatalogoAbuso = async (req: Request, res: Response) => {
+  try {
+    const reporte = await obtenerReporteAbuso(14);
+    res.json({ success: true, reporte });
+  } catch (error: any) {
+    console.error("❌ Error obteniendo reporte de abuso del catálogo:", error);
+    res.status(500).json({ success: false, error: "Error al obtener el reporte de abuso" });
+  }
+};
+
 module.exports = {
   getConfigAdmin,
   updateConfigAdmin,
@@ -319,4 +375,7 @@ module.exports = {
   updateDatosNegocioConfig,
   getFlujoNoLaborableConfig,
   updateFlujoNoLaborableConfig,
+  getCatalogoConfig,
+  updateCatalogoConfig,
+  getCatalogoAbuso,
 };

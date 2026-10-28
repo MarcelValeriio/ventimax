@@ -183,6 +183,8 @@ export interface IEtiquetaIg {
   unreadCount?: number;
   lastInteraction?: Date;
   metadata?: Record<string, any>;
+  /** Memoria corta del bot social (M-3, services/cortesiaService.ts). */
+  social?: Record<string, any>;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -501,3 +503,19 @@ export interface ICarritoWeb {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+// ==========================================
+// 19. IContadorCatalogo (models/ContadorCatalogo.ts) - F2-4
+// ==========================================
+
+export type TipoEventoCatalogo = "creado" | "limite" | "honeypot" | "validacion" | "producto";
+
+export interface IContadorCatalogo {
+  _id?: string;
+  fecha: string; // YYYY-MM-DD
+  tipo: TipoEventoCatalogo;
+  cantidad: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+

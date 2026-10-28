@@ -12,6 +12,7 @@ let AuditoriaOriginal = require("../models/Auditoria");
 const UsuarioOriginal = require("../models/Usuario");
 const SettingOriginal = require("../models/Setting");
 const MetodoEnvioOriginal = require("../models/MetodoEnvio");
+const CarritoWebOriginal = require("../models/CarritoWeb");
 const { registrarAuditoria } = require("../services/auditService"); // Imported audit service
 const pushService = require("../services/pushService");
 let Counter = require("../models/Counter");
@@ -27,6 +28,7 @@ let Auditoria = AuditoriaOriginal;
 let Usuario = UsuarioOriginal;
 let Setting = SettingOriginal;
 let MetodoEnvio = MetodoEnvioOriginal;
+let CarritoWeb = CarritoWebOriginal;
 
 // Soporte para Pruebas de Integración (Mock con Persistencia Compartida)
 if (process.env.NODE_ENV === "test") {
@@ -44,10 +46,14 @@ if (process.env.NODE_ENV === "test") {
   if (typeof dbLocal.getMetodoEnvioModel === "function") {
     MetodoEnvio = dbLocal.getMetodoEnvioModel();
   }
+  if (typeof dbLocal.getCarritoWebModel === "function") {
+    CarritoWeb = dbLocal.getCarritoWebModel();
+  }
 }
 const configManager = require("../services/configManager");
 const orderService = require("../services/orderService");
 const bcv = require("../services/bcv");
+const { obtenerTotalCreados, fechaCaracas } = require("../services/catalogoAbusoService");
 const { obtenerTasas, obtenerTasaUSD } = bcv;
 const {
   enviarTexto,
@@ -2957,7 +2963,30 @@ const getSalesSummary = async (req, res) => {
       tasaActual = tasaRes?.tasa || 0;
     } catch (e) {}
 
-    // 5. Obtener Transacciones (Paginadas o Totales)
+    // 5. Métrica de Pedidos Web (F2-4)
+    let inicioCaracasStr: string | undefined;
+    let finCaracasStr: string | undefined;
+    if (queryFilter.timestamp && queryFilter.timestamp.$gte) {
+      inicioCaracasStr = fechaCaracas(new Date(queryFilter.timestamp.$gte));
+    }
+    if (queryFilter.timestamp && queryFilter.timestamp.$lte) {
+      finCaracasStr = fechaCaracas(new Date(queryFilter.timestamp.$lte));
+    }
+
+    const creadosWeb = await obtenerTotalCreados(inicioCaracasStr, finCaracasStr);
+    const carritoWebQuery: any = { estado: "vinculado" };
+    if (queryFilter.timestamp) {
+      carritoWebQuery.creadoEn = queryFilter.timestamp;
+    }
+    const vinculadosWebCount = await CarritoWeb.countDocuments(carritoWebQuery);
+
+    const convertidosWebCount = await Pedido.countDocuments({
+      ...queryFilter,
+      "origenWeb.codigo": { $exists: true, $ne: null },
+    });
+    const vinculadosWeb = Math.max(vinculadosWebCount, convertidosWebCount);
+
+    // 6. Obtener Transacciones (Paginadas o Totales)
     const totalRecords = await Pedido.countDocuments(queryFilter);
     let query = Pedido.find(queryFilter).sort({ timestamp: -1 });
 
@@ -2980,6 +3009,8 @@ const getSalesSummary = async (req, res) => {
       fecha: p?.timestamp || new Date(),
       esAd: Boolean(p?.ctwaClid && typeof p.ctwaClid === "string" && p.ctwaClid.trim() !== ""),
       ctwaClid: p?.ctwaClid || null,
+      esWeb: Boolean(p?.origenWeb?.codigo),
+      origenWebCodigo: p?.origenWeb?.codigo || null,
     }));
 
     return res.status(200).json({
@@ -3002,6 +3033,11 @@ const getSalesSummary = async (req, res) => {
             stats.totalPedidos > 0
               ? Math.round(((stats.totalAdsPedidos || 0) / stats.totalPedidos) * 100)
               : 0,
+          pedidosWeb: {
+            creados: creadosWeb,
+            vinculados: vinculadosWeb,
+            convertidos: convertidosWebCount,
+          },
         },
         pagination: {
           totalRecords,

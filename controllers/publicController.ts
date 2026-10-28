@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 const configManager = require("../services/configManager");
 const bcv = require("../services/bcv");
 const { getDatosNegocioSync } = require("../services/datosNegocioService");
+const { getConfigCatalogoSync } = require("../services/catalogoConfigService");
+const { registrarEventoCatalogo } = require("../services/catalogoAbusoService");
 const { obtenerCategoriasDeProducto } = require("../services/catalogQuery");
 const { pedidoPublicoSchema } = require("../validators");
 
@@ -186,19 +188,21 @@ export async function getCatalogo(req: any, res: any) {
  */
 export async function postPedidoWeb(req: any, res: any) {
   try {
-    if (configManager.get("settings.catalogo.activo") === false) {
+    const configCatalogo = getConfigCatalogoSync();
+    if (configCatalogo.activo === false) {
       console.warn("⚠️ [Catálogo] POST /api/public/pedidos: catálogo web desactivado");
       return res.status(503).json({
         error: "El servicio de pedidos web se encuentra temporalmente suspendido",
       });
     }
 
-    const prefijo = configManager.get("settings.catalogo.prefijoPedido") || "PW";
+    const prefijo = configCatalogo.prefijo || "PW";
     const vigenciaHoras = Number(configManager.get("settings.catalogo.vigenciaHoras")) || 72;
 
     // 1. Validación estricta Zod (primero, incluso para honeypots)
     const validation = pedidoPublicoSchema.safeParse(req.body);
     if (!validation.success) {
+      await registrarEventoCatalogo("validacion");
       const errList = validation.error?.issues || validation.error?.errors || [];
       const detallesStr = errList.map((e: any) => `${(e.path || []).join(".")}: ${e.message}`).join(", ");
       console.warn(`⚠️ [Catálogo] POST /api/public/pedidos: validación fallida - ${detallesStr}`);
@@ -223,6 +227,7 @@ export async function postPedidoWeb(req: any, res: any) {
 
     for (const [, cant] of mapaItems.entries()) {
       if (cant > 50) {
+        await registrarEventoCatalogo("validacion");
         console.warn("⚠️ [Catálogo] POST /api/public/pedidos: cantidad combinada excede 50 unidades");
         return res.status(400).json({
           error: "La cantidad combinada de un producto no puede exceder 50 unidades",
@@ -243,12 +248,14 @@ export async function postPedidoWeb(req: any, res: any) {
       // Consulta estricta por id de texto (nunca _id para evitar CastError)
       const prod = await Producto.findOne({ id: prodId });
       if (!prod) {
+        await registrarEventoCatalogo("producto");
         console.warn(`⚠️ [Catálogo] POST /api/public/pedidos: producto '${prodId}' no encontrado`);
         return res.status(400).json({
           error: `El producto '${prodId}' no existe o no está disponible.`,
         });
       }
       if (prod.activo === false) {
+        await registrarEventoCatalogo("producto");
         console.warn(`⚠️ [Catálogo] POST /api/public/pedidos: producto '${prod.name || prodId}' inactivo`);
         return res.status(400).json({
           error: `El producto '${prod.name || prodId}' no está disponible.`,
@@ -257,6 +264,7 @@ export async function postPedidoWeb(req: any, res: any) {
       if (prod.trackStock === true) {
         const stockDisponible = Number(prod.stock) || 0;
         if (stockDisponible < cantidad) {
+          await registrarEventoCatalogo("producto");
           console.warn(`⚠️ [Catálogo] POST /api/public/pedidos: producto '${prod.name}' sin stock suficiente`);
           return res.status(400).json({
             error: `El producto '${prod.name}' no tiene disponibilidad suficiente.`,
@@ -314,15 +322,13 @@ export async function postPedidoWeb(req: any, res: any) {
       // Continuar sin tasa
     }
 
-    const prefillRaw = configManager.format("settings.messages.webOrderPrefill", { codigo });
-    const prefillText =
-      prefillRaw && prefillRaw.trim() !== ""
-        ? prefillRaw
-        : `Hola, quiero confirmar mi pedido web ${codigo}`;
+    const plantillaPrefill = configCatalogo.mensajePrefill || "Hola, quiero confirmar mi pedido web {{codigo}}";
+    const prefillText = plantillaPrefill.replace(/\{\{codigo\}\}/g, codigo);
     const enlaceWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(prefillText)}`;
 
     // 7. Si es honeypot: responde exactamente igual pero SIN persistir en la base de datos
     if (esHoneypot) {
+      await registrarEventoCatalogo("honeypot");
       console.warn("⚠️ [Catálogo] POST /api/public/pedidos: honeypot detectado");
       return res.status(200).json({
         codigo,
@@ -344,6 +350,8 @@ export async function postPedidoWeb(req: any, res: any) {
       creadoEn: new Date(),
       expiraEn,
     });
+
+    await registrarEventoCatalogo("creado");
 
     return res.status(200).json({
       codigo,

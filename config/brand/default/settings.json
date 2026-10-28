@@ -57,6 +57,10 @@
     "activo": true
   },
   "messages": {
+    "socialThanks": ["¡Con gusto! 🙌 Aquí estamos cuando lo necesites.", "¡A la orden! Si te surge otra duda, escríbenos 😊", "¡Gracias a ti! Cuando quieras hacer tu pedido, te esperamos por WhatsApp: {{waLink}}"],
+    "socialOutsideZone": ["¡Llegamos a otras ciudades! 📦 Escríbenos por WhatsApp y te decimos cómo llega tu pedido: {{waLink}}", "¡No hay problema! Cuéntanos tu ciudad por WhatsApp y te decimos cómo hacértelo llegar: {{waLink}}"],
+    "socialOutsideZoneNoShipping": ["Por ahora entregamos solo en Caracas, pero un asesor puede ayudarte a buscar una opción: {{waLink}}"],
+    "socialUnknown": ["¿Me cuentas un poco más para poder ayudarte mejor? 😊 Si prefieres, un asesor te atiende por WhatsApp: {{waLink}}", "Quiero ayudarte bien: ¿me lo cuentas con otras palabras? También puedes hablar con un asesor por WhatsApp: {{waLink}}"],
     "welcome": "*{{brandName}}*\n{{saludo}} Elige una opción de la lista, o *escríbeme tu duda* directamente:",
     "productsCatalog": "🍜 *Catálogo de Productos*\nSelecciona una opción:",
     "cartTitle": "🛒 *Tu Carrito*",

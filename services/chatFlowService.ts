@@ -44,6 +44,7 @@ if (process.env.NODE_ENV === "test") {
   }
 }
 const configManager = require("./configManager");
+const { getConfigCatalogoSync } = require("./catalogoConfigService");
 const orderService = require("./orderService");
 const chatFlow = require("../controllers/chatFlowController");
 const { isAskingForBCVRate } = require("./intentClassifier");
@@ -548,10 +549,11 @@ class ChatFlowService {
       return;
     }
 
-    // Intercepción de código de pedido web (F2-2)
+    // Intercepción de código de pedido web (F2-2, F2-4)
     // Solo si el catálogo está activo (por defecto true)
-    if (configManager.get("settings.catalogo.activo") !== false) {
-      const prefijo = (configManager.get("settings.catalogo.prefijoPedido") || "PW").trim();
+    const configCatalogo = getConfigCatalogoSync();
+    if (configCatalogo.activo !== false) {
+      const prefijo = (configCatalogo.prefijo || "PW").trim();
       const escapedPrefijo = prefijo.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
       const webOrderRegex = new RegExp(`\\b${escapedPrefijo}[-\\s]?([23456789ABCDEFGHJKMNPQRSTUVWXYZ]{5})\\b`, "i");
 

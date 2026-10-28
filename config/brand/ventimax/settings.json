@@ -71,6 +71,10 @@
     "activo": true
   },
   "messages": {
+    "socialThanks": ["¡Con gusto! 🙌 Aquí estamos cuando lo necesites.", "¡A la orden! Si te surge otra duda, escríbenos 😊", "¡Gracias a ti! Cuando quieras tu ventilador, te atendemos por WhatsApp: {{waLink}}"],
+    "socialOutsideZone": ["¡Llegamos a todo el país! 📦 Hacemos envíos nacionales por agencia. Escríbenos por WhatsApp y te decimos cómo llega a tu ciudad: {{waLink}}", "¡No hay problema! Enviamos a toda Venezuela por agencia de envíos. Cuéntanos tu ciudad por WhatsApp y te ayudamos: {{waLink}}"],
+    "socialOutsideZoneNoShipping": ["Por ahora entregamos solo en nuestra zona, pero un asesor puede ayudarte a buscar una opción para tu ciudad: {{waLink}}"],
+    "socialUnknown": ["¿Me cuentas un poco más para poder ayudarte mejor? 😊 Si prefieres, un asesor te atiende por WhatsApp: {{waLink}}", "Quiero ayudarte bien: ¿me lo cuentas con otras palabras? También puedes hablar con un asesor por WhatsApp: {{waLink}}"],
     "welcome": "*{{brandName}}*\n{{saludo}} Elige una opción de la lista, o *escríbeme tu duda* directamente:",
     "productsCatalog": "🌀 *Catálogo de Ventiladores*\nSelecciona una categoría:",
     "cartTitle": "🛒 *Tu Carrito*",

@@ -354,6 +354,111 @@ class DbMock {
       }
     };
   }
+
+  getContadorCatalogoModel() {
+    if (!this.data.contadoresCatalogo) this.data.contadoresCatalogo = [];
+    const matchQuery = (c, query) => {
+      if (!query || Object.keys(query).length === 0) return true;
+      for (const [key, val] of Object.entries(query)) {
+        if (key === "_id" && String(c._id) !== String(val)) return false;
+        if (key === "tipo") {
+          if (val && typeof val === "object" && "$in" in val) {
+            if (!((val.$in || []).includes(c.tipo))) return false;
+          } else if (c.tipo !== val) {
+            return false;
+          }
+        }
+        if (key === "fecha") {
+          if (val && typeof val === "object") {
+            if (val.$gte !== undefined && c.fecha < val.$gte) return false;
+            if (val.$lte !== undefined && c.fecha > val.$lte) return false;
+            if (val.$gt !== undefined && c.fecha <= val.$gt) return false;
+            if (val.$lt !== undefined && c.fecha >= val.$lt) return false;
+            if (val.$in !== undefined && !val.$in.includes(c.fecha)) return false;
+          } else if (c.fecha !== val) {
+            return false;
+          }
+        }
+      }
+      return true;
+    };
+
+    return {
+      find: (query = {}) => {
+        let items = this.data.contadoresCatalogo.filter((c) => matchQuery(c, query));
+        let sortFn = null;
+        const result = {
+          sort: (sortObj) => {
+            if (sortObj && typeof sortObj === "object") {
+              const [field, direction] = Object.entries(sortObj)[0] || [];
+              if (field) {
+                const dir = direction === -1 || direction === "desc" ? -1 : 1;
+                sortFn = (a, b) => (a[field] > b[field] ? dir : a[field] < b[field] ? -dir : 0);
+                items.sort(sortFn);
+              }
+            }
+            return {
+              lean: () => Promise.resolve(items),
+              then: (resolve) => resolve(items),
+              catch: () => {},
+            };
+          },
+          lean: () => Promise.resolve(items),
+          then: (resolve) => resolve(items),
+          catch: () => {},
+        };
+        return result;
+      },
+      findOne: async (query = {}) => {
+        const found = this.data.contadoresCatalogo.find((c) => matchQuery(c, query));
+        return found || null;
+      },
+      findOneAndUpdate: async (filter = {}, update = {}, options = {}) => {
+        let item = this.data.contadoresCatalogo.find((c) => matchQuery(c, filter));
+        if (!item) {
+          if (options && options.upsert) {
+            item = {
+              _id: `cc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              fecha: filter.fecha,
+              tipo: filter.tipo,
+              cantidad: 0,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+            this.data.contadoresCatalogo.push(item);
+          } else {
+            return null;
+          }
+        }
+
+        if (update.$inc) {
+          for (const [key, incVal] of Object.entries(update.$inc)) {
+            item[key] = (item[key] || 0) + incVal;
+          }
+        }
+        if (update.$set) {
+          for (const [key, setVal] of Object.entries(update.$set)) {
+            item[key] = setVal;
+          }
+        }
+        item.updatedAt = new Date();
+        return {
+          ...item,
+          toObject: function () {
+            return { ...this };
+          },
+        };
+      },
+      deleteMany: async (query = {}) => {
+        if (!query || Object.keys(query).length === 0) {
+          this.data.contadoresCatalogo = [];
+        } else {
+          this.data.contadoresCatalogo = this.data.contadoresCatalogo.filter((c) => !matchQuery(c, query));
+        }
+        return { acknowledged: true, deletedCount: 1 };
+      },
+    };
+  }
 }
 
 module.exports = new DbMock();

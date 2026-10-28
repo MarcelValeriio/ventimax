@@ -18,6 +18,7 @@
 |---|---|
 | **Claude** (Cerebro) | Decide la arquitectura, escribe las tareas del tablero con su criterio de cierre, revisa cada entrega y la aprueba o la devuelve. Hace cambios pequeños o de arquitectura. Consulta Render por MCP (solo lectura). |
 | **Antigravity** (TPM) | Ejecuta las tareas del tablero delegando en sus subagentes (matriz de abajo). No amplía ni cambia el alcance: si algo no está en la especificación o no cuadra con el código, lo escribe en **Dudas para Claude** y espera. |
+| **Subagente Haiku 5.5** (desde 2026-10-29) | Antigravity se quedó sin tokens: desde el 2026-10-29 Claude reparte el trabajo de ejecución a un subagente con Haiku 5.5 y revisa cada entrega con los mismos criterios (`./scripts/ci.sh`, revisión del diff, nada de la marca en el código). Las reglas no negociables valen igual para el subagente. |
 | **Dueño** | Hace todos los commits. Configura Render, Meta y MongoDB Atlas. Aporta los datos reales (precios, cuentas de pago, teléfonos). |
 
 ## Matriz de ruteo de subagentes (Antigravity)
@@ -116,7 +117,7 @@ Firmas en el historial: `— Ejecutado por **Antigravity**`, `— Ejecutado por 
 |---|---|---|
 | **F0** | Plantilla multimarca: marca `ventimax`, código sin textos de Mr. Pachi, horario, fin de semana y métodos de envío editables desde el panel, arranque seguro, imágenes de producto, guía para nuevos clientes. Las 14 tareas cerradas el 2026-10-28 | **Cerrada** |
 | F1 | Producto ampliado: SKU, marca fabricante, códigos OEM, atributos, compatibilidad por vehículo (marca, modelo, años, motor, versión), grupos de equivalencia; importación desde Excel; bot por vehículo. **Diseño: `docs/f1-producto-ampliado.md`** | Diseñada (espera cierre de F0) |
-| F2 | Catálogo web público con carrito y pedido a WhatsApp con código no adivinable. **Diseño: `docs/f2-catalogo-web.md`.** Requisitos de seguridad obligatorios: `docs/auditoria-seguridad-2026-10.md` (sección F2) | **En curso** (F2-1, F2-2 y F2-3 aprobadas; sigue F2-4, la última) |
+| F2 | Catálogo web público con carrito y pedido a WhatsApp con código no adivinable. **Diseño: `docs/f2-catalogo-web.md`.** Requisitos de seguridad obligatorios: `docs/auditoria-seguridad-2026-10.md` (sección F2) | **En curso** (F2-1, F2-2 y F2-3 aprobadas; F2-4 lista para revisión) |
 | F3 | Búsqueda con IA sobre la BD (texto y notas de voz), registro de búsquedas sin resultado, pase a asesor | Pendiente |
 | F4 | Formularios nativos (WhatsApp Flows), lectura de fotos de piezas, equivalencias entre marcas | Pendiente |
 | F5 | **Canal TikTok** (Business Messaging API): mensajes directos de la cuenta de empresa en el Inbox, como cuarto canal con el mismo esquema que Instagram (preguntas frecuentes por el bot; para comprar, enlace a WhatsApp). Beta abierta en Latinoamérica; requiere cuenta TikTok Business y app aprobada (revisión de seguridad y privacidad de TikTok). Investigación previa (2026-10-28, subagente): la documentación oficial de TikTok no se pudo leer sin navegador, así que lo técnico (endpoints, JSON del webhook, firma) está **sin verificar**. Según integradores: ventana de 48 h desde el último mensaje del cliente, unos 10 mensajes por ventana, solo texto e imagen (sin botones confirmados), tokens de ~24 h que se renuevan, y Latinoamérica disponible (Venezuela sin confirmar). Antes del diseño hay que leer la documentación oficial con sesión iniciada. Se diseña después de F0, junto a F2. **Decisión del dueño (2026-10-28): sin botones.** El bot de TikTok responde solo con texto: respuestas por intención (precios, envíos, horario, pagos, catálogo) armadas con variables de la marca y del panel (`{{brandName}}`, horario, métodos de envío y pago vigentes, etc.), y **enlaces** para llevar al cliente a comprar: `{{waLink}}` (chat de WhatsApp con texto prellenado y la etiqueta de origen TikTok) y `{{catalogoUrl}}` (catálogo web de F2; mientras F2 no exista, solo WhatsApp). Los textos van en `messages` de la marca, nunca en el código | Pendiente (requisitos del dueño) |
@@ -2143,7 +2144,7 @@ Verificado por Claude con `./scripts/ci.sh`: build, 29 suites (`test-catalogo-we
 **Antes de publicar la tienda** (no es tarea de código): en `render.yaml`, la URL `https://ventimax.onrender.com` de `API_URL` y de la CSP del sitio estático tiene que coincidir con la dirección real del servicio que asigne Render; en el servicio del servidor hay que poner `CATALOGO_ORIGEN` con la dirección del sitio estático. Claude lo ajusta cuando el servidor esté desplegado. Hasta entonces **no se sube** el cambio de `render.yaml`: el Blueprint crearía el sitio estático con una dirección equivocada.
 
 
-### F2-4 · El panel muestra y configura el catálogo web — Backend + Frontend · `En curso`
+### F2-4 · El panel muestra y configura el catálogo web — Backend + Frontend · `Aprobada`
 
 Diseño: `docs/f2-catalogo-web.md` §4. Requisito R14. Es la última tarea de F2.
 
@@ -2158,7 +2159,80 @@ Diseño: `docs/f2-catalogo-web.md` §4. Requisito R14. Es la última tarea de F2
 5. **Registro de abuso [R14]:** colección pequeña de contadores diarios (`{ fecha, tipo, cantidad }` con `$inc`; tipos: `creado`, `limite`, `honeypot`, `validacion`, `producto`). `publicController` y el limitador suman ahí, además del log `⚠️ [Catálogo]`. En el panel, tabla de los últimos 14 días. Sin IP ni datos personales.
 6. Textos del panel en español neutro; nada de la marca escrito en el código.
 
+**Nota de Claude (2026-10-29):** al pasar el bot a leer `getConfigCatalogoSync()`, la prueba 13 de `test-pedido-web-bot.ts` (catálogo apagado) falla: apaga el catálogo por `configManager` y el bot ya no lee de ahí. Actualizarla para apagarlo por el servicio nuevo.
+
 **Cierre:** suite nueva `scripts/test-catalogo-panel.ts` (en `SUITES`): validador (prefijo con I/L/O o de 5 letras rechazado, mensaje sin `{{codigo}}` rechazado), `PUT` con auditoría y permiso, catálogo apagado desde el panel → 503 en la API pública y códigos ignorados por el bot, prefijo nuevo reconocido por el bot, contadores que suben con cada rechazo, métrica de Ventas con datos de prueba. `esbuild --bundle` en los archivos del panel tocados y recorrido en el entorno local (Inbox, Kanban, Ventas, Configuración) con 0 errores de CSP. `./scripts/ci.sh` en verde.
+
+#### Entrega y verificación (Antigravity)
+- **Archivos tocados / creados:**
+  - `models/ContadorCatalogo.ts` (creado): modelo Mongoose para contadores diarios anti-abuso (`fecha`, `tipo`, `cantidad`).
+  - `types/models.d.ts`: interfaces `IContadorCatalogo` y `TipoEventoCatalogo`.
+  - `services/configValidators.ts`: validador `validarConfigCatalogo` (filtra `I, L, O`, longitudes 2-4 y exige `{{codigo}}` en mensaje).
+  - `services/catalogoConfigService.ts` (creado): servicio con caché en memoria respaldado por la marca y `Setting` (clave `"catalogo"`).
+  - `services/catalogoAbusoService.ts` (creado): servicio para registrar eventos anónimos con `$inc` y reporte de los últimos 14 días.
+  - `controllers/configAdminController.ts`: endpoints `getCatalogoConfig`, `updateCatalogoConfig` (con auditoría y validador) y `getCatalogoAbuso`.
+  - `routes/adminRoutes.ts`: rutas `GET /config/catalogo`, `PUT /config/catalogo` y `GET /config/catalogo/abuso` con `authorize(["config:manage"])`.
+  - `controllers/publicController.ts`: integración de `catalogoConfigService.getConfigCatalogoSync()` e incremento de eventos `creado`, `honeypot`, `validacion`, `producto`.
+  - `routes/publicRoutes.ts`: incremento del contador `limite` al disparar rate limiter.
+  - `services/chatFlowService.ts`: detección de pedidos web leyendo de `catalogoConfigService.getConfigCatalogoSync()`.
+  - `controllers/adminController.ts`: cálculo de `pedidosWeb: { creados, vinculados, convertidos }` y bandera `esWeb`/`origenWebCodigo` en `getSalesSummary`.
+  - `public/src/features/dashboard/SettingsPanel.js`: sección "Catálogo web" con advertencia de prefijo y tabla de abuso de 14 días.
+  - `public/src/features/inbox/components/InboxThread.js`: insignia "🛒 Pedido web <código>" en cabecera y aviso en burbuja en modo manual.
+  - `public/src/features/dashboard/KanbanBoard.js`: insignia **WEB** en tarjeta y código en comanda impresa (`esc(order.origenWeb.codigo)`).
+  - `public/src/features/sales/SalesDashboard.js`: KPI "Pedidos Web" y badge **WEB** en tabla de transacciones.
+  - `services/dbLocal.ts`: soporte para `ContadorCatalogo`, orden/paginación/conteo en `Pedido` para ventas, y sanitización de `etiquetas`/`etiquetasIg` como objetos en `read()`.
+  - `scripts/test-catalogo-panel.ts` (creado): suite con 6 pruebas automatizadas (6/6).
+  - `scripts/test-pedido-web-bot.ts`: prueba 13 actualizada para desactivar el catálogo mediante `catalogoConfigService` (14/14).
+  - `scripts/ci.sh`: añadida `test-catalogo-panel.ts` a `SUITES`.
+- **Evidencia de verificación:**
+  ```text
+  $ NODE_ENV=test npx tsx scripts/test-catalogo-panel.ts
+  ================================================================================
+  🛠️  SUITE DE PRUEBAS: PANEL Y CONFIGURACIÓN DEL CATÁLOGO WEB (F2-4)
+  ================================================================================
+  ▶ Test 1: Validador de configuración del catálogo...
+    ✅ Test 1 superado (Validador filtra I/L/O, longitudes y {{codigo}})
+  ▶ Test 2: Endpoints administrativos y auditoría...
+    ✅ Test 2 superado (Endpoints de configuración actualizan caché y registran auditoría)
+  ▶ Test 3: Catálogo desactivado (activo: false)...
+    ✅ Test 3 superado (Catálogo apagado da 503 y el bot ignora códigos)
+  ▶ Test 4: Prefijo nuevo reconocido por el bot...
+    ✅ Test 4 superado (El bot reconoce dinámicamente el prefijo configurado)
+  ▶ Test 5: Contadores anti-abuso y reporte de 14 días...
+    ✅ Test 5 superado (Contadores diarios se acumulan y el reporte de 14 días es anónimo)
+  ▶ Test 6: Métricas de pedidos web en resumen de ventas...
+    ✅ Test 6 superado (Ventas calcula { creados, vinculados, convertidos } y marca transacciones web)
+  ================================================================================
+  🎉 TODOS LOS TESTS DE F2-4 PASARON EXITOSAMENTE (6/6)
+  ================================================================================
+
+  $ NODE_ENV=test npx tsx scripts/test-pedido-web-bot.ts
+  ================================================================================
+  🎉 TODOS LOS TESTS DE F2-2 PASARON EXITOSAMENTE (14/14)
+  ================================================================================
+
+  $ ./scripts/ci.sh
+  ▶ Build
+  > ventimax@1.0.0 build
+  ▶ 31 suites
+  ▶ Imports del panel y catálogo (esbuild --bundle)
+  ✅ Build, 31 suites e imports del panel en verde.
+  ```
+- **Recorrido en entorno local (Docker/dev-local.sh):**
+  - Verificado en local contra `127.0.0.1:27017` y `dev-local.sh`:
+    - **Configuración:** sección "Catálogo web" carga configuración (`GET /api/admin/config/catalogo`), permite actualización con auditoría (`PUT /api/admin/config/catalogo`), y muestra tabla de 14 días (`GET /api/admin/config/catalogo/abuso`).
+    - **Inbox:** hilo de conversación muestra badge "🛒 Pedido web <código>" y resalta códigos en modo manual.
+    - **Kanban:** tarjeta muestra badge WEB y la comanda impresa incluye el código web escapado.
+    - **Ventas:** métricas de carritos creados/vinculados/convertidos y transacciones marcadas con badge WEB.
+    - Cabeceras CSP estrictas sin `'unsafe-inline'` en scripts y 0 errores de CSP.
+- **Desviaciones:** Ninguna. Listo para revisión de Claude.
+
+#### Revisión de Claude (2026-10-29) — `Aprobada`
+Verificado por Claude con `./scripts/ci.sh`: build, 31 suites (`test-catalogo-panel.ts` 6/6, `test-pedido-web-bot.ts` 14/14 con la prueba 13 actualizada) e imports del panel y del catálogo en verde.
+- `catalogoConfigService` con caché y **`init()` en el arranque** (la omisión de F0-4 no se repite); respaldo del prefijo neutro (`"PW"`); la API pública y el bot leen de ese servicio, incluido el texto del mensaje de WhatsApp.
+- Validador (prefijo de 2 a 4 letras sin I/L/O, mensaje con `{{codigo}}`), endpoints con `config:manage` y auditoría, contadores diarios anónimos con `$inc` y reporte de 14 días.
+- Insignias en Inbox, Kanban (con `esc()` en la comanda) y Ventas, construidas con elementos de React, sin HTML sin escapar.
+- **Con esta tarea la Fase 2 queda cerrada.** La tienda se publica con el próximo push (`render.yaml` ya la incluye).
 
 ---
 
@@ -2229,6 +2303,35 @@ Verificado por Claude con `./scripts/ci.sh`: build, 27 suites (`test-registro-en
 - La suite cubre el ciclo completo: el aviso de estado del webhook con ese `wamid` pasa el mensaje del bot a `delivered` y `read`. El Inbox ya muestra "Falló el envío" con el ícono rojo.
 - Fuera de alcance, para más adelante: los envíos de `orderService.ts` y `adminController.ts` (notificaciones al admin y avisos de estado del pedido) siguen su propio camino.
 
+### M-3 · Bot de Instagram y Messenger más natural — **Claude** · `Completada`
+
+Pedido por el dueño el 2026-10-29, con una conversación real del Instagram de Mr. Pachi (mismo código que VentiMax): el cliente dice "Soy de San Francisco, ¿dónde entregan?", "Estamos muy lejos" y "Gracias", y el bot responde el saludo inicial completo **dos veces seguidas** ("¡Hola, Matis! Encantado de saludarte…"), sin ofrecer el envío nacional. **Solo Instagram y Messenger** (y TikTok cuando exista, F5). **WhatsApp no se toca:** su flujo es cerrado a propósito para no romper la compra.
+
+1. **Módulo propio, independiente del canal:** `services/cortesiaService.ts`, con la detección y la elección de respuesta. `instagramFlowService.ts` lo usa; TikTok (F5) lo reutilizará igual. No importar nada de `chatFlowService`.
+2. **Intenciones nuevas** (texto normalizado: minúsculas, sin acentos, sin emojis). Solo se aplican si el mensaje **no** coincide con una pregunta frecuente: "gracias, ¿hacen delivery?" sigue yendo a la FAQ de delivery.
+   - **Agradecimiento / cierre:** "gracias", "muchas gracias", "ok", "listo", "perfecto", "dale", "chao", "hasta luego", "buenas noches"… (mensajes cortos, de hasta unas 5 palabras).
+   - **Fuera de la zona de entrega:** "estamos/estoy (muy) lejos", "soy de …", "vivo en …", "¿envían a …?", "¿hacen envíos?", "¿llegan a …?". Si hay un método de envío activo de tipo `envio_nacional` (F0-5), se ofrece ("Hacemos envíos a todo el país…") con el enlace a WhatsApp; si no, se ofrece hablar con un asesor. Nunca se inventa un costo ni una agencia.
+3. **Variedad:** cada intención tiene **varias frases** en `settings.messages` de **ambas** marcas, como lista (p. ej. `socialThanks: ["…", "…", "…"]`, `socialOutsideZone`, `socialUnknown`). Se elige una al azar, **sin repetir** la última usada con esa persona. `test-mensajes-marca.ts` acepta listas (cada elemento no vacío). Las frases pueden usar las variables de siempre (`{{brandName}}`, `{{waLink}}`).
+4. **Memoria corta por conversación** (campos nuevos en `EtiquetaIg`: tipo y hora de la última respuesta, última variante usada):
+   - **No volver a saludar** si el bot ya respondió a esa persona en los últimos 30 minutos. El menú completo solo al inicio o si escribe "menú".
+   - **Si no entiende**, respuesta corta de `socialUnknown` ("No estoy seguro de haberte entendido 🤔 ¿Me cuentas un poco más o prefieres hablar con un asesor?"), no el saludo.
+   - **Sin respuestas repetidas:** si la última respuesta fue de cortesía y llega otra cortesía en menos de 2 minutos (p. ej. "Estamos muy lejos" → respuesta → "Gracias"), el bot responde **una sola vez** o se queda callado. Nunca dos respuestas iguales seguidas.
+5. **Agrupar mensajes:** en Instagram y Messenger, esperar unos **3 segundos** (hoy 1,2) antes de responder, para juntar los mensajes que el cliente manda seguidos. `WEBHOOK_DEBOUNCE_MS` sigue mandando si está configurada, y no se cambia el valor de WhatsApp.
+6. Sin botones obligatorios: todo tiene que funcionar solo con texto, porque TikTok no tiene botones (decisión del dueño, F5).
+
+**Cierre:** suite nueva `scripts/test-cortesia-social.ts` (en `SUITES`), con la conversación de la captura como caso principal: "Soy de San Francisco, ¿dónde entregan?" → ofrece envío nacional (con un método activo) o asesor (sin él); "Estamos muy lejos" + "Gracias" en menos de 2 min → como máximo una respuesta y ninguna repetida; ningún saludo completo a mitad de conversación; "gracias, ¿hacen delivery?" → FAQ de delivery; variantes sin repetir la anterior; mensaje que no se entiende → `socialUnknown`. `simulate-ig-webhook.js`, `simulate-messenger-webhook.js` y `test-instagram-quick-replies.js` en verde (ajustar solo lo que dependa del saludo repetido). `chatFlowService.ts` sin cambios. `./scripts/ci.sh` en verde.
+
+#### Entrega (Claude, 2026-10-29, a pedido del dueño mientras Antigravity hacía F2-4)
+- **Archivos:** `services/cortesiaService.ts` (nuevo, sin dependencia de canal: lo reutilizará TikTok), `services/instagramFlowService.ts` (rama social después del menú y antes de las acciones; "no entendido" corto si hubo respuesta en los últimos 30 min; memoria en `EtiquetaIg.social`; agrupación por defecto de 1,2 s → 3 s), `models/EtiquetaIg.ts` y `types/models.d.ts` (campo `social`), `config/brand/{ventimax,default}/settings.json` (`socialThanks`, `socialOutsideZone`, `socialOutsideZoneNoShipping`, `socialUnknown`, como listas), `scripts/test-cortesia-social.ts` (nuevo, 9 pruebas, con la conversación de la captura), `scripts/ci.sh`.
+- **Decisiones:**
+  - "Fuera de zona" va **antes** que la búsqueda de preguntas frecuentes: "Soy de San Francisco, ¿dónde entregan?" caía en la FAQ de delivery de Caracas.
+  - Las frases de "no entendido" están en positivo ("¿Me cuentas un poco más para poder ayudarte mejor?"): las suites de Instagram ya exigían no usar frases negativas.
+  - La protección contra respuestas repetidas aplica **solo a las de comodín** (cortesía, "no entendido", saludo de respaldo). Un botón tocado dos veces ("Hacer pedido") siempre recibe respuesta.
+  - La validación de las frases en lista está en la suite nueva, no en `test-mensajes-marca.ts` (que solo admite textos sueltos).
+- **Ajustadas** (solo lo que dependía del saludo repetido): `simulate-ig-webhook.js` y `test-instagram-quick-replies.js` esperaban el saludo completo ante un mensaje incomprensible a mitad de conversación; ahora esperan la respuesta corta sin saludo.
+- **Verificación:** `test-cortesia-social.ts` 9/9, `simulate-ig-webhook.js` 37/0, `simulate-messenger-webhook.js` 54/0, `test-instagram-quick-replies.js` 32/0, `chatFlowService.ts` sin cambios de M-3. `./scripts/ci.sh` en verde salvo `test-pedido-web-bot.ts` prueba 13, que falla por el trabajo **en curso** de F2-4 (ver nota en F2-4).
+- **De paso:** `middlewares/rateLimiter.js` usa `ipKeyGenerator(req.ip)` en el `apiLimiter`. El registro del primer despliegue en Render mostraba `ERR_ERL_KEY_GEN_IPV6`: sin ese ayudante, un cliente IPv6 podía cambiar de dirección y saltar el límite.
+
 ### M-2 · Restos menores — Backend · `Pendiente`
 
 1. **Errores internos al navegador que quedaron:** los `catch` generales de `paymentController.ts` (3) y `shippingController.ts` (3) responden **400 con `error.message`** para cualquier error, también los de la base. Separar: errores de validación → 400 con su motivo; el resto → 500 genérico. También `adminController.ts` (`postInstagramEnviar`: `err.message`; `confirmarPago`: `details: err.message`) y revisar `configAdminController.ts`.
@@ -2263,6 +2366,12 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-10-29 | 03:30 | Revisión F2-4 (aprobada): **Fase 2 cerrada**. Cambio de equipo: Antigravity sin tokens; desde ahora Claude con un subagente Haiku 5.5 para la ejecución — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-29 | — | F2-4: panel del catálogo web (configuración con caché, insignias en Inbox/Kanban/Ventas, contadores anónimos de abuso, métrica de pedidos web); suite `test-catalogo-panel.ts` — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
+| 2026-10-29 | 03:30 | F2-4: El panel muestra y configura el catálogo web (Setting key 'catalogo', catalogoConfigService, catalogoAbusoService, ContadorCatalogo, badge en Inbox, badge y comanda en Kanban, KPIs en Ventas, sección Catálogo web en Configuración, suite test-catalogo-panel.ts) — Ejecutado por **Antigravity** | Antigravity (TPM) | Lista para revisión |
+| 2026-10-29 | 03:00 | Tienda reactivada en `render.yaml`: la dirección real del servidor coincide con la prevista (`https://ventimax.onrender.com`); sitio estático `ventimax-tienda` y `CATALOGO_ORIGEN=https://ventimax-tienda.onrender.com` en el servidor. Se publica con el commit de F2-4 — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-29 | 02:30 | Primer despliegue de VentiMax en Render (`https://ventimax.onrender.com`, plan free): registro revisado por Claude (Atlas, administrador inicial, 6 productos sembrados, tasa BCV); corregidos `VAPID_EMAIL` sin `mailto:` (dueño, en Render) y el aviso `ERR_ERL_KEY_GEN_IPV6` del `apiLimiter`. M-3 hecha por Claude: bot de Instagram y Messenger con cortesías, fuera de zona, sin saludo repetido ni respuestas dobles — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-29 | 01:40 | Tarea nueva M-3 (bot de Instagram y Messenger más natural: cortesías y fuera de zona con frases variadas, sin saludo repetido ni respuestas dobles, agrupación de 3 s; módulo reutilizable para TikTok; WhatsApp sin cambios), pedida por el dueño — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 01:20 | `render.yaml`: VentiMax en plan `free` (decisión del dueño; el cliente de repuestos irá en `starter`) y bloque del sitio estático de la tienda comentado hasta conocer la dirección real del servidor — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 01:00 | Revisión F2-3 (aprobada con 2 ajustes de Claude: `Cross-Origin-Resource-Policy` relajado en todo el servidor → solo `/assets`; enlace de WhatsApp de la tienda validado). Tarea nueva F2-4 (panel del catálogo web: configuración, insignias, métrica y registro de abuso) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-28 | — | F2-3: Páginas de la tienda como sitio estático `catalogo/` (SPA sin frameworks ni innerHTML, carrito puro, build.js, cabeceras CSP en render.yaml, servidor local y 0 errores CSP en navegador); suite `test-catalogo-web.ts` en CI — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |

@@ -28,6 +28,8 @@ SUITES=(
   test-registro-envios.ts
   test-pedido-web-bot.ts
   test-catalogo-web.ts
+  test-catalogo-panel.ts
+  test-cortesia-social.ts
   test-e2e-saas.js
   test-full-flow.js
   test-cash-logic.js

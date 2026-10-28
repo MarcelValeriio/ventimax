@@ -66,6 +66,11 @@ const EtiquetaIgSchema = new Schema<IEtiquetaIg>(
       type: Schema.Types.Mixed,
       default: {},
     },
+    // Memoria corta del bot social (M-3): última respuesta, cuándo y qué variantes de frase usó
+    social: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
   },
   {
     timestamps: true,

@@ -19,6 +19,8 @@ class DbLocal {
     try {
       const parsed = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
       if (!parsed.metodosEnvio) parsed.metodosEnvio = [];
+      if (!parsed.etiquetas || Array.isArray(parsed.etiquetas)) parsed.etiquetas = {};
+      if (!parsed.etiquetasIg || Array.isArray(parsed.etiquetasIg)) parsed.etiquetasIg = {};
       return parsed;
     } catch (e) {
       return { usuarios: [], pedidos: [], productos: [], etiquetas: {}, counters: [], metodosPago: [], metodosEnvio: [] };
@@ -409,14 +411,83 @@ class DbLocal {
         list.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
         return {
           sort: () => ({
+            skip: (n) => ({
+              limit: (l) => ({
+                lean: () => Promise.resolve(list.slice(n, n + l)),
+                then: (resolve) => resolve(list.slice(n, n + l)),
+                catch: () => {},
+              }),
+              lean: () => Promise.resolve(list.slice(n)),
+              then: (resolve) => resolve(list.slice(n)),
+              catch: () => {},
+            }),
+            limit: (l) => ({
+              lean: () => Promise.resolve(list.slice(0, l)),
+              then: (resolve) => resolve(list.slice(0, l)),
+              catch: () => {},
+            }),
             lean: () => Promise.resolve(list),
             then: (resolve) => resolve(list),
-            catch: () => {}
+            catch: () => {},
           }),
           lean: () => Promise.resolve(list),
           then: (resolve) => resolve(list),
-          catch: () => {}
+          catch: () => {},
         };
+      },
+      aggregate: async (pipeline = []) => {
+        const data = self.read();
+        const pedidos = data.pedidos || [];
+        let totalIngresos = 0;
+        let totalVES = 0;
+        let totalPedidos = 0;
+        for (const p of pedidos) {
+          if (["entregado", "confirmado", "verificado", "en_ruta"].includes(p.estado)) {
+            totalPedidos++;
+            totalIngresos += p.pago?.montoUSD || 0;
+            totalVES += p.pago?.montoVES || 0;
+          }
+        }
+        return [
+          {
+            totalIngresos,
+            totalVES,
+            totalPedidos,
+            sumaTiempoEntrega: 0,
+            totalEntregados: 0,
+            totalAdsIngresos: 0,
+            totalAdsVES: 0,
+            totalAdsPedidos: 0,
+          },
+        ];
+      },
+      countDocuments: async (query = {}) => {
+        const data = self.read();
+        const pedidos = data.pedidos || [];
+        if (!query || Object.keys(query).length === 0) return pedidos.length;
+        return pedidos.filter((p) => {
+          if (query["origenWeb.codigo"]) {
+            if (!p.origenWeb || !p.origenWeb.codigo) return false;
+          }
+          if (query.estado) {
+            if (typeof query.estado === "object") {
+              if (query.estado.$nin && query.estado.$nin.includes(p.estado)) return false;
+              if (query.estado.$in && !query.estado.$in.includes(p.estado)) return false;
+            } else if (p.estado !== query.estado) {
+              return false;
+            }
+          }
+          return true;
+        }).length;
+      },
+      distinct: async (field = "whatsappId", query = {}) => {
+        const data = self.read();
+        const pedidos = data.pedidos || [];
+        const set = new Set();
+        for (const p of pedidos) {
+          if (p[field]) set.add(p[field]);
+        }
+        return Array.from(set);
       },
       create: async (pedido) => {
         const data = self.read();
@@ -812,6 +883,11 @@ class DbLocal {
           }
         }
         return {
+          limit: (l) => ({
+            lean: () => Promise.resolve(list.slice(0, l)),
+            then: (resolve) => resolve(list.slice(0, l)),
+            catch: () => {},
+          }),
           lean: () => Promise.resolve(list),
           then: (resolve) => resolve(list),
           catch: () => {}
@@ -1337,6 +1413,11 @@ class DbLocal {
           }
         }
         return {
+          limit: (l) => ({
+            lean: () => Promise.resolve(list.slice(0, l)),
+            then: (resolve) => resolve(list.slice(0, l)),
+            catch: () => {},
+          }),
           lean: () => Promise.resolve(list),
           then: (resolve) => resolve(list),
           catch: () => {}
@@ -1702,6 +1783,138 @@ class DbLocal {
           data.carritosWeb = [];
         } else {
           data.carritosWeb = data.carritosWeb.filter((c: any) => !matchQuery(c, query));
+        }
+        self.write(data);
+        return Promise.resolve({ deletedCount: 1 });
+      },
+    };
+  }
+
+  getContadorCatalogoModel() {
+    const self = this;
+    const matchQuery = (c: any, query: any) => {
+      if (!query || Object.keys(query).length === 0) return true;
+      for (const [key, val] of Object.entries(query)) {
+        if (key === "_id" && String(c._id) !== String(val)) return false;
+        if (key === "tipo") {
+          if (val && typeof val === "object" && "$in" in val) {
+            if (!((val as any).$in || []).includes(c.tipo)) return false;
+          } else if (c.tipo !== val) {
+            return false;
+          }
+        }
+        if (key === "fecha") {
+          if (val && typeof val === "object") {
+            const valObj = val as any;
+            if (valObj.$gte !== undefined && c.fecha < valObj.$gte) return false;
+            if (valObj.$lte !== undefined && c.fecha > valObj.$lte) return false;
+            if (valObj.$gt !== undefined && c.fecha <= valObj.$gt) return false;
+            if (valObj.$lt !== undefined && c.fecha >= valObj.$lt) return false;
+            if (valObj.$in !== undefined && !valObj.$in.includes(c.fecha)) return false;
+          } else if (c.fecha !== val) {
+            return false;
+          }
+        }
+      }
+      return true;
+    };
+
+    const findQuery = (query: any) => {
+      let sortFn: ((a: any, b: any) => number) | null = null;
+      const exec = () => {
+        const data = self.read();
+        let items = (data.contadoresCatalogo || []).filter((c: any) => matchQuery(c, query));
+        if (sortFn) {
+          items.sort(sortFn);
+        }
+        return Promise.resolve(items);
+      };
+      return {
+        sort: (sortObj: any) => {
+          if (sortObj && typeof sortObj === "object") {
+            const [field, direction] = Object.entries(sortObj)[0] || [];
+            if (field) {
+              const dir = direction === -1 || direction === "desc" ? -1 : 1;
+              sortFn = (a: any, b: any) => (a[field] > b[field] ? dir : a[field] < b[field] ? -dir : 0);
+            }
+          }
+          return {
+            lean: () => exec(),
+            then: (onFulfilled: any) => exec().then(onFulfilled),
+            catch: (onRejected: any) => exec().catch(onRejected),
+          };
+        },
+        lean: () => ({
+          then: (onFulfilled: any) => exec().then(onFulfilled),
+          catch: (onRejected: any) => exec().catch(onRejected),
+        }),
+        then: (onFulfilled: any) => exec().then(onFulfilled),
+        catch: (onRejected: any) => exec().catch(onRejected),
+      };
+    };
+
+    return {
+      find: (query: any) => findQuery(query),
+      findOne: (query: any) => {
+        const queryObj = findQuery(query);
+        return {
+          lean: () => queryObj.then((res: any[]) => (res && res.length > 0 ? res[0] : null)),
+          then: (onFulfilled: any, onRejected: any) =>
+            queryObj.then((res: any[]) => (res && res.length > 0 ? res[0] : null)).then(onFulfilled, onRejected),
+          catch: (onRejected: any) => queryObj.catch(onRejected),
+        };
+      },
+      findOneAndUpdate: (filter: any, update: any, options: any = {}) => {
+        const exec = () => {
+          const data = self.read();
+          data.contadoresCatalogo = data.contadoresCatalogo || [];
+          let item = data.contadoresCatalogo.find((c: any) => matchQuery(c, filter));
+          if (!item) {
+            if (options && options.upsert) {
+              item = {
+                _id: "cc-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+                fecha: filter.fecha,
+                tipo: filter.tipo,
+                cantidad: 0,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              };
+              data.contadoresCatalogo.push(item);
+            } else {
+              return null;
+            }
+          }
+
+          if (update.$inc) {
+            for (const [key, incVal] of Object.entries(update.$inc)) {
+              item[key] = (item[key] || 0) + (incVal as number);
+            }
+          }
+          if (update.$set) {
+            for (const [key, setVal] of Object.entries(update.$set)) {
+              item[key] = setVal;
+            }
+          }
+          item.updatedAt = new Date();
+          self.write(data);
+          return {
+            ...item,
+            toObject: () => ({ ...item }),
+          };
+        };
+        return {
+          lean: () => Promise.resolve(exec()),
+          then: (onFulfilled: any, onRejected: any) => Promise.resolve(exec()).then(onFulfilled, onRejected),
+          catch: (onRejected: any) => Promise.resolve(exec()).catch(onRejected),
+        };
+      },
+      deleteMany: (query: any = {}) => {
+        const data = self.read();
+        if (!data.contadoresCatalogo) data.contadoresCatalogo = [];
+        if (!query || Object.keys(query).length === 0) {
+          data.contadoresCatalogo = [];
+        } else {
+          data.contadoresCatalogo = data.contadoresCatalogo.filter((c: any) => !matchQuery(c, query));
         }
         self.write(data);
         return Promise.resolve({ deletedCount: 1 });

@@ -260,7 +260,11 @@ async function runInstagramQuickRepliesTest() {
     dbState = dbLocal.read();
     msgs = dbState.mensajesIg.filter((m) => m.usuarioIgId === testUserId);
     const lastFallbackMsg = msgs[msgs.length - 1];
-    assert(lastFallbackMsg.texto.includes("Encantado de saludarte"), "Fallback saluda amablemente");
+    // M-3: a mitad de conversación ya no se repite el saludo; respuesta corta y amable
+    assert(
+      !lastFallbackMsg.texto.includes("Encantado de saludarte") && lastFallbackMsg.texto.includes("ayudarte"),
+      "Fallback amable sin repetir el saludo a mitad de conversación"
+    );
     assert(
       !lastFallbackMsg.texto.toLowerCase().includes("no logré comprender") &&
       !lastFallbackMsg.texto.toLowerCase().includes("no entendí") &&

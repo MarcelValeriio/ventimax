@@ -32,6 +32,7 @@ const SECTIONS = [
   { id: "notificaciones", label: "Notificaciones", icon: "fa-bell", adminOnly: false },
   { id: "operacion", label: "Operación", icon: "fa-tasks", adminOnly: true },
   { id: "canales", label: "Canales y variables", icon: "fa-plug", adminOnly: true },
+  { id: "catalogo", label: "Catálogo web", icon: "fa-globe", adminOnly: true },
 ];
 
 // Clases literales (Tailwind necesita verlas completas en el código)
@@ -337,6 +338,18 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
   const [datosLoading, setDatosLoading] = useState(false);
   const [datosSaving, setDatosSaving] = useState(false);
 
+  // Catálogo web y anti-abuso (F2-4)
+  const [catalogoConfig, setCatalogoConfig] = useState({
+    activo: true,
+    prefijo: "PW",
+    mensajePrefill: "Hola, quiero confirmar mi pedido web {{codigo}}",
+  });
+  const [catalogoPrefijoOriginal, setCatalogoPrefijoOriginal] = useState("PW");
+  const [catalogoLoading, setCatalogoLoading] = useState(false);
+  const [catalogoSaving, setCatalogoSaving] = useState(false);
+  const [abusoReporte, setAbusoReporte] = useState([]);
+  const [abusoLoading, setAbusoLoading] = useState(false);
+
   const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
 
   // Si el usuario deja de ser admin, no puede quedarse en una sección solo para admin
@@ -461,6 +474,49 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       }
     };
     fetchFlujoConfig();
+  }, [isAdmin]);
+
+  // Carga la configuración del Catálogo Web y el reporte anti-abuso (solo admin)
+  useEffect(() => {
+    if (!isAdmin) return;
+    const fetchCatalogoConfig = async () => {
+      try {
+        setCatalogoLoading(true);
+        const client = window.apiClient || apiClient;
+        const res = await client.get("/api/admin/config/catalogo");
+        if (res.data?.success && res.data?.catalogo) {
+          const c = res.data.catalogo;
+          setCatalogoConfig({
+            activo: Boolean(c.activo),
+            prefijo: c.prefijo || "PW",
+            mensajePrefill: c.mensajePrefill || "",
+          });
+          setCatalogoPrefijoOriginal(c.prefijo || "PW");
+        }
+      } catch (err) {
+        console.warn("No se pudo cargar la configuración del catálogo:", err);
+      } finally {
+        setCatalogoLoading(false);
+      }
+    };
+
+    const fetchAbusoReporte = async () => {
+      try {
+        setAbusoLoading(true);
+        const client = window.apiClient || apiClient;
+        const res = await client.get("/api/admin/config/catalogo/abuso");
+        if (res.data?.success && Array.isArray(res.data?.reporte)) {
+          setAbusoReporte(res.data.reporte);
+        }
+      } catch (err) {
+        console.warn("No se pudo cargar el reporte de abuso:", err);
+      } finally {
+        setAbusoLoading(false);
+      }
+    };
+
+    fetchCatalogoConfig();
+    fetchAbusoReporte();
   }, [isAdmin]);
 
   const toast = (msg, type) => {
@@ -650,6 +706,71 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       toast(err.response?.data?.error || err.message || "Error al guardar configuración", "error");
     } finally {
       setFlujoSaving(false);
+    }
+  };
+
+  const handleSaveCatalogo = async () => {
+    const prefijo = catalogoConfig.prefijo.trim().toUpperCase();
+    if (!/^[A-HJ-KM-NP-Z]{2,4}$/.test(prefijo)) {
+      toast("El prefijo debe tener entre 2 y 4 letras mayúsculas (sin las letras I, L, O).", "error");
+      return;
+    }
+    const prefill = catalogoConfig.mensajePrefill.trim();
+    if (!prefill) {
+      toast("El mensaje de WhatsApp no puede estar vacío.", "error");
+      return;
+    }
+    if (prefill.length > 200) {
+      toast("El mensaje de WhatsApp no puede exceder 200 caracteres.", "error");
+      return;
+    }
+    if (!prefill.includes("{{codigo}}")) {
+      toast("El mensaje de WhatsApp debe contener la variable {{codigo}}.", "error");
+      return;
+    }
+
+    setCatalogoSaving(true);
+    try {
+      const client = window.apiClient || apiClient;
+      const res = await client.put("/api/admin/config/catalogo", {
+        catalogo: {
+          activo: catalogoConfig.activo,
+          prefijo,
+          mensajePrefill: prefill,
+        },
+      });
+      if (res.data?.success && res.data?.catalogo) {
+        const c = res.data.catalogo;
+        setCatalogoConfig({
+          activo: Boolean(c.activo),
+          prefijo: c.prefijo,
+          mensajePrefill: c.mensajePrefill,
+        });
+        setCatalogoPrefijoOriginal(c.prefijo);
+        toast("Configuración del catálogo web guardada correctamente", "success");
+      }
+    } catch (err) {
+      console.error("Error guardando configuración del catálogo:", err);
+      toast(err.response?.data?.error || err.message || "Error al guardar configuración", "error");
+    } finally {
+      setCatalogoSaving(false);
+    }
+  };
+
+  const handleRefreshAbuso = async () => {
+    try {
+      setAbusoLoading(true);
+      const client = window.apiClient || apiClient;
+      const res = await client.get("/api/admin/config/catalogo/abuso");
+      if (res.data?.success && Array.isArray(res.data?.reporte)) {
+        setAbusoReporte(res.data.reporte);
+        toast("Reporte de incidentes actualizado", "success");
+      }
+    } catch (err) {
+      console.error("Error actualizando reporte de abuso:", err);
+      toast("Error al actualizar reporte de incidentes", "error");
+    } finally {
+      setAbusoLoading(false);
     }
   };
 
@@ -1074,11 +1195,146 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
     ),
   ];
 
+  const renderCatalogo = () => [
+    e(PageHeader, {
+      key: "header",
+      title: "Catálogo web",
+      description: "Configuración de la tienda online pública, prefijo de pedidos y registro anti-abuso.",
+    }),
+    e("section", { key: "config-general", className: "space-y-3" },
+      e("h3", { className: "text-[11px] font-black uppercase tracking-widest text-gray-400 px-1" }, "Operación del catálogo"),
+      e("div", { className: "bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-6 space-y-6" },
+        e("div", { className: "flex items-start justify-between gap-4" },
+          e("div", { className: "flex items-center gap-3" },
+            e("div", { className: `w-10 h-10 rounded-2xl flex items-center justify-center text-sm ${ICON_TONES.teal}` },
+              e("i", { className: "fas fa-store" })
+            ),
+            e("div", null,
+              e("h4", { className: "text-sm font-bold text-gray-800 dark:text-gray-100" }, "Tienda online pública"),
+              e("p", { className: "text-xs text-gray-500 dark:text-gray-400 mt-0.5" },
+                catalogoConfig.activo
+                  ? "Activo: Los clientes pueden crear carritos web y el bot procesa sus pedidos."
+                  : "Desactivado: La API pública responde 503 (Servicio suspendido) y el bot ignora códigos web."
+              )
+            )
+          ),
+          e("label", { className: "relative inline-flex items-center cursor-pointer" },
+            e("input", {
+              type: "checkbox",
+              checked: catalogoConfig.activo,
+              onChange: (ev) => setCatalogoConfig({ ...catalogoConfig, activo: ev.target.checked }),
+              className: "sr-only peer",
+            }),
+            e("div", {
+              className: "w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600",
+            })
+          )
+        ),
+        e("div", { className: "grid grid-cols-1 gap-4 pt-2 border-t border-gray-100 dark:border-gray-700" },
+          e("div", { className: "space-y-1" },
+            e("label", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Prefijo del código de pedido (2 a 4 letras):"),
+            e("input", {
+              type: "text",
+              value: catalogoConfig.prefijo,
+              maxLength: 4,
+              placeholder: "PW",
+              onChange: (ev) => setCatalogoConfig({ ...catalogoConfig, prefijo: ev.target.value.toUpperCase() }),
+              className: "w-full max-w-xs px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-bold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-emerald-500",
+            }),
+            e("p", { className: "text-[11px] text-gray-400" }, "Solo letras mayúsculas de la A a la Z, excluyendo I, L, O para evitar confusiones tipográficas."),
+            catalogoConfig.prefijo !== catalogoPrefijoOriginal && e("div", {
+              className: "mt-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200 flex items-start gap-2",
+            },
+              e("i", { className: "fas fa-exclamation-triangle mt-0.5 text-amber-500" }),
+              e("span", null, "Los pedidos web creados con el prefijo anterior se dejan de reconocer (vencen automáticamente a los 3 días).")
+            )
+          ),
+          e("div", { className: "space-y-1 pt-2" },
+            e("label", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Mensaje predeterminado para WhatsApp:"),
+            e("textarea", {
+              rows: 3,
+              maxLength: 200,
+              value: catalogoConfig.mensajePrefill,
+              onChange: (ev) => setCatalogoConfig({ ...catalogoConfig, mensajePrefill: ev.target.value }),
+              className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none",
+            }),
+            e("div", { className: "flex justify-between text-[11px] text-gray-400" },
+              e("span", null, "Debe contener la variable {{codigo}} obligatoriamente."),
+              e("span", null, `${(catalogoConfig.mensajePrefill || "").length}/200`)
+            )
+          )
+        ),
+        e("div", { className: "flex justify-end pt-2" },
+          e("button", {
+            type: "button",
+            onClick: handleSaveCatalogo,
+            disabled: catalogoSaving || catalogoLoading,
+            className: "px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 transition disabled:opacity-50 flex items-center gap-2",
+          },
+            catalogoSaving && e("i", { className: "fas fa-spinner fa-spin" }),
+            catalogoSaving ? "Guardando..." : "Guardar catálogo"
+          )
+        )
+      )
+    ),
+    e("section", { key: "abuso", className: "space-y-3" },
+      e("div", { className: "flex items-center justify-between px-1" },
+        e("h3", { className: "text-[11px] font-black uppercase tracking-widest text-gray-400" }, "Registro anti-abuso (últimos 14 días)"),
+        e("button", {
+          type: "button",
+          onClick: handleRefreshAbuso,
+          disabled: abusoLoading,
+          className: "text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 transition",
+        },
+          e("i", { className: `fas fa-sync-alt ${abusoLoading ? "fa-spin" : ""}` }),
+          "Actualizar"
+        )
+      ),
+      e("div", { className: "bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 overflow-hidden" },
+        e("div", { className: "p-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400" },
+          e("i", { className: "fas fa-shield-alt text-amber-500 text-sm" }),
+          e("span", null, "Monitoreo agregado de peticiones e incidentes detectados por la API pública (R14). Sin direcciones IP ni datos personales.")
+        ),
+        e("div", { className: "overflow-x-auto" },
+          e("table", { className: "w-full text-left text-xs" },
+            e("thead", { className: "bg-gray-50 dark:bg-gray-700/50 text-[10px] uppercase font-bold text-gray-400 dark:text-gray-400" },
+              e("tr", null,
+                e("th", { className: "px-4 py-3" }, "Fecha"),
+                e("th", { className: "px-4 py-3 text-right" }, "Carritos creados"),
+                e("th", { className: "px-4 py-3 text-right" }, "Límite tasa (429)"),
+                e("th", { className: "px-4 py-3 text-right" }, "Honeypot"),
+                e("th", { className: "px-4 py-3 text-right" }, "Error validación"),
+                e("th", { className: "px-4 py-3 text-right" }, "Producto inválido"),
+                e("th", { className: "px-4 py-3 text-right" }, "Total incidentes")
+              )
+            ),
+            e("tbody", { className: "divide-y divide-gray-100 dark:divide-gray-700/50" },
+              abusoReporte.length === 0
+                ? e("tr", null, e("td", { colSpan: 7, className: "px-4 py-6 text-center text-gray-400 italic" }, "Sin datos de actividad reciente"))
+                : abusoReporte.map((fila) =>
+                    e("tr", { key: fila.fecha, className: "hover:bg-gray-50/50 dark:hover:bg-gray-700/20" },
+                      e("td", { className: "px-4 py-3 font-semibold text-gray-700 dark:text-gray-300" }, fila.fecha),
+                      e("td", { className: "px-4 py-3 text-right font-bold text-emerald-600 dark:text-emerald-400" }, fila.creado || 0),
+                      e("td", { className: `px-4 py-3 text-right font-semibold ${(fila.limite || 0) > 0 ? "text-amber-600 dark:text-amber-400" : "text-gray-400"}` }, fila.limite || 0),
+                      e("td", { className: `px-4 py-3 text-right font-semibold ${(fila.honeypot || 0) > 0 ? "text-purple-600 dark:text-purple-400" : "text-gray-400"}` }, fila.honeypot || 0),
+                      e("td", { className: `px-4 py-3 text-right font-semibold ${(fila.validacion || 0) > 0 ? "text-rose-600 dark:text-rose-400" : "text-gray-400"}` }, fila.validacion || 0),
+                      e("td", { className: `px-4 py-3 text-right font-semibold ${(fila.producto || 0) > 0 ? "text-orange-600 dark:text-orange-400" : "text-gray-400"}` }, fila.producto || 0),
+                      e("td", { className: `px-4 py-3 text-right font-black ${(fila.totalEventos || 0) > 0 ? "text-red-600 dark:text-red-400" : "text-gray-400"}` }, fila.totalEventos || 0)
+                    )
+                  )
+            )
+          )
+        )
+      )
+    )
+  ];
+
   const renderers = {
     general: renderGeneral,
     notificaciones: renderNotificaciones,
     operacion: renderOperacion,
     canales: renderCanales,
+    catalogo: renderCatalogo,
   };
 
   return e("div", { className: "p-4 md:p-8 h-full overflow-y-auto bg-gray-50 dark:bg-gray-900" },

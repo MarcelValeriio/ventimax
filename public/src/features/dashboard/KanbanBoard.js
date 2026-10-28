@@ -358,6 +358,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
         <h2 style="margin: 0; font-size: 18px; font-weight: bold; text-transform: uppercase;">Comanda de Pedido${brandName ? ` ${esc(brandName)}` : ""}</h2>
         <h1 style="margin: 6px 0; font-size: 28px; font-weight: 900;">#${esc(correlativo)}</h1>
         ${order.ctwaClid ? `<div style="margin: 4px auto 6px auto; display: inline-block; font-size: 11px; font-weight: bold; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 2px 8px; border-radius: 4px;">📣 META AD (CTWA)</div>` : ""}
+        ${order.origenWeb?.codigo ? `<div style="margin: 4px auto 6px auto; display: inline-block; font-size: 11px; font-weight: bold; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; padding: 2px 8px; border-radius: 4px;">🌐 PEDIDO WEB: ${esc(order.origenWeb.codigo)}</div>` : ""}
         <p style="margin: 0; font-size: 13px; color: #333;">${esc(fecha)}</p>
       </div>
 
@@ -718,6 +719,17 @@ const KanbanBoard = ({ socket, userRole, health }) => {
                               },
                               e("i", { className: "fab fa-meta text-[9px]" }),
                               "Ad",
+                            ),
+                          Boolean(order.origenWeb?.codigo) &&
+                            e(
+                              "span",
+                              {
+                                className:
+                                  "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800",
+                                title: `Pedido Web: ${order.origenWeb.codigo}`,
+                              },
+                              e("i", { className: "fas fa-globe text-[9px]" }),
+                              "WEB",
                             ),
                           e(
                             "i",

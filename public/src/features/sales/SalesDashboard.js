@@ -345,6 +345,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
   const totalAdsVES = data?.kpis?.totalAdsVES || 0;
   const totalAdsPedidos = data?.kpis?.totalAdsPedidos || 0;
   const porcentajeVentasAds = data?.kpis?.porcentajeVentasAds || 0;
+  const pedidosWeb = data?.kpis?.pedidosWeb || { creados: 0, vinculados: 0, convertidos: 0 };
   const totalRegistros = data?.pagination?.totalRecords || 0;
   const totalPaginas = data?.pagination?.totalPages || 1;
 
@@ -706,6 +707,75 @@ const SalesDashboard = ({ userRole = "admin" }) => {
         ),
       ),
     ),
+
+    // Fila 2b: Pedidos Web (F2-4)
+    e(
+      "div",
+      {
+        className:
+          "bg-white dark:bg-gray-800 p-4 sm:p-5 rounded-xl shadow-md border-l-4 border-amber-500 mt-4 flex flex-col md:flex-row md:items-center justify-between gap-4",
+      },
+      e(
+        "div",
+        { className: "flex items-center gap-3" },
+        e(
+          "div",
+          {
+            className:
+              "w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0",
+          },
+          e("i", { className: "fas fa-globe text-lg" }),
+        ),
+        e(
+          "div",
+          null,
+          e(
+            "h4",
+            {
+              className:
+                "text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider",
+            },
+            "Catálogo Web · Conversión del período",
+          ),
+          e(
+            "p",
+            {
+              className:
+                "text-sm sm:text-base font-black text-gray-800 dark:text-gray-100 mt-0.5",
+            },
+            `Pedidos web: ${pedidosWeb.creados || 0} creados / ${pedidosWeb.vinculados || 0} confirmados por WhatsApp / ${pedidosWeb.convertidos || 0} convertidos en pedido`,
+          ),
+        ),
+      ),
+      e(
+        "div",
+        { className: "flex items-center gap-2 shrink-0 text-xs font-bold" },
+        e(
+          "span",
+          {
+            className:
+              "px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300",
+          },
+          `Tasa WhatsApp: ${
+            pedidosWeb.creados > 0
+              ? Math.round(((pedidosWeb.vinculados || 0) / pedidosWeb.creados) * 100)
+              : 0
+          }%`,
+        ),
+        e(
+          "span",
+          {
+            className:
+              "px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300",
+          },
+          `Conversión final: ${
+            pedidosWeb.creados > 0
+              ? Math.round(((pedidosWeb.convertidos || 0) / pedidosWeb.creados) * 100)
+              : 0
+          }%`,
+        ),
+      ),
+    ),
     e(
       "div",
       { className: "grid grid-cols-1 lg:grid-cols-3 gap-6" },
@@ -960,6 +1030,17 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                             },
                             e("i", { className: "fab fa-meta text-[9px]" }),
                             "Ad",
+                          ),
+                        (t.esWeb || t.origenWebCodigo) &&
+                          e(
+                            "span",
+                            {
+                              className:
+                                "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800",
+                              title: `Pedido Web: ${t.origenWebCodigo || ""}`,
+                            },
+                            e("i", { className: "fas fa-globe text-[9px]" }),
+                            "WEB",
                           ),
                       ),
                       e(

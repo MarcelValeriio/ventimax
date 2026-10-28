@@ -7,6 +7,8 @@
 let EtiquetaIg = require("../models/EtiquetaIg");
 let MensajeIg = require("../models/MensajeIg");
 let FAQ = require("../models/FAQ");
+let MetodoEnvio = require("../models/MetodoEnvio");
+const cortesia = require("./cortesiaService");
 let Setting = require("../models/Setting");
 const axios = require("axios");
 const cloudinaryService = require("./cloudinaryService");
@@ -35,6 +37,7 @@ if (process.env.NODE_ENV === "test") {
   MensajeIg = dbLocal.getMensajeIgModel();
   FAQ = dbLocal.getFAQModel();
   Setting = dbLocal.getSettingModel();
+  MetodoEnvio = dbLocal.getMetodoEnvioModel();
 }
 
 /**
@@ -80,6 +83,16 @@ function getCanalConfig(canal) {
  * Prefijo dinámico para logs según el canal.
  * Devuelve "[Messenger Flow]" para canal messenger, o "[IG Flow]" para instagram (default).
  */
+/** Hay un método de envío nacional activo (F0-5): se puede ofrecer a quien está fuera de la zona. */
+async function hayEnvioNacionalActivo(): Promise<boolean> {
+  try {
+    return Boolean(await MetodoEnvio.findOne({ tipo: "envio_nacional", activo: true }));
+  } catch (err) {
+    console.warn("⚠️ [Cortesía] No se pudo consultar los métodos de envío:", err?.message || err);
+    return false;
+  }
+}
+
 function getFlowPrefix(canal?: string): string {
   return canal === CANAL_MESSENGER ? "[Messenger Flow]" : "[IG Flow]";
 }
@@ -367,7 +380,8 @@ function getFriendlyName(etiqueta) {
   return "";
 }
 
-const WEBHOOK_DEBOUNCE_MS_DEFAULT = 1200;
+// 3 s: el cliente suele mandar varios mensajes seguidos ("Estamos muy lejos" + "Gracias") y se responden juntos
+const WEBHOOK_DEBOUNCE_MS_DEFAULT = 3000;
 
 function getDebounceMs() {
   const debounceVal = getConfig("WEBHOOK_DEBOUNCE_MS");
@@ -920,6 +934,17 @@ class InstagramFlowService {
     const effectivePayload = payload || referralData?.payload || null;
     const actionKey = effectivePayload || text;
 
+    // Conversación natural (M-3): cortesías, fuera de zona y memoria corta
+    const ahora = new Date();
+    const memoriaSocial = (etiqueta.social || {}) as any;
+    const intencionSocial = effectivePayload ? null : cortesia.detectarIntencion(text);
+    let tipoRespuesta = "otro";
+    let claveFrase: string | null = null;
+    let indiceFrase = -1;
+    // Solo las respuestas de comodín (cortesía, "no entendido") se omiten si saldrían repetidas;
+    // una acción explícita (botón, pedido, catálogo) siempre recibe respuesta
+    let esRespuestaComodin = false;
+
     // 4. Evaluar intenciones y estado conversacional
     // Interceptor temprano: Comandos globales de reinicio / menú (CANCELAR, MENU, INICIO)
     if (isResetOrMenuAction(actionKey)) {
@@ -947,6 +972,25 @@ class InstagramFlowService {
           `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}`;
         nuevoPaso = "en_faq";
       }
+    } else if (intencionSocial) {
+      // Una cortesía justo después de otra respuesta social no recibe otra respuesta
+      if (cortesia.debeSilenciar(intencionSocial, memoriaSocial, ahora)) {
+        await EtiquetaIg.findOneAndUpdate(userFilter, { $set: { lastInteraction: ahora } });
+        console.log(`🤐 ${getFlowPrefix(canalEfectivo)} Cortesía de ${userId} sin respuesta (ya se respondió hace menos de 2 min).`);
+        return;
+      }
+      if (intencionSocial === "fueraDeZona") {
+        claveFrase = (await hayEnvioNacionalActivo()) ? "socialOutsideZone" : "socialOutsideZoneNoShipping";
+      } else {
+        claveFrase = "socialThanks";
+      }
+      const elegida = cortesia.elegirFrase(claveFrase, { waLink: buildWaLink(waPhone, etiqueta, "pedir") }, memoriaSocial);
+      botReplyText = elegida.texto;
+      indiceFrase = elegida.indice;
+      tipoRespuesta = intencionSocial;
+      esRespuestaComodin = true;
+      nuevoPaso = "en_faq";
+      shouldSendQuickReplies = false;
     } else if (!ENABLE_IG_QUICK_REPLIES) {
       // =========================================================================
       // MODO TEXTO PLANO ORIGINAL (PUNTO DE RESTAURACIÓN / ROLLBACK)
@@ -997,7 +1041,17 @@ class InstagramFlowService {
             botReplyText = `${matchedFaq.respuesta}\n\n_¿Quieres hacer tu pedido? Escríbenos por nuestro WhatsApp oficial:_\n👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}`;
           }
           nuevoPaso = "en_faq";
+        } else if (cortesia.conversacionReciente(memoriaSocial, ahora)) {
+          // Ya se saludó hace poco: respuesta corta en vez de repetir el saludo y el menú
+          claveFrase = "socialUnknown";
+          const elegida = cortesia.elegirFrase(claveFrase, { waLink: buildWaLink(waPhone, etiqueta, "pedir") }, memoriaSocial);
+          botReplyText = elegida.texto;
+          indiceFrase = elegida.indice;
+          tipoRespuesta = "noEntendido";
+          esRespuestaComodin = true;
+          nuevoPaso = "en_faq";
         } else {
+          esRespuestaComodin = true;
           const friendlyName = getFriendlyName(etiqueta);
           const greetingPrefix = friendlyName ? `¡Hola, ${friendlyName}! 👋` : `¡Hola! 👋`;
           const faqMenu = buildFaqMenuText(faqs);
@@ -1100,8 +1154,19 @@ class InstagramFlowService {
           }
           nuevoPaso = "en_faq";
           shouldSendQuickReplies = true;
+        } else if (cortesia.conversacionReciente(memoriaSocial, ahora)) {
+          // Ya se saludó hace poco: respuesta corta en vez de repetir el saludo
+          claveFrase = "socialUnknown";
+          const elegida = cortesia.elegirFrase(claveFrase, { waLink: buildWaLink(waPhone, etiqueta, "pedir") }, memoriaSocial);
+          botReplyText = elegida.texto;
+          indiceFrase = elegida.indice;
+          tipoRespuesta = "noEntendido";
+          esRespuestaComodin = true;
+          nuevoPaso = "en_faq";
+          shouldSendQuickReplies = true;
         } else {
           // Consulta no reconocida
+          esRespuestaComodin = true;
           const friendlyName = getFriendlyName(etiqueta);
           const greetingPrefix = friendlyName ? `¡Hola, ${friendlyName}! 👋` : `¡Hola! 👋`;
           botReplyText =
@@ -1114,10 +1179,23 @@ class InstagramFlowService {
       }
     }
 
+    // Nunca la misma respuesta dos veces seguidas (p. ej. dos mensajes del cliente que caen en el mismo comodín)
+    if (esRespuestaComodin && cortesia.esRespuestaRepetida(botReplyText, memoriaSocial, ahora)) {
+      await EtiquetaIg.findOneAndUpdate(userFilter, { $set: { lastInteraction: ahora } });
+      console.log(`🤐 ${getFlowPrefix(canalEfectivo)} Respuesta repetida a ${userId} omitida.`);
+      return;
+    }
+
     // 5. Actualizar estado
     await EtiquetaIg.findOneAndUpdate(
       userFilter,
-      { $set: { paso: nuevoPaso, lastInteraction: new Date() } },
+      {
+        $set: {
+          paso: nuevoPaso,
+          lastInteraction: new Date(),
+          social: cortesia.registrarRespuesta(memoriaSocial, tipoRespuesta, claveFrase, indiceFrase, botReplyText, ahora),
+        },
+      },
     );
 
     // 6. Enviar respuesta por el canal correspondiente (try/catch resiliente con fallback a texto plano)

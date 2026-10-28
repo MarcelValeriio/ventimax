@@ -441,10 +441,10 @@ async function runSimulation() {
     const dbAfterFallback = dbLocal.read();
     const msgsFallback = dbAfterFallback.mensajesIg.filter((m) => m.usuarioIgId === testUserId);
     const lastFallbackReply = msgsFallback[msgsFallback.length - 1].texto;
+    // M-3: a mitad de conversación ya no se repite el saludo; respuesta corta y amable
     assert(
-      lastFallbackReply.includes("Encantado de saludarte") &&
-        lastFallbackReply.includes("Para poder ayudarte mejor"),
-      "Fallback saluda amablemente primero",
+      !lastFallbackReply.includes("Encantado de saludarte") && lastFallbackReply.includes("ayudarte"),
+      "Fallback amable y corto, sin repetir el saludo a mitad de conversación",
     );
     assert(
       !lastFallbackReply.includes("No logré comprender") &&
@@ -456,7 +456,7 @@ async function runSimulation() {
       "Fallback incluye enlace directo a WhatsApp",
     );
     assert(
-      lastFallbackReply.includes("opciones") || lastFallbackReply.includes("1. Sabores y rellenos disponibles"),
+      lastFallbackReply.includes("opciones") || lastFallbackReply.includes("asesor") || lastFallbackReply.includes("1. Sabores y rellenos disponibles"),
       "Fallback presenta opciones interactivas de ayuda al usuario",
     );
 

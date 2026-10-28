@@ -386,3 +386,68 @@ export function validarDatosNegocio(val: any): ResultadoValidacionDatosNegocio {
     },
   };
 }
+
+// ==========================================
+// Configuración del Catálogo Web (F2-4)
+// ==========================================
+
+export interface ConfigCatalogo {
+  activo: boolean;
+  prefijo: string;
+  mensajePrefill: string;
+}
+
+export type ResultadoValidacionCatalogo =
+  | { ok: true; value: ConfigCatalogo }
+  | { ok: false; error: string };
+
+const PREFIJO_REGEX = /^[A-HJ-KM-NP-Z]{2,4}$/;
+
+export function validarConfigCatalogo(val: unknown): ResultadoValidacionCatalogo {
+  if (!val || typeof val !== "object") {
+    return { ok: false, error: "Datos de configuración del catálogo inválidos." };
+  }
+
+  const v = val as Partial<ConfigCatalogo>;
+
+  const activo = typeof v.activo === "boolean" ? v.activo : true;
+
+  if (typeof v.prefijo !== "string") {
+    return { ok: false, error: "El prefijo es obligatorio y debe ser texto." };
+  }
+
+  const prefijoLimpio = v.prefijo.trim().toUpperCase();
+  if (!PREFIJO_REGEX.test(prefijoLimpio)) {
+    return {
+      ok: false,
+      error: "El prefijo debe tener de 2 a 4 letras mayúsculas (sin las letras ambiguas I, L, O).",
+    };
+  }
+
+  if (typeof v.mensajePrefill !== "string") {
+    return { ok: false, error: "El mensaje de WhatsApp es obligatorio y debe ser texto." };
+  }
+
+  const mensajeLimpio = v.mensajePrefill.trim();
+  if (mensajeLimpio.length === 0) {
+    return { ok: false, error: "El mensaje de WhatsApp no puede estar vacío." };
+  }
+
+  if (mensajeLimpio.length > 200) {
+    return { ok: false, error: "El mensaje de WhatsApp no puede exceder 200 caracteres." };
+  }
+
+  if (!mensajeLimpio.includes("{{codigo}}")) {
+    return { ok: false, error: "El mensaje de WhatsApp debe contener la variable {{codigo}}." };
+  }
+
+  return {
+    ok: true,
+    value: {
+      activo,
+      prefijo: prefijoLimpio,
+      mensajePrefill: mensajeLimpio,
+    },
+  };
+}
+

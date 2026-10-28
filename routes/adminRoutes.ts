@@ -176,6 +176,26 @@ module.exports = function (io) {
     configAdminController.updateDatosNegocioConfig,
   );
 
+  // Configuración del Catálogo Web y Anti-abuso (Solo Admin con config:manage)
+  router.get(
+    "/config/catalogo",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.getCatalogoConfig,
+  );
+  router.put(
+    "/config/catalogo",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.updateCatalogoConfig,
+  );
+  router.get(
+    "/config/catalogo/abuso",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.getCatalogoAbuso,
+  );
+
   // Gestión de Categorías (Solo Admin)
   router.get(
     "/categorias",

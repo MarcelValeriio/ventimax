@@ -1,4 +1,4 @@
-const rateLimit = require("express-rate-limit");
+const { rateLimit, ipKeyGenerator } = require("express-rate-limit");
 
 // Rate limit para webhook de WhatsApp (Meta puede mandar ráfagas)
 const webhookLimiter = rateLimit({
@@ -25,7 +25,8 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Demasiadas peticiones a la API. Reduce la frecuencia." },
-  keyGenerator: (req) => req.user?.id || req.ip,
+  // ipKeyGenerator agrupa las IPv6 por subred: sin él, un cliente IPv6 cambia de dirección y salta el límite
+  keyGenerator: (req) => req.user?.id || ipKeyGenerator(req.ip),
 });
 
 module.exports = { webhookLimiter, loginLimiter, apiLimiter };

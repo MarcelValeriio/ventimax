@@ -424,6 +424,11 @@ mongoose
     await initDatosNegocio();
     console.log("✅ Datos del negocio inicializados");
 
+    // Configuración del catálogo web (activo, prefijo, prefill de WhatsApp)
+    const { init: initCatalogoConfig } = require("./services/catalogoConfigService");
+    await initCatalogoConfig();
+    console.log("✅ Configuración del catálogo web inicializada");
+
     // Inicializar Agenda para trabajos en segundo plano
     const { initAgenda } = require("./services/agendaService");
     await initAgenda(io);

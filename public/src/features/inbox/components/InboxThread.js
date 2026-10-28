@@ -592,6 +592,18 @@ const InboxThread = ({
   const igVerificado = Boolean(perfilConv && perfilConv.verificado);
   const igOnline = Boolean(perfilConv && perfilConv.online === true);
 
+  // F2-4: Código de pedido web en la conversación o en el pedido activo/historial
+  const codigoWebActivo =
+    conversacion.codigoWeb ||
+    conversacion.origenWeb?.codigo ||
+    conversacion.pedido?.origenWeb?.codigo ||
+    conversacion.fuente?.carrito?.codigoWeb ||
+    pedidoActivo?.origenWeb?.codigo ||
+    pedidoActivo?.codigoWeb ||
+    (Array.isArray(pedidosActivos) && pedidosActivos.find((p) => p.origenWeb?.codigo)?.origenWeb?.codigo) ||
+    (Array.isArray(historialCompras) && historialCompras.find((p) => p.origenWeb?.codigo)?.origenWeb?.codigo) ||
+    null;
+
   // ── LOTE B4 · WA-14/15/35/36/37 — barra de acción del pedido ──────────────
   // El estado manda por encima del resumen del objeto unificado: `estadoPedido`
   // llega de `GET /api/admin/inbox/contexto` (`pedidoActivo.estado`) y solo cae a
@@ -934,6 +946,21 @@ const InboxThread = ({
                   className: "fas fa-bullhorn text-purple-500 text-[10px] shrink-0",
                   title: `Vino de un anuncio${conversacion.detalleOrigen ? ` (${conversacion.detalleOrigen})` : ""}`,
                 })
+              : null,
+            codigoWebActivo
+              ? e(
+                  "span",
+                  {
+                    key: "pedido-web-chip",
+                    className:
+                      "inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shrink-0",
+                    title: `Pedido web: ${codigoWebActivo}`,
+                  },
+                  [
+                    e("i", { key: "ic-web", className: "fas fa-shopping-cart text-[8px]" }),
+                    `Pedido web ${codigoWebActivo}`,
+                  ],
+                )
               : null,
           ]),
           e(
@@ -1798,7 +1825,30 @@ const InboxThread = ({
                           ? e(
                               "div",
                               { key: "texto", className: "whitespace-pre-wrap font-normal" },
-                              renderFormattedText(texto),
+                              [
+                                esManual &&
+                                entrante &&
+                                /\b[A-HJ-KM-NP-Z]{2,4}[-\s]?[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{5}\b/i.test(texto)
+                                  ? e(
+                                      "div",
+                                      {
+                                        key: "alerta-web",
+                                        className:
+                                          "mb-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-500 text-white shadow-xs",
+                                        title:
+                                          "El cliente envió un código de pedido web mientras el bot está en modo manual",
+                                      },
+                                      [
+                                        e("i", {
+                                          key: "ic",
+                                          className: "fas fa-shopping-cart text-[9px]",
+                                        }),
+                                        "Código de pedido web",
+                                      ],
+                                    )
+                                  : null,
+                                renderFormattedText(texto),
+                              ],
                             )
                           : null,
 
