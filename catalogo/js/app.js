@@ -26,6 +26,8 @@ import { el, limpiarElemento } from "./dom.js";
 
 import { debeMostrarAyuda, textoAyuda, armarEnlaceAyuda } from "./ayuda.js";
 
+import { ajustarIndice, indiceDesdeScroll } from "./galeria.js";
+
 /** Solo se abre un enlace de WhatsApp (wa.me); cualquier otra cosa que llegara de la API se ignora. */
 function esEnlaceWhatsApp(url) {
   return typeof url === "string" && url.startsWith("https://wa.me/");
@@ -298,6 +300,129 @@ function imagenProducto(url, alt, className, extra = {}) {
 }
 
 /**
+ * Carrusel de fotos del producto. La tira usa scroll-snap, así que deslizar con el dedo o el trackpad es nativo;
+ * las flechas, los puntos, las miniaturas y el teclado solo la desplazan. Con una sola foto no hay controles.
+ */
+function crearGaleriaProducto(prod) {
+  const imagenes = Array.isArray(prod.imagenes) && prod.imagenes.length > 0 ? prod.imagenes : [""];
+  const total = imagenes.length;
+  let actual = 0;
+
+  const tira = el(
+    "div",
+    { className: "carrusel-tira", tabindex: total > 1 ? "0" : null, "aria-label": total > 1 ? `Fotos de ${prod.nombre}` : null },
+    imagenes.map((url, idx) =>
+      el(
+        "div",
+        { className: "carrusel-slide", "aria-roledescription": "foto", "aria-label": `${idx + 1} de ${total}` },
+        imagenProducto(url, `${prod.nombre}${total > 1 ? ` foto ${idx + 1}` : ""}`, "detail-main-img", idx > 0 ? { loading: "lazy" } : {})
+      )
+    )
+  );
+  const visor = el("div", { className: "detail-main-img-wrap carrusel" }, tira);
+  const galeria = el("div", { className: "detail-gallery" }, visor);
+  if (total < 2) return galeria;
+
+  const irA = (indice, suave = true) => {
+    const i = ajustarIndice(indice, total);
+    tira.scrollTo({ left: i * tira.clientWidth, behavior: suave ? "smooth" : "auto" });
+  };
+
+  const flechaAnterior = el(
+    "button",
+    { type: "button", className: "carrusel-flecha carrusel-flecha--anterior", "aria-label": "Foto anterior", onclick: () => irA(actual - 1) },
+    "‹"
+  );
+  const flechaSiguiente = el(
+    "button",
+    { type: "button", className: "carrusel-flecha carrusel-flecha--siguiente", "aria-label": "Foto siguiente", onclick: () => irA(actual + 1) },
+    "›"
+  );
+  const puntos = el(
+    "div",
+    { className: "carrusel-puntos" },
+    imagenes.map((_, idx) =>
+      el("button", { type: "button", className: "carrusel-punto", "aria-label": `Ver foto ${idx + 1}`, onclick: () => irA(idx) })
+    )
+  );
+  visor.append(flechaAnterior, flechaSiguiente, puntos);
+
+  const miniaturas = el(
+    "div",
+    { className: "detail-thumbs-wrap" },
+    imagenes.map((url, idx) =>
+      el(
+        "button",
+        { type: "button", className: "detail-thumb", "aria-label": `Ver foto ${idx + 1}`, onclick: () => irA(idx) },
+        imagenProducto(url, "", "detail-thumb-img", { loading: "lazy" })
+      )
+    )
+  );
+  galeria.appendChild(miniaturas);
+
+  const marcar = () => {
+    flechaAnterior.disabled = actual === 0;
+    flechaSiguiente.disabled = actual === total - 1;
+    [...puntos.children].forEach((p, i) => p.setAttribute("aria-current", i === actual ? "true" : "false"));
+    [...miniaturas.children].forEach((m, i) => m.classList.toggle("active", i === actual));
+  };
+  marcar();
+
+  tira.addEventListener(
+    "scroll",
+    () => {
+      const i = indiceDesdeScroll(tira.scrollLeft, tira.clientWidth, total);
+      if (i !== actual) {
+        actual = i;
+        marcar();
+      }
+    },
+    { passive: true }
+  );
+
+  tira.addEventListener("keydown", (ev) => {
+    if (ev.key === "ArrowLeft") { ev.preventDefault(); irA(actual - 1); }
+    if (ev.key === "ArrowRight") { ev.preventDefault(); irA(actual + 1); }
+  });
+
+  // Arrastre con el mouse en escritorio (el dedo y el trackpad ya deslizan solos)
+  let arrastre = null;
+  tira.addEventListener("pointerdown", (ev) => {
+    if (ev.pointerType !== "mouse" || ev.button !== 0) return;
+    arrastre = { x: ev.clientX, inicio: tira.scrollLeft, movio: false };
+    tira.classList.add("arrastrando");
+    tira.setPointerCapture(ev.pointerId);
+  });
+  tira.addEventListener("pointermove", (ev) => {
+    if (!arrastre) return;
+    const dx = ev.clientX - arrastre.x;
+    if (Math.abs(dx) > 3) arrastre.movio = true;
+    tira.scrollLeft = arrastre.inicio - dx;
+  });
+  const soltar = () => {
+    if (!arrastre) return;
+    const desde = Math.round(arrastre.inicio / tira.clientWidth);
+    const dx = tira.scrollLeft - arrastre.inicio;
+    arrastre = null;
+    tira.classList.remove("arrastrando");
+    // Basta con arrastrar un 15 % del ancho para pasar de foto
+    const umbral = tira.clientWidth * 0.15;
+    irA(dx > umbral ? desde + 1 : dx < -umbral ? desde - 1 : desde);
+  };
+  tira.addEventListener("pointerup", soltar);
+  tira.addEventListener("pointercancel", soltar);
+  tira.addEventListener("dragstart", (ev) => ev.preventDefault());
+
+  // Si cambia el ancho (giro del celular), mantener la misma foto
+  const alCambiarTamano = () => {
+    if (!tira.isConnected) return window.removeEventListener("resize", alCambiarTamano);
+    irA(actual, false);
+  };
+  window.addEventListener("resize", alCambiarTamano);
+  return galeria;
+}
+
+/**
  * Crea una tarjeta individual de producto para la grilla.
  */
 function crearTarjetaProducto(prod) {
@@ -392,42 +517,8 @@ function renderizarDetalleProducto(productoId) {
     "← Volver al catálogo"
   );
 
-  // Galería de imágenes
-  const imagenes = Array.isArray(prod.imagenes) && prod.imagenes.length > 0 ? prod.imagenes : [""];
-  let imgSeleccionada = imagenes[0];
-
-  const mainImgWrap = el(
-    "div",
-    { className: "detail-main-img-wrap" },
-    imagenProducto(imgSeleccionada, prod.nombre, "detail-main-img")
-  );
-  const thumbsWrap = el("div", { className: "detail-thumbs-wrap" });
-
-  if (imagenes.length > 1) {
-    imagenes.forEach((url, idx) => {
-      const thumbImg = el("img", {
-        src: resolverUrlRecurso(url),
-        alt: `${prod.nombre} foto ${idx + 1}`,
-      });
-      const thumb = el(
-        "div",
-        {
-          className: `detail-thumb ${url === imgSeleccionada ? "active" : ""}`,
-          onclick: () => {
-            imgSeleccionada = url;
-            limpiarElemento(mainImgWrap);
-            mainImgWrap.appendChild(imagenProducto(url, prod.nombre, "detail-main-img"));
-            for (const t of thumbsWrap.children) t.classList.remove("active");
-            thumb.classList.add("active");
-          },
-        },
-        thumbImg
-      );
-      thumbsWrap.appendChild(thumb);
-    });
-  }
-
-  const galleryEl = el("div", { className: "detail-gallery" }, mainImgWrap, thumbsWrap);
+  // Galería: carrusel con deslizamiento (táctil, trackpad o arrastrando con el mouse), flechas, puntos y miniaturas
+  const galleryEl = crearGaleriaProducto(prod);
 
   // Información y acción
   const titleEl = el("h1", { className: "detail-title" }, prod.nombre);

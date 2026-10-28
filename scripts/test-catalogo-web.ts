@@ -28,6 +28,7 @@ import {
   MAX_LINEAS_CARRITO,
 } from "../catalogo/js/carrito.js";
 import { debeMostrarAyuda, textoAyuda, armarEnlaceAyuda } from "../catalogo/js/ayuda.js";
+import { ajustarIndice, indiceDesdeScroll } from "../catalogo/js/galeria.js";
 
 async function runTests() {
   console.log("================================================================================");
@@ -386,8 +387,24 @@ async function runTests() {
   assert.ok(cssSrc.includes("safe-area-inset-bottom") && cssSrc.includes("prefers-reduced-motion"), "zona segura y movimiento reducido");
   console.log("  ✅ Test 11 superado (botón de ayuda: vistas, texto, enlace y accesibilidad)");
 
+  // Test 12: carrusel de fotos del producto (deslizar, flechas, puntos)
+  console.log("\n▶ Test 12: Carrusel de fotos del producto...");
+  assert.strictEqual(ajustarIndice(-1, 3), 0, "no pasa de la primera");
+  assert.strictEqual(ajustarIndice(5, 3), 2, "no pasa de la última");
+  assert.strictEqual(ajustarIndice(1, 0), 0);
+  assert.strictEqual(indiceDesdeScroll(0, 400, 3), 0);
+  assert.strictEqual(indiceDesdeScroll(390, 400, 3), 1, "a mitad de deslizamiento redondea a la más cercana");
+  assert.strictEqual(indiceDesdeScroll(800, 400, 3), 2);
+  assert.strictEqual(indiceDesdeScroll(5000, 400, 3), 2);
+  assert.strictEqual(indiceDesdeScroll(100, 0, 3), 0, "sin ancho medido");
+  assert.ok(appSrc.includes("carrusel-flecha--anterior") && appSrc.includes("carrusel-punto"), "flechas y puntos");
+  assert.ok(appSrc.includes('"aria-label": "Foto anterior"') && appSrc.includes('"ArrowRight"'), "accesible con lector y teclado");
+  assert.ok(/if \(total < 2\) return galeria;/.test(appSrc), "con una sola foto no hay controles");
+  assert.ok(cssSrc.includes("scroll-snap-type: x mandatory"), "deslizar con el dedo usa scroll-snap");
+  console.log("  ✅ Test 12 superado (carrusel: límites, índice por desplazamiento, controles accesibles)");
+
   console.log("\n================================================================================");
-  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (11/11)");
+  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (12/12)");
   console.log("================================================================================\n");
 }
 

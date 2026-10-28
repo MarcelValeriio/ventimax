@@ -401,11 +401,49 @@ body {
 }
 
 .detail-main-img-wrap {
+  position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
   background: #f8fafc;
   border-radius: var(--radius-sm);
   overflow: hidden;
+}
+
+/* Carrusel: tira horizontal con scroll-snap (deslizar con el dedo o el trackpad es nativo) */
+.carrusel-tira {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  touch-action: pan-x pan-y;
+}
+
+.carrusel-tira::-webkit-scrollbar {
+  display: none;
+}
+
+.carrusel-tira:focus-visible {
+  outline: 3px solid var(--primary-color);
+  outline-offset: -3px;
+}
+
+.carrusel-tira.arrastrando {
+  scroll-snap-type: none;
+  scroll-behavior: auto;
+  cursor: grabbing;
+  user-select: none;
+}
+
+.carrusel-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -415,32 +453,167 @@ body {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  -webkit-user-drag: none;
+}
+
+.carrusel-flecha {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-main);
+  font-size: 1.9rem;
+  line-height: 1;
+  padding-bottom: 4px;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+
+.carrusel-flecha--anterior {
+  left: 12px;
+}
+
+.carrusel-flecha--siguiente {
+  right: 12px;
+}
+
+.carrusel-flecha:hover:not(:disabled) {
+  background: #ffffff;
+  transform: translateY(-50%) scale(1.06);
+}
+
+.carrusel-flecha:focus-visible {
+  outline: 3px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* En los extremos la flecha queda casi invisible y no responde */
+.carrusel-flecha:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.carrusel-puntos {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.35);
+}
+
+/* Área táctil de 24 px con un punto visible de 8 px */
+.carrusel-punto {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.carrusel-punto::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.6);
+  transition: width 0.25s ease, background-color 0.25s ease;
+}
+
+.carrusel-punto[aria-current="true"]::before {
+  width: 18px;
+  background: #ffffff;
+}
+
+.carrusel-punto:focus-visible {
+  outline: 2px solid #ffffff;
+  border-radius: 999px;
+}
+
+/* En el celular se desliza con el dedo: flechas más chicas para no tapar la foto */
+@media (max-width: 600px) {
+  .carrusel-flecha {
+    width: 36px;
+    height: 36px;
+    font-size: 1.6rem;
+  }
+
+  .carrusel-flecha--anterior {
+    left: 8px;
+  }
+
+  .carrusel-flecha--siguiente {
+    right: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carrusel-tira {
+    scroll-behavior: auto;
+  }
+
+  .carrusel-flecha,
+  .carrusel-punto::before {
+    transition: none;
+  }
 }
 
 .detail-thumbs-wrap {
   display: flex;
   gap: 8px;
   overflow-x: auto;
+  padding: 2px;
 }
 
 .detail-thumb {
   width: 60px;
   height: 60px;
+  padding: 0;
+  background: #f8fafc;
   border-radius: var(--radius-sm);
   border: 2px solid var(--border-color);
   overflow: hidden;
   cursor: pointer;
   flex-shrink: 0;
+  transition: border-color 0.2s ease;
 }
 
 .detail-thumb.active {
   border-color: var(--primary-color);
 }
 
-.detail-thumb img {
+.detail-thumb:focus-visible {
+  outline: 3px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.detail-thumb-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.detail-thumb .img-sin-foto-texto {
+  display: none;
+}
+
+.detail-thumb .img-sin-foto-icono {
+  font-size: 1.1rem;
 }
 
 .detail-info {
