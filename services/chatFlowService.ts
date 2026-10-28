@@ -46,10 +46,7 @@ const { buscarFAQ, getSaboresEnStock, getMenuDinamico } = require("./faqMatcher"
 const { obtenerTasaUSD } = require("./bcv");
 const whatsapp = require("./whatsapp");
 const {
-  enviarTexto,
   enviarImagenPorUrl,
-  enviarBotones,
-  enviarLista,
   notificarAdminConFallback,
 } = whatsapp;
 const {
@@ -551,8 +548,7 @@ class ChatFlowService {
         const tasaInfo = await obtenerTasaUSD();
         if (tasaInfo && tasaInfo.tasa) {
           const res = `💱 *Tasa BCV*\n🇺🇸 1 USD = ${formatBs(tasaInfo.tasa)} Bs.`;
-          await enviarTexto(from, res);
-          await chatFlow.emitirYGuardar(from, res, "bot", io);
+          await this.enviarYRegistrar(from, { tipo: "texto", texto: res }, io);
         }
         return;
       }
@@ -823,8 +819,7 @@ class ChatFlowService {
         const hint = this.getContinuationHint(paso);
         const fullText = `${respuesta}\n\n_${hint}_`;
 
-        await enviarTexto(from, fullText);
-        await chatFlow.emitirYGuardar(from, fullText, "bot", io);
+        await this.enviarYRegistrar(from, { tipo: "texto", texto: fullText }, io);
         return;
       }
     }
@@ -854,10 +849,16 @@ class ChatFlowService {
     }
   }
 
+  /**
+   * Delega el envío de WhatsApp y registro centralizado a ChatFlowController.
+   */
+  async enviarYRegistrar(from, opciones, io) {
+    return await chatFlow.enviarYRegistrar(from, opciones, io);
+  }
+
   // Helper para enviar a WhatsApp y emitir/guardar en tiempo real en el SaaS
   async _sendYGuardar(from, text, io) {
-    await enviarTexto(from, text);
-    await chatFlow.emitirYGuardar(from, text, "bot", io);
+    return await this.enviarYRegistrar(from, { tipo: "texto", texto: text }, io);
   }
 
   // Helper Anti-Stuck: Incrementa fallos sucesivos y emite alerta si supera el umbral (>= 3 intentos)
@@ -982,16 +983,18 @@ class ChatFlowService {
   async enviarMenuFaq(from, io) {
     const { bodyText, sections } = await this.construirMenuFaq();
     const botIdentity = configManager.get("settings.botIdentity") || "Asistente virtual";
-    await enviarLista(
+    return await this.enviarYRegistrar(
       from,
-      bodyText,
-      "Ver Opciones",
-      sections,
-      botIdentity,
-      "Preguntas Frecuentes",
+      {
+        tipo: "lista",
+        texto: bodyText,
+        buttonText: "Ver Opciones",
+        sections,
+        headerText: botIdentity,
+        footerText: "Preguntas Frecuentes",
+      },
+      io
     );
-    await chatFlow.emitirYGuardar(from, bodyText, "bot", io);
-    return true;
   }
 
   // --- Handlers ---
@@ -1233,16 +1236,14 @@ class ChatFlowService {
         "\n\n_Escribe *pedir* para hacer tu pedido o *menu* para ver las preguntas de nuevo._";
       const fullText = `${respuesta}${hint}`;
 
-      await enviarTexto(from, fullText);
-      await chatFlow.emitirYGuardar(from, fullText, "bot", io);
+      await this.enviarYRegistrar(from, { tipo: "texto", texto: fullText }, io);
       return;
     }
 
     // Entrada inválida: re-enviar menú de FAQs
     const errorMsg =
       "⚠️ Opción no reconocida. Por favor elige una opción de la lista o escribe *pedir* para hacer tu pedido.\n\n💡 _Escribe *CANCELAR* si deseas volver al inicio._";
-    await enviarTexto(from, errorMsg);
-    await chatFlow.emitirYGuardar(from, errorMsg, "bot", io);
+    await this.enviarYRegistrar(from, { tipo: "texto", texto: errorMsg }, io);
     await this.enviarMenuFaq(from, io);
   }
 
@@ -1738,8 +1739,9 @@ class ChatFlowService {
         console.warn(`⚠️ No se pudo enviar la foto del producto (${producto.name}); se sigue sin ella.`);
         return;
       }
+      const wamid = typeof enviado === "string" ? enviado : null;
       if (orderService.emitirYGuardar) {
-        await orderService.emitirYGuardar(from, caption, "bot", io, "image", null, null, null, null, url);
+        await orderService.emitirYGuardar(from, caption, "bot", io, "image", null, wamid, "sent", null, url);
       }
     } catch (imgErr: any) {
       console.warn(`⚠️ Error enviando la foto del producto (${producto.name}):`, imgErr.message);
@@ -1759,10 +1761,15 @@ class ChatFlowService {
         configManager.get("settings.messages.pickupUnavailable") ||
         "Actualmente no disponemos de punto de retiro físico activo. Todas nuestras entregas se coordinan por delivery o envío nacional. Si tienes alguna duda, un asesor puede atenderte.";
       const buttons = [{ id: "hablar_asesor", title: "💬 Hablar con Asesor" }];
-      await enviarBotones(from, msgNoDisponible, buttons);
-      if (orderService.emitirYGuardar) {
-        await orderService.emitirYGuardar(from, msgNoDisponible, "bot", io);
-      }
+      await this.enviarYRegistrar(
+        from,
+        {
+          tipo: "botones",
+          texto: msgNoDisponible,
+          buttons,
+        },
+        io
+      );
       return false;
     }
 

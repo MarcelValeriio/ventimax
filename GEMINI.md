@@ -120,12 +120,17 @@ services/
   dbLocal.ts, dbMock.ts      → Mocks de modelos para NODE_ENV=test
 models/                      → Usuario, Pedido, Producto (categoria + categorias[]), Categoria, MetodoPago, Setting,
                                Mensaje, MensajeIg, Etiqueta, EtiquetaIg, FAQ, QuickReply, Counter, Auditoria, ...
-routes/, middlewares/ (auth, hmacValidator, rateLimiter), validators/, types/
+routes/, middlewares/ (auth, hmacValidator, rateLimiter, csp), validators/, types/
 data/permissions.js          → Roles → permisos granulares
 utils/helpers.ts             → getCaracasTime, formatBs, formatUsd, limpiarCedula, esFinDeSemanaCaracas
 config/brand/<marca>/        → Sección 1.2
-public/index.html            → SPA del panel; public/src/features/ (inbox, dashboard, inventory, sales; whatsapp e instagram son legado)
-services/paginaPrivacidad.ts → Política de privacidad generada desde settings.legal (ruta /privacidad)
+public/index.html            → SPA del panel, sin scripts en línea (CSP): arranca con public/src/boot/panel.js
+                               (login: public/src/boot/login.js); public/src/features/ (inbox, dashboard, inventory, sales;
+                               whatsapp e instagram son legado)
+services/paginaPrivacidad.ts → Política de privacidad (ruta /privacidad) con los datos de datosNegocioService
+                               (panel → Datos del negocio; si están vacíos, settings.legal/contact de la marca)
+middlewares/csp.ts           → Content Security Policy del panel. No poner <script> en línea ni onclick= en public/*.html;
+                               un CDN nuevo se añade aquí
 scripts/                     → Suites de prueba y scripts operativos (ver sección 6: muchos NO se ejecutan)
 ```
 

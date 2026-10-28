@@ -1,8 +1,8 @@
 # Guía: poner el bot en marcha para un cliente nuevo
 
 > Para el dueño del proyecto (y para Claude/Antigravity cuando preparen la marca).
-> Estado: **Fase 0, actualizada el 2026-10-28.** Todas las secciones están confirmadas; solo falta
-> F0-11 (cabeceras de seguridad), que no cambia ningún paso de esta guía.
+> Estado: **Fase 0 cerrada (2026-10-28).** Todas las secciones están confirmadas. El catálogo web (F2) y
+> TikTok (F5) se agregarán aquí cuando estén terminados.
 
 El código es el mismo para todos los clientes. Lo que cambia por cliente es:
 
@@ -58,8 +58,8 @@ mkdir -p public/assets/brand/<marca>
 | `botIdentity` | Nombre del bot |
 | `businessDescription` | Rubro en 1-2 frases |
 | `productBrand` | Marca de los productos, si vende una sola (si no, `""`) |
-| `whatsappPhone` | Número del negocio, o `""` |
-| `contact.email`, `contact.website`, `contact.instagram` | Datos de contacto, o `""`. Nunca inventarlos |
+| `whatsappPhone` | Valor inicial del WhatsApp del negocio, o `""`. Lo normal es cargarlo en el panel (Datos del negocio) |
+| `contact.email`, `contact.website`, `contact.instagram` | Valor inicial del contacto, o `""`. Nunca inventarlos; lo normal es cargarlos en el panel (Datos del negocio) |
 | `sales.unitSingular`, `sales.unitPlural` | Unidad de venta ("unidad"/"unidades", "caja"/"cajas") |
 | `brandEmoji`, `categoryEmoji` | Emoji del negocio y de las categorías |
 | `theme.primaryColor`, `theme.secondaryColor` | Colores en hexadecimal (obligatorios) |
@@ -367,11 +367,15 @@ Desde un teléfono que **no** sea del negocio:
 - [ ] Meta: webhooks verificados, plantilla `order_notification` aprobada, app en modo *Live*.
 - [ ] Teléfonos de alerta probados: la comanda de prueba llegó.
 - [ ] Prueba final (sección 6) completa y pedido de prueba borrado.
+- [ ] Abrir el panel en producción con la consola del navegador (F12): no debe haber errores de
+      "Content Security Policy". Si aparece uno, avisar antes de abrir a clientes: algún recurso externo
+      nuevo no está permitido en `middlewares/csp.ts`.
 
 ---
 
-## Pendientes que afectan a esta guía
+## Cambios en el código que afectan a esta guía
 
-| Tema | Tarea |
-|---|---|
-| Cabeceras de seguridad (CSP): puede pedir revisar el panel tras desplegar | F0-11 |
+- **No poner `<script>` en línea ni `onclick=` en `public/*.html`**: la política de seguridad (CSP) los
+  bloquea y el panel quedaría en blanco. Todo el JavaScript va en archivos (`public/src/boot/`).
+- Un CDN o servicio externo nuevo en el panel (fuentes, imágenes, scripts) hay que añadirlo en
+  `middlewares/csp.ts`; si no, el navegador lo bloquea.

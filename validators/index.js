@@ -49,6 +49,24 @@ const loginSchema = z.object({
   password: z.string().min(1, "Contraseña es obligatoria"),
 });
 
+// ─── Pedidos Públicos (Catálogo Web - F2) ───
+const pedidoItemPublicoSchema = z
+  .object({
+    productoId: z.string().min(1, "El ID del producto es obligatorio").max(60, "El ID no puede exceder 60 caracteres"),
+    cantidad: z.number().int("La cantidad debe ser un número entero").min(1, "La cantidad mínima es 1").max(50, "La cantidad máxima es 50"),
+  })
+  .strict();
+
+const pedidoPublicoSchema = z
+  .object({
+    items: z
+      .array(pedidoItemPublicoSchema)
+      .min(1, "El carrito debe tener al menos 1 producto")
+      .max(20, "El carrito no puede tener más de 20 productos"),
+    website: z.string().optional().default(""),
+  })
+  .strict();
+
 // ─── Middleware de validación ───
 function validate(schema) {
   return (req, res, next) => {
@@ -73,5 +91,7 @@ module.exports = {
   usuarioUpdateSchema,
   metodoPagoSchema,
   loginSchema,
+  pedidoItemPublicoSchema,
+  pedidoPublicoSchema,
   validate,
 };

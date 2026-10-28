@@ -30,11 +30,6 @@ if (process.env.NODE_ENV === "test") {
 const configManager = require("../services/configManager");
 const orderService = require("../services/orderService");
 const whatsappService = require("../services/whatsapp");
-const {
-  enviarTexto,
-  enviarBotones,
-  enviarLista,
-} = whatsappService;
 const { obtenerTasaUSD } = require("../services/bcv");
 const { formatBs, formatUsd, getCaracasTime } = require("../utils/helpers");
 const { filtroPorCategoria } = require("../services/catalogQuery");
@@ -50,8 +45,121 @@ const { getFlujoNoLaborableSync } = require("../services/flujoNoLaborableService
  * UI Refactored for Dynamic Categories and Meta Character Limits
  */
 class ChatFlowController {
-  async emitirYGuardar(tel, txt, dir, io, tipo = "texto", mediaId = null) {
-    return await orderService.emitirYGuardar(tel, txt, dir, io, tipo, mediaId);
+  async emitirYGuardar(
+    tel,
+    txt,
+    dir,
+    io,
+    tipo = "texto",
+    mediaId = null,
+    wamid = null,
+    status = null,
+    mimeType = null,
+    mediaUrl = null,
+    fileName = null,
+    caption = null,
+    replyToMid = null,
+    replyToText = null
+  ) {
+    return await orderService.emitirYGuardar(
+      tel,
+      txt,
+      dir,
+      io,
+      tipo,
+      mediaId,
+      wamid,
+      status,
+      mimeType,
+      mediaUrl,
+      fileName,
+      caption,
+      replyToMid,
+      replyToText
+    );
+  }
+
+  /**
+   * Centraliza el envío de mensajes por WhatsApp del bot y su registro en el Inbox.
+   * Envía (texto, botones o lista), captura el wamid si Meta lo devuelve y asigna status: "sent",
+   * o si WhatsApp devuelve false / falla, asigna status: "failed" y registra una advertencia ⚠️.
+   * No lanza error si el envío falla para no interrumpir el flujo del usuario.
+   */
+  async enviarYRegistrar(
+    to: string,
+    opciones: {
+      tipo?: "texto" | "botones" | "lista" | "imagen";
+      texto: string;
+      textoGuardar?: string;
+      buttons?: Array<{ id: string; title: string }>;
+      buttonText?: string;
+      sections?: any[];
+      headerText?: string | null;
+      footerText?: string | null;
+      replyToMid?: string | null;
+      mediaUrl?: string | null;
+      caption?: string | null;
+    },
+    io: any
+  ) {
+    const tipo = opciones.tipo || "texto";
+    const texto = opciones.texto;
+    const textoGuardar = opciones.textoGuardar || texto;
+    let resultadoEnvio: any = false;
+
+    try {
+      if (tipo === "botones" && Array.isArray(opciones.buttons) && opciones.buttons.length > 0) {
+        resultadoEnvio = await whatsappService.enviarBotones(to, texto, opciones.buttons);
+      } else if (tipo === "lista" && Array.isArray(opciones.sections) && opciones.sections.length > 0) {
+        resultadoEnvio = await whatsappService.enviarLista(
+          to,
+          texto,
+          opciones.buttonText || "Ver Opciones",
+          opciones.sections,
+          opciones.headerText || null,
+          opciones.footerText || null
+        );
+      } else if (tipo === "imagen" && opciones.mediaUrl) {
+        resultadoEnvio = await whatsappService.enviarImagenPorUrl(
+          to,
+          opciones.mediaUrl,
+          opciones.caption || texto,
+          null,
+          opciones.replyToMid || null
+        );
+      } else {
+        resultadoEnvio = await whatsappService.enviarTexto(to, texto, null, opciones.replyToMid || null);
+      }
+    } catch (err: any) {
+      console.warn(`⚠️ [WhatsApp] Excepción enviando ${tipo} a ${to}:`, err?.message || err);
+      resultadoEnvio = false;
+    }
+
+    const exito = Boolean(resultadoEnvio);
+    const wamid = typeof resultadoEnvio === "string" ? resultadoEnvio : null;
+    const status = exito ? "sent" : "failed";
+
+    if (!exito) {
+      console.warn(`⚠️ [WhatsApp] Falló el envío de ${tipo} a ${to}. Registrando como fallido.`);
+    }
+
+    await this.emitirYGuardar(
+      to,
+      textoGuardar,
+      "bot",
+      io,
+      tipo === "imagen" ? "image" : "texto",
+      null,
+      wamid,
+      status,
+      null,
+      opciones.mediaUrl || null,
+      null,
+      opciones.caption || null,
+      opciones.replyToMid || null
+    );
+
+    return resultadoEnvio;
   }
 
   async enviarMenu(to, io) {
@@ -77,8 +185,7 @@ class ChatFlowController {
       businessDescription,
     }) || `${timeGreeting}\nBienvenido a *${brandName}* (asistente *${botIdentity}*).`;
 
-    await enviarTexto(to, welcomeMsg);
-    await this.emitirYGuardar(to, welcomeMsg, "bot", io);
+    await this.enviarYRegistrar(to, { tipo: "texto", texto: welcomeMsg }, io);
 
     // Enviar directamente el menú de categorías para acortar el flujo
     return await this.mostrarCategorias(to, io);
@@ -103,8 +210,7 @@ class ChatFlowController {
         }
         const noMenuMsg =
           "⚠️ Lo sentimos, el menú no está disponible en este momento.";
-        await enviarTexto(to, noMenuMsg);
-        await this.emitirYGuardar(to, noMenuMsg, "bot", io);
+        await this.enviarYRegistrar(to, { tipo: "texto", texto: noMenuMsg }, io);
         return false;
       }
 
@@ -125,21 +231,23 @@ class ChatFlowController {
       const bodyText =
         "Selecciona una de las opciones de la lista para ver los detalles:";
 
-      const enviado = await enviarLista(
+      const enviado = await this.enviarYRegistrar(
         to,
-        bodyText,
-        "Ver Opciones 📂",
-        sections,
-        headerText,
-        footerText,
+        {
+          tipo: "lista",
+          texto: bodyText,
+          buttonText: "Ver Opciones 📂",
+          sections,
+          headerText,
+          footerText,
+        },
+        io
       );
-      if (enviado) await this.emitirYGuardar(to, bodyText, "bot", io);
       return enviado;
     } catch (error) {
       console.error(`❌ Error en mostrarCategorias para ${to}:`, error.message);
       const errMsg = "⚠️ Hubo un error al cargar el menú.";
-      await enviarTexto(to, errMsg);
-      await this.emitirYGuardar(to, errMsg, "bot", io);
+      await this.enviarYRegistrar(to, { tipo: "texto", texto: errMsg }, io);
       return false;
     }
   }
@@ -176,8 +284,7 @@ class ChatFlowController {
       if (!products || products.length === 0) {
         const noProdMsg =
           "⚠️ No hay productos disponibles en esta sección actualmente.";
-        await enviarTexto(to, noProdMsg);
-        await this.emitirYGuardar(to, noProdMsg, "bot", io);
+        await this.enviarYRegistrar(to, { tipo: "texto", texto: noProdMsg }, io);
         return false;
       }
 
@@ -212,27 +319,24 @@ class ChatFlowController {
       const bodyText = `Explora nuestra selección de *${catDoc?.nombre || "especialidades"}*. \n\n Recuerda que procesamos pedidos de un día para otro:`;
       const listTitle = catDoc ? `Menú: ${catDoc.nombre}` : (configManager.format("settings.messages.menuTitle", { brandName }) || `Menú ${brandName}`);
 
-      const enviado = await enviarLista(
+      const enviado = await this.enviarYRegistrar(
         to,
-        bodyText,
-        `Seleccionar ${brandEmoji}`,
-        sections,
-        listTitle,
-        "📍 Entregas en Caracas",
+        {
+          tipo: "lista",
+          texto: bodyText,
+          textoGuardar: `Catálogo de ${catDoc?.nombre || "productos"} enviado`,
+          buttonText: `Seleccionar ${brandEmoji}`,
+          sections,
+          headerText: listTitle,
+          footerText: "📍 Entregas en Caracas",
+        },
+        io
       );
-      if (enviado)
-        await this.emitirYGuardar(
-          to,
-          `Catálogo de ${catDoc?.nombre || "productos"} enviado`,
-          "bot",
-          io,
-        );
       return enviado;
     } catch (error) {
       console.error(`❌ Error en mostrarProductos para ${to}:`, error.message);
       const errProdMsg = "⚠️ Hubo un error al cargar los productos.";
-      await enviarTexto(to, errProdMsg);
-      await this.emitirYGuardar(to, errProdMsg, "bot", io);
+      await this.enviarYRegistrar(to, { tipo: "texto", texto: errProdMsg }, io);
       return false;
     }
   }
@@ -249,26 +353,29 @@ class ChatFlowController {
         ],
       },
     ];
-    const enviado = await enviarLista(to, msg, "Elegir Opción", sections);
-    if (enviado) await this.emitirYGuardar(to, msg, "bot", io);
-    return enviado;
+    return await this.enviarYRegistrar(
+      to,
+      {
+        tipo: "lista",
+        texto: msg,
+        buttonText: "Elegir Opción",
+        sections,
+      },
+      io
+    );
   }
 
   async solicitarNombre(to, io) {
     const msg =
       configManager.get("settings.messages.promptPersonalData") ||
       "📝 Por favor, indícanos tu *Nombre, Apellido y Cédula* para registrar tu pedido (máx. 40 caracteres para el nombre):\n\n_Ejemplo: Juan Pérez 12345678_\n\n💡 _Si deseas empezar de nuevo en cualquier momento, escribe *CANCELAR*._";
-    const enviado = await enviarTexto(to, msg);
-    if (enviado) await this.emitirYGuardar(to, msg, "bot", io);
-    return enviado;
+    return await this.enviarYRegistrar(to, { tipo: "texto", texto: msg }, io);
   }
 
   async solicitarCedula(to, io) {
     const msg =
       "🆔 Ahora, por favor introduce tu *Cédula de Identidad o RIF*, indicando la letra si no es venezolano o es empresa (ej: 12345678, V-12345678, E-12345678 o J-123456789):\n\n💡 _Si deseas reiniciar tu pedido, escribe *CANCELAR*._";
-    const enviado = await enviarTexto(to, msg);
-    if (enviado) await this.emitirYGuardar(to, msg, "bot", io);
-    return enviado;
+    return await this.enviarYRegistrar(to, { tipo: "texto", texto: msg }, io);
   }
 
   async solicitarMetodoEnvio(to, metodos, io) {
@@ -298,15 +405,17 @@ class ChatFlowController {
         },
       ];
 
-      const enviado = await enviarLista(
+      const enviado = await this.enviarYRegistrar(
         to,
-        prompt,
-        "Ver opciones",
-        sections,
+        {
+          tipo: "lista",
+          texto: prompt,
+          textoGuardar: "Opciones de entrega enviadas",
+          buttonText: "Ver opciones",
+          sections,
+        },
+        io
       );
-      if (enviado) {
-        await this.emitirYGuardar(to, "Opciones de entrega enviadas", "bot", io);
-      }
       return enviado;
     } catch (error) {
       console.error(`❌ Error en solicitarMetodoEnvio para ${to}:`, error.message);
@@ -317,17 +426,13 @@ class ChatFlowController {
   async solicitarUbicacion(to, io) {
     const msg =
       "📍 ¡Excelente!\n\n ▪ Por favor comparte tu dirección actual *(GPS)*.\n\n ▪ O envía tu dirección escrita.\n\n💡 _Si deseas empezar de nuevo en cualquier momento, escribe *CANCELAR*._";
-    const enviado = await enviarTexto(to, msg);
-    if (enviado) await this.emitirYGuardar(to, msg, "bot", io);
-    return enviado;
+    return await this.enviarYRegistrar(to, { tipo: "texto", texto: msg }, io);
   }
 
   async solicitarNotas(to, io) {
     const msg =
       "📝 ¿Deseas agregar alguna nota adicional para el repartidor? (Ej: Código de acceso, dejar en garita).\n\n💡 Si no tienes ninguna, escribe *NINGUNA* (o escribe *CANCELAR* para empezar de nuevo).";
-    const enviado = await enviarTexto(to, msg);
-    if (enviado) await this.emitirYGuardar(to, msg, "bot", io);
-    return enviado;
+    return await this.enviarYRegistrar(to, { tipo: "texto", texto: msg }, io);
   }
 
   async solicitarMetodoPago(to, io) {
@@ -346,8 +451,7 @@ class ChatFlowController {
         );
         const noPayMsg =
           "⚠️ Lo sentimos, no hay métodos de pago disponibles en este momento. Por favor, intenta más tarde.";
-        await enviarTexto(to, noPayMsg);
-        await this.emitirYGuardar(to, noPayMsg, "bot", io);
+        await this.enviarYRegistrar(to, { tipo: "texto", texto: noPayMsg }, io);
         return false;
       }
 
@@ -364,9 +468,17 @@ class ChatFlowController {
           })),
         },
       ];
-      const enviado = await enviarLista(to, msg, "Elegir Método", sections);
-      if (enviado)
-        await this.emitirYGuardar(to, "Métodos de pago enviados", "bot", io);
+      const enviado = await this.enviarYRegistrar(
+        to,
+        {
+          tipo: "lista",
+          texto: msg,
+          textoGuardar: "Métodos de pago enviados",
+          buttonText: "Elegir Método",
+          sections,
+        },
+        io
+      );
       return enviado;
     } catch (error) {
       console.error(
@@ -374,16 +486,13 @@ class ChatFlowController {
         error.message,
       );
       const errPayMsg = "⚠️ Hubo un error al cargar los métodos de pago.";
-      await enviarTexto(to, errPayMsg);
-      await this.emitirYGuardar(to, errPayMsg, "bot", io);
+      await this.enviarYRegistrar(to, { tipo: "texto", texto: errPayMsg }, io);
       return false;
     }
   }
 
   async solicitarComprobante(to, msgInstrucciones, io) {
-    const enviado = await enviarTexto(to, msgInstrucciones);
-    if (enviado) await this.emitirYGuardar(to, msgInstrucciones, "bot", io);
-    return enviado;
+    return await this.enviarYRegistrar(to, { tipo: "texto", texto: msgInstrucciones }, io);
   }
 
   async solicitarConfirmacionDatos(to, carrito, io) {
@@ -449,9 +558,16 @@ class ChatFlowController {
         { id: "modificar_datos", title: "✏️ Modificar Datos" },
       ];
 
-      const enviado = await whatsappService.enviarBotones(to, msg, buttons);
-      if (enviado)
-        await this.emitirYGuardar(to, "Resumen de datos enviado", "bot", io);
+      const enviado = await this.enviarYRegistrar(
+        to,
+        {
+          tipo: "botones",
+          texto: msg,
+          textoGuardar: "Resumen de datos enviado",
+          buttons,
+        },
+        io
+      );
       return enviado;
     } catch (error) {
       console.error(
@@ -502,16 +618,18 @@ class ChatFlowController {
         ],
       },
     ];
-    const enviado = await enviarLista(
+    return await this.enviarYRegistrar(
       to,
-      msg,
-      "Elegir Campo",
-      sections,
-      "Edición de Datos",
+      {
+        tipo: "lista",
+        texto: msg,
+        textoGuardar: "Opciones de edición enviadas",
+        buttonText: "Elegir Campo",
+        sections,
+        headerText: "Edición de Datos",
+      },
+      io
     );
-    if (enviado)
-      await this.emitirYGuardar(to, "Opciones de edición enviadas", "bot", io);
-    return enviado;
   }
 
   async solicitarOpcionesEfectivo(to, io, totalUsd) {
@@ -541,31 +659,29 @@ class ChatFlowController {
       },
     ];
 
-    const enviado = await enviarLista(
+    return await this.enviarYRegistrar(
       to,
-      msg,
-      "Elegir Opción",
-      sections,
-      "💵 Gestión de Efectivo",
+      {
+        tipo: "lista",
+        texto: msg,
+        textoGuardar: "Opciones de efectivo enviadas",
+        buttonText: "Elegir Opción",
+        sections,
+        headerText: "💵 Gestión de Efectivo",
+      },
+      io
     );
-    if (enviado)
-      await this.emitirYGuardar(to, "Opciones de efectivo enviadas", "bot", io);
-    return enviado;
   }
 
   async solicitarMontoEfectivoParcial(to, io, totalUsd) {
     const msg = `🌓 *Pago Mixto*\n\nTu total es de *$${formatUsd(totalUsd)}*.\n\nPor favor, indica cuánto vas a cancelar en *Efectivo* (solo el número).\n\n_Ejemplo: Si vas a pagar $20 en billete y el resto en Pago Móvil, escribe 20._`;
-    const enviado = await enviarTexto(to, msg);
-    if (enviado) await this.emitirYGuardar(to, msg, "bot", io);
-    return enviado;
+    return await this.enviarYRegistrar(to, { tipo: "texto", texto: msg }, io);
   }
 
   async informarPendienteVerificacion(to, io) {
     const msg =
       "⏳ Hemos recibido tu comprobante. Tu pedido ha sido enviado a revisión.\n\nNuestro equipo verificará el pago y te notificaremos por esta vía cuando sea aprobado. ¡Gracias por tu compra!";
-    const enviado = await enviarTexto(to, msg);
-    if (enviado) await this.emitirYGuardar(to, msg, "bot", io);
-    return enviado;
+    return await this.enviarYRegistrar(to, { tipo: "texto", texto: msg }, io);
   }
   async solicitarOpcionFinDeSemana(to, nombre = "", io) {
     const greetingPrefix = nombre ? `¡Hola, ${nombre}! 👋` : `¡Hola! 👋`;
@@ -606,14 +722,11 @@ class ChatFlowController {
       buttons.push({ id: "fin_semana_punto_aliado", title });
     }
 
-    let enviado;
     if (buttons.length > 0) {
-      enviado = await whatsappService.enviarBotones(to, msg, buttons);
+      return await this.enviarYRegistrar(to, { tipo: "botones", texto: msg, buttons }, io);
     } else {
-      enviado = await whatsappService.enviarTexto(to, msg);
+      return await this.enviarYRegistrar(to, { tipo: "texto", texto: msg }, io);
     }
-    if (enviado) await this.emitirYGuardar(to, msg, "bot", io);
-    return enviado;
   }
 
   async enviarInfoPuntoAliado(to, io) {
@@ -637,9 +750,7 @@ class ChatFlowController {
       (horarioPunto ? `🕒 *Horario:* ${horarioPunto}\n\n` : "\n") +
       `💡 _Si prefieres registrar tu pedido para el ${proximoDiaHabil}, escribe *pedir* o *menu*._`;
 
-    const enviado = await whatsappService.enviarTexto(to, msg);
-    if (enviado) await this.emitirYGuardar(to, msg, "bot", io);
-    return enviado;
+    return await this.enviarYRegistrar(to, { tipo: "texto", texto: msg }, io);
   }
 }
 

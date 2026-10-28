@@ -65,6 +65,10 @@
       "horario": ""
     }
   },
+  "catalogo": {
+    "prefijoPedido": "VM",
+    "vigenciaHoras": 72
+  },
   "messages": {
     "welcome": "*{{brandName}}*\n{{saludo}} Elige una opción de la lista, o *escríbeme tu duda* directamente:",
     "productsCatalog": "🌀 *Catálogo de Ventiladores*\nSelecciona una categoría:",
@@ -103,6 +107,7 @@
     "faqFallbackMenu": "1. Modelos y catálogo disponible\n2. Métodos de pago y envíos\n3. Horarios de atención y delivery",
     "igCatalogHeader": "{{brandEmoji}} *Catálogo y Productos Disponibles:*",
     "pickupUnavailable": "Por ahora solo hacemos entregas a domicilio y envíos nacionales, pero un asesor puede coordinar contigo la mejor opción de entrega.",
-    "advisorHandoff": "👨‍💼 Un asesor se comunicará contigo a la brevedad. Por favor déjanos tu consulta."
+    "advisorHandoff": "👨‍💼 Un asesor se comunicará contigo a la brevedad. Por favor déjanos tu consulta.",
+    "webOrderPrefill": "Hola, quiero confirmar mi pedido web {{codigo}}"
   }
 }

@@ -114,9 +114,9 @@ Firmas en el historial: `— Ejecutado por **Antigravity**`, `— Ejecutado por 
 
 | Fase | Contenido | Estado |
 |---|---|---|
-| **F0** | Plantilla multimarca: marca `ventimax`, código sin textos de Mr. Pachi, horario, fin de semana y métodos de envío editables desde el panel, arranque seguro, imágenes de producto, guía para nuevos clientes. Orden de Antigravity: F0-10 → F0-4 → F0-5 → F0-12 + F0-13 → F0-9 → F0-11. En paralelo, Claude: F0-8, F0-14 y F0-6 | **En curso** |
+| **F0** | Plantilla multimarca: marca `ventimax`, código sin textos de Mr. Pachi, horario, fin de semana y métodos de envío editables desde el panel, arranque seguro, imágenes de producto, guía para nuevos clientes. Las 14 tareas cerradas el 2026-10-28 | **Cerrada** |
 | F1 | Producto ampliado: SKU, marca fabricante, códigos OEM, atributos, compatibilidad por vehículo (marca, modelo, años, motor, versión), grupos de equivalencia; importación desde Excel; bot por vehículo. **Diseño: `docs/f1-producto-ampliado.md`** | Diseñada (espera cierre de F0) |
-| F2 | Catálogo web público con carrito y pedido a WhatsApp con código no adivinable. **Diseño: `docs/f2-catalogo-web.md`.** Requisitos de seguridad obligatorios: `docs/auditoria-seguridad-2026-10.md` (sección F2) | Diseñada (espera cierre de F0) |
+| F2 | Catálogo web público con carrito y pedido a WhatsApp con código no adivinable. **Diseño: `docs/f2-catalogo-web.md`.** Requisitos de seguridad obligatorios: `docs/auditoria-seguridad-2026-10.md` (sección F2) | **En curso** (F2-1 aprobada; F2-2 y luego F2-3) |
 | F3 | Búsqueda con IA sobre la BD (texto y notas de voz), registro de búsquedas sin resultado, pase a asesor | Pendiente |
 | F4 | Formularios nativos (WhatsApp Flows), lectura de fotos de piezas, equivalencias entre marcas | Pendiente |
 | F5 | **Canal TikTok** (Business Messaging API): mensajes directos de la cuenta de empresa en el Inbox, como cuarto canal con el mismo esquema que Instagram (preguntas frecuentes por el bot; para comprar, enlace a WhatsApp). Beta abierta en Latinoamérica; requiere cuenta TikTok Business y app aprobada (revisión de seguridad y privacidad de TikTok). Investigación previa (2026-10-28, subagente): la documentación oficial de TikTok no se pudo leer sin navegador, así que lo técnico (endpoints, JSON del webhook, firma) está **sin verificar**. Según integradores: ventana de 48 h desde el último mensaje del cliente, unos 10 mensajes por ventana, solo texto e imagen (sin botones confirmados), tokens de ~24 h que se renuevan, y Latinoamérica disponible (Venezuela sin confirmar). Antes del diseño hay que leer la documentación oficial con sesión iniciada. Se diseña después de F0, junto a F2. **Decisión del dueño (2026-10-28): sin botones.** El bot de TikTok responde solo con texto: respuestas por intención (precios, envíos, horario, pagos, catálogo) armadas con variables de la marca y del panel (`{{brandName}}`, horario, métodos de envío y pago vigentes, etc.), y **enlaces** para llevar al cliente a comprar: `{{waLink}}` (chat de WhatsApp con texto prellenado y la etiqueta de origen TikTok) y `{{catalogoUrl}}` (catálogo web de F2; mientras F2 no exista, solo WhatsApp). Los textos van en `messages` de la marca, nunca en el código | Pendiente (requisitos del dueño) |
@@ -1609,12 +1609,12 @@ Pedido por el dueño el 2026-10-28: la razón social, el RIF y el contacto de la
 - **Verificación:** `./scripts/ci.sh` en verde (build, 23 suites, imports del panel); `test-datos-negocio.ts` 9/9; `test-privacidad.ts` 6/6.
 - **Comprobado en el entorno local (2026-10-28):** el servidor arranca cargando datos del negocio y días no laborables; `PUT` inválido → 400 con el motivo del RIF; `PUT` válido normaliza RIF, web y WhatsApp; `/privacidad` muestra razón social, RIF, contacto y "28 de octubre de 2026"; tras reiniciar el servidor los datos siguen. De paso, F0-12 de punta a punta: retiro creado con el cuerpo del panel, costo acordado de $8 → total $58 con la tasa del día y `aConvenir: false`, cambio a retiro → $50, pedido entregado → 400. Todo lo creado para la prueba se borró y la demostración se recargó.
 
-### F0-6 · Documentación — Claude · `En curso`
+### F0-6 · Documentación — Claude · `Completada`
 
 - Hecho (2026-10-27): `GEMINI.md` reescrito para la plantilla multimarca; `docs/nuevo-cliente.md` (borrador, con las secciones de F0-3/F0-4/F0-5/F0-8/F0-9 marcadas como pendientes); entorno local con Docker (`docker-compose.local.yml`, `scripts/dev-local.sh`, `scripts/crear-admin-local.ts`, `scripts/demo-local.ts`).
 - Hecho (2026-10-27): **política de privacidad por marca.** `services/paginaPrivacidad.ts` la genera desde `settings.legal` (`razonSocial`, `rif`, `direccion`, `fechaActualizacion`) y `settings.contact`; ruta en `index.ts` para `/privacidad` (y las URLs viejas `/privacidad.html`, `/privacidad-instagram[.html]`). Una sola página para los 3 canales, con sección `#eliminacion-de-datos` para Meta. Se borraron `public/privacidad.html`, `public/privacidad-instagram.html` y `public/politica-privacidad.md` (Mr. Pachi; prometían que CANCELAR borra los datos, lo que es falso). Suite `scripts/test-privacidad.ts`.
 - Hecho (2026-10-28): guía completada para F0-3, F0-4 y F0-8, con tabla de fallos de arranque y lista final antes de abrir a clientes reales. Envíos y retiro escritos con ⏳ hasta aprobar F0-5/F0-12.
-- Falta: los datos legales del dueño en `settings.legal`, confirmar las secciones ⏳ al cerrar F0-5/9/12 y la revisión final.
+- Hecho (2026-10-28, cierre): `docs/nuevo-cliente.md` sin secciones pendientes (envíos, retiro, fotos, datos del negocio, CSP) y con la regla de no poner scripts en línea; `GEMINI.md` con `middlewares/csp.ts`, `public/src/boot/` y `datosNegocioService`; `docs/mejoras-para-mr-pachi.md` completo (seguridad 1–13, mejoras de la plantilla y lo que es solo de VentiMax). Los datos legales ya no son tarea de código: el dueño los carga en el panel (F0-14).
 
 ### F0-10 · Restos de rubro de comida visibles al cliente — Backend · `Aprobada`
 
@@ -1701,6 +1701,370 @@ Verificado por Claude: build OK y las 12 suites en verde (incluida `test-segurid
 
 ---
 
+## Tablero Fase 2 · Catálogo web
+
+Diseño completo: `docs/f2-catalogo-web.md`. Requisitos de seguridad R1–R15: `docs/auditoria-seguridad-2026-10.md`, sección "Requisitos de seguridad para el catálogo público (F2)". Decisiones del dueño: precios en USD y Bs a la tasa del día, código válido 3 días, agotados visibles y no agregables, dominio pendiente (mientras tanto `onrender.com`).
+
+### F2-1 · API pública del catálogo y carrito web — Backend · `Aprobada`
+
+Primera pieza de F2: el servidor que usará el catálogo. **No toca el bot** (eso es F2-2) **ni crea páginas** (F2-3).
+
+1. **Modelo `models/CarritoWeb.ts`** (+ tipos y mock en `dbLocal`), tal como en el diseño §2: `codigo` (único), `items: [{ productoId, nombre, precio, cantidad }]`, `total`, `estado: "pendiente" | "vinculado"`, `telefono` (null), `pedidoId` (null), `creadoEn`, `expiraEn` con **índice TTL** (`expireAfterSeconds: 0`). Sin IP ni datos personales [R7][R10].
+2. **Router aislado** `routes/publicRoutes.ts` + `controllers/publicController.ts` (+ servicio si hace falta), montado en `/api/public`:
+   - Sin `isAuthenticated` y **sin importar nada de `adminController` ni de las rutas del panel** [R2].
+   - Montarlo en `index.ts` **antes** del `express.json` global, con su propio `express.json({ limit: "5kb" })`; un cuerpo mayor responde 413 genérico [R9].
+   - CORS: solo para el origen de la variable nueva `CATALOGO_ORIGEN` (documentarla en `.env.example`). Vacía: sin cabeceras CORS (solo mismo origen).
+   - Errores genéricos al navegador; detalle solo en el log [R13].
+3. **`GET /api/public/marca`** (`Cache-Control: public, max-age=600`): `brandName`, colores del tema, `logoUrl`, `productBrandLogoUrl`. Nada más.
+4. **`GET /api/public/catalogo`** (`Cache-Control: public, max-age=120`), **lista blanca de campos** [R4][R5]:
+   - Categorías activas: nombre y slug.
+   - Productos con `activo: true`: `id` (el id de texto, p. ej. `fortunne-n04`; **nunca** el `_id` de Mongo), nombre, descripción, `precioUsd`, `precioBs` (a la tasa del día con `obtenerTasaUSD()`; `null` si el BCV falla), URLs de las imágenes (sin `publicId`), slugs de sus categorías (principal + `categorias`, con el helper de F0-7) y `disponible` (`false` si controla stock y no le queda; nunca el número de stock).
+   - Arriba: `tasa` y `fechaTasa`.
+5. **`POST /api/public/pedidos`**, paso a paso como en el diseño §2:
+   1. Campo trampa `website` con texto → 200 con un código **falso** con el mismo formato, sin guardar nada; log `⚠️ [Catálogo] honeypot` [R9][R14].
+   2. Zod estricto (`.strict()`, reusar `validators/`): `items` de 1 a 20 líneas, `{ productoId: string ≤ 60, cantidad: entero 1–50 }`; cualquier otro campo (p. ej. `precio`) → 400 [R6][R9].
+   3. Cada producto se busca en la base por su `id` de texto (**sin** consultar `_id` con texto: provoca `CastError`, ver F0-11): debe existir, estar activo y tener stock si lo controla; si no, 400 con un mensaje que nombre el producto sin dar el stock. Precio y total **de la base**; dos líneas del mismo producto se suman en una [R6].
+   4. Código: `settings.catalogo.prefijoPedido` + `-` + 5 caracteres de `23456789ABCDEFGHJKMNPQRSTUVWXYZ` con `crypto.randomInt`, reintento si ya existe [R8].
+   5. Guarda el `CarritoWeb` (`expiraEn` = ahora + `settings.catalogo.vigenciaHoras`) y responde `{ codigo, totalUsd, totalBs, enlaceWhatsApp, expira }`. El enlace es `https://wa.me/<número>?text=<settings.messages.webOrderPrefill con {{codigo}}>`; el número sale de **Datos del negocio** (`getDatosNegocioSync().contacto.whatsapp`, F0-14) → `WHATSAPP_PHONE` → `ADMIN_PHONE_NUMBER`. Sin ninguno: 503 "Los pedidos web no están disponibles por ahora".
+   6. Límite: 5 carritos por IP cada 10 minutos → 429 con mensaje amable; log del rechazo [R9][R14]. Para los `GET`, un límite holgado (p. ej. 120/min).
+6. **No existe** ninguna ruta pública que lea un carrito o pedido por su código [R8].
+7. **Configuración de marca** (ambas marcas, con respaldo en `configManager.validateSchema`): `settings.catalogo = { prefijoPedido, vigenciaHoras: 72 }` (VentiMax `"VM"`; `default` `"MP"`) y `settings.messages.webOrderPrefill` (p. ej. "Hola, quiero confirmar mi pedido web {{codigo}}"). Añadir la clave a `test-mensajes-marca.ts`.
+8. **`X-Robots-Tag: noindex`** en `/panel`, `/login` y `/api/admin/*` [R3].
+
+**Cierre:** suite nueva `scripts/test-api-publica.ts`, añadida a `SUITES`:
+- Lista blanca: la respuesta del catálogo no contiene `_id`, `stock`, `publicId`, `trackStock` ni ningún campo fuera de la lista; producto inactivo ausente; agotado con `disponible: false`.
+- Pedido: precio enviado en el cuerpo → 400; total calculado con el precio de la base; producto inexistente, inactivo o agotado → 400; 21 líneas, cantidad 0 y cantidad 51 → 400; cuerpo de más de 5 KB → 413; honeypot → 200 con código válido de formato y nada guardado; sexta petición en 10 minutos → 429.
+- Código: 200 códigos generados, todos únicos y con el formato `^VM-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{5}$`; `GET /api/public/pedidos/<codigo>` → 404.
+- `CarritoWeb` con índice TTL en `expiraEn`; CORS solo para `CATALOGO_ORIGEN`; `X-Robots-Tag` en el panel; sin número de WhatsApp configurado → 503.
+- Un caso que imite el `CastError` de Mongoose (como en `test-cabeceras-seguridad.ts`), porque `dbLocal` no lo lanza.
+- `./scripts/ci.sh` en verde.
+
+#### Entrega y verificación (Antigravity)
+- **Archivos tocados:**
+  - `models/CarritoWeb.ts`: creado modelo Mongoose con campos `codigo` (único, uppercase, trim), `items` (subdocumento sin `_id`), `total`, `estado` ("pendiente" | "vinculado"), `telefono`, `pedidoId`, `creadoEn` y `expiraEn` con índice TTL (`expireAfterSeconds: 0`). Sin IP ni datos personales [R7][R10].
+  - `types/models.d.ts`: definidas interfaces `ICarritoWeb` e `ICarritoWebItem`.
+  - `services/dbLocal.ts` y `services/dbMock.ts`: implementado `getCarritoWebModel()` con soporte de consultas, persistencia local y emulación de índice TTL.
+  - `validators/index.js`: creados esquemas Zod estrictos `pedidoItemPublicoSchema` (productoId ≤ 60, cantidad entera 1-50) y `pedidoPublicoSchema` (items de 1 a 20, website opcional). `.strict()` rechaza campos inyectados como `precio`.
+  - `controllers/publicController.ts`: creado controlador público con:
+    - `getMarca`: `brandName`, colores, logos y cabecera `Cache-Control: public, max-age=600`.
+    - `getCatalogo`: lista blanca estricta (`id`, `nombre`, `descripcion`, `precioUsd`, `precioBs`, `imagenes`, `categorias`, `disponible`), tasa del día con `bcv.obtenerTasaUSD()`, categorías activas (nombre y slug) y cabecera `Cache-Control: public, max-age=120`. Sin `_id`, `stock`, `publicId` ni `trackStock`.
+    - `postPedidoWeb`: validación honeypot (200 con código falso y nada guardado), validación Zod estricta, consolidación de duplicados (máx 50), búsqueda estricta en base de datos por `id` de texto (sin tocar `_id`), validación de estado y stock, cálculo de total en base de datos, resolución de WhatsApp desde Datos del negocio (`getDatosNegocioSync().contacto.whatsapp`) con fallback a `WHATSAPP_PHONE`/`ADMIN_PHONE_NUMBER` (503 si falta), generación de código único `VM-XXXXX` con alfabeto sin confusiones vía `crypto.randomInt`, enlace WhatsApp prellenado y persistencia en `CarritoWeb`.
+  - `routes/publicRoutes.ts`: creado router aislado montado en `/api/public`, sin dependencias del panel ni autenticación [R2], con CORS restringido a `CATALOGO_ORIGEN`, parser JSON de 5 KB (413 si excede), limitadores por IP (120/min para GETs, 5 carritos cada 10 min para pedidos) y manejador 404 para rutas inexistentes [R8].
+  - `index.ts`: montaje de `publicRoutes` antes del `express.json` global; cabecera `X-Robots-Tag: noindex` en `/panel`, `/login` y `/api/admin` [R3].
+  - `config/brand/ventimax/settings.json` y `config/brand/default/settings.json`: configuración de `catalogo: { prefijoPedido, vigenciaHoras: 72 }` y mensaje `webOrderPrefill`.
+  - `services/configManager.ts`: validación de esquema y fallbacks automáticos para `settings.catalogo`.
+  - `scripts/test-mensajes-marca.ts`: añadida `webOrderPrefill` a `CLAVES_MENSAJES` (26/26 en ambas marcas).
+  - `.env.example`: documentada variable `CATALOGO_ORIGEN`.
+  - `scripts/test-api-publica.ts`: suite nueva con 16 pruebas automatizadas cubriendo todos los criterios de cierre.
+  - `scripts/ci.sh`: incorporada `test-api-publica.ts` a `SUITES`.
+
+- **Evidencia de verificación (`./scripts/ci.sh`):**
+  ```text
+  ▶ Build
+  > ventimax@1.0.0 build
+  > tsc && node -e "const fs = require('fs'); if (fs.existsSync('config')) fs.cpSync('config', 'dist/config', { recursive: true });"
+
+  ▶ test-config-validators.ts (9/9)
+  ▶ test-config-store.ts (TODOS PASARON)
+  ▶ test-whatsapp-edge-cases.js (30/0)
+  ▶ test-inbox-service.js (364/0)
+  ▶ simulate-ig-webhook.js (37/0)
+  ▶ simulate-messenger-webhook.js (54/0)
+  ▶ test-dynamic-menu.ts (6/6)
+  ▶ test-multicategoria.ts (7/7)
+  ▶ test-mensajes-marca.ts (26/26)
+  ▶ test-privacidad.ts (6/6)
+  ▶ test-horario.ts (7/7)
+  ▶ test-seguridad.ts (16/16)
+  ▶ test-flujo-no-laborable.ts (9/9)
+  ▶ test-envios.ts (9/9)
+  ▶ test-retiro.ts (9/9)
+  ▶ test-datos-negocio.ts (9/9)
+  ▶ test-imagenes-producto.ts (9/9)
+  ▶ test-cabeceras-seguridad.ts (9/9)
+  ▶ test-api-publica.ts (16/16)
+  ▶ test-e2e-saas.js (CERTIFICACIÓN SUPERADA)
+  ▶ test-full-flow.js (Todas las comprobaciones superadas)
+  ▶ test-cash-logic.js (3/3)
+  ▶ test-mixed-payment.js (PASSED)
+  ▶ test-sales-summary.js (ÉXITO)
+  ▶ test-instagram-quick-replies.js (32/0)
+  ▶ test-web-push-fullstack.js (33/0)
+  ▶ Imports del panel (esbuild --bundle sobre 53 archivos)
+
+  ✅ Build, 26 suites e imports del panel en verde.
+  ```
+
+- **Desviaciones:** Ninguna. Listo para revisión de Claude.
+
+#### Revisión de Claude (2026-10-28) — `Devuelta`
+Verificado por Claude con `./scripts/ci.sh`: build, 26 suites (`test-api-publica.ts` 16/16) y los imports del panel en verde. Bien resuelto: router aislado sin nada del panel, montado antes del parser global con su límite de 5 KB, lista blanca del catálogo (sin `_id`, stock, `publicId`), producto buscado solo por id de texto, precio y total desde la base, Zod estricto, código con `crypto.randomInt` y el alfabeto sin confusiones, `CarritoWeb` con TTL y sin datos personales, número de WhatsApp desde Datos del negocio, 404 para cualquier otra ruta y `X-Robots-Tag` en el panel.
+
+**Motivo de la devolución:**
+1. **El límite por IP se salta con una cabecera (bloqueante, R9).** Los dos limitadores de `routes/publicRoutes.ts` usan como clave el **primer** valor de `X-Forwarded-For`, que lo escribe el cliente: Render **añade** la IP real al final. Cualquiera manda `X-Forwarded-For: <número distinto>` en cada petición y nunca llega al límite de 5 carritos. `validate: false` además apaga el aviso con el que `express-rate-limit` detecta justo este error. La propia suite lo aprovecha: cambia `X-Forwarded-For` entre pruebas para no chocar con el límite.
+   - Quitar los `keyGenerator` y `validate: false`: con `app.set("trust proxy", 1)` (ya está en `index.ts`), `req.ip` es la IP que vio el proxy de Render, y es la clave por defecto.
+   - **Mismo fallo heredado en `middlewares/rateLimiter.js` (`apiLimiter`)**: usa la cabecera completa como clave cuando no hay sesión. Corregirlo igual (clave `req.user?.id || req.ip`) y quitar su `validate: false`.
+   - Prueba nueva: con `trust proxy` 1, seis peticiones con `X-Forwarded-For: <IP distinta cada vez>, 10.0.0.9` (la parte izquierda la inventa el atacante; la derecha la pone el proxy) → la sexta da **429**.
+2. **Respaldo con marca en el código** (regla 5): `prefijoPedido || "VM"`. Usar un respaldo neutro (`"PW"`); el `VM` sale de la configuración de VentiMax.
+3. **`Vary: Origin`** en las respuestas de `/api/public`: hoy la cabecera CORS depende del origen y las respuestas son cacheables (`public, max-age`), así que un CDN podría servir a la tienda una copia sin la cabecera CORS (o al revés) [R12].
+4. **El honeypot se delata.** La respuesta falsa trae `totalUsd: 0` y `enlaceWhatsApp: ""`, algo que una respuesta real nunca devuelve: un robot aprende a distinguirla. Hacer los pasos 2 a 5 (Zod, productos, total, enlace) igual que en un pedido real y **solo omitir el guardado**. Si el cuerpo además no pasa Zod, responder el mismo 400 que a cualquiera.
+5. **Registro de rechazos incompleto** [R14]: hoy solo se registran honeypot y límite. Añadir `⚠️ [Catálogo]` para validación Zod fallida y producto inexistente, inactivo o agotado (sin datos personales; con la ruta y el motivo).
+6. Menor: `getMarca` devuelve cada dato dos veces (dentro de `theme` y suelto). Dejar una sola forma (`{ brandName, theme: {...} }`).
+
+**Cierre:** prueba de la cabecera falsificada (punto 1) en `test-api-publica.ts`, y la suite deja de cambiar `X-Forwarded-For` para esquivar el límite (usar una app de prueba por bloque o reiniciar el contador); prueba de que el honeypot devuelve el mismo total y un enlace con el formato real sin guardar nada; `Vary: Origin` comprobado; `./scripts/ci.sh` en verde.
+
+#### Re-entrega y verificación tras devolución (Antigravity)
+- **Correcciones aplicadas según la revisión de Claude:**
+  1. **Rate Limiting y anti-spoofing estricto [R9]:**
+     - En `routes/publicRoutes.ts`, se eliminaron `keyGenerator` y `validate: false` de `publicGetLimiter` y `pedidosWebLimiter`. Con `app.set("trust proxy", 1)`, Express populates `req.ip` tomando la IP del cliente appended por el reverse proxy (Render), impidiendo que se burle el límite inyectando IPs en `X-Forwarded-For`.
+     - En `pedidosWebLimiter`, el manejador 429 registra `⚠️ [Catálogo] POST /api/public/pedidos: límite excedido para IP ${req.ip}`.
+     - En `middlewares/rateLimiter.js`, se corrigió el fallo heredado en `apiLimiter`: `keyGenerator: (req) => req.user?.id || req.ip`, eliminando `validate: false`.
+     - Se añadió en `scripts/test-api-publica.ts` la prueba estricta con `app.set("trust proxy", 1)` enviando 6 peticiones con cabecera `X-Forwarded-For: <IP distinta>, 10.0.0.9`: las primeras 5 responden 200 y la sexta responde HTTP 429. La suite dejó de rotar `X-Forwarded-For` para evadir límites, utilizando servidores de prueba aislados por bloque (`withServer`).
+  2. **Respaldo neutro en el código (Regla 5):**
+     - En `controllers/publicController.ts`, se reemplazó el respaldo `"VM"` por `"PW"` (`configManager.get("settings.catalogo.prefijoPedido") || "PW"`).
+  3. **Cabecera `Vary: Origin` [R12]:**
+     - Se configuró `res.setHeader("Vary", "Origin")` para todas las respuestas de `/api/public` dentro del middleware de CORS en `routes/publicRoutes.ts`. Verificado en GET `/marca`, GET `/catalogo` y POST `/pedidos`.
+  4. **Honeypot realista y seguro:**
+     - En `controllers/publicController.ts`, el campo trampa `website` ejecuta primero la validación Zod estricta (si el cuerpo es inválido responde 400). Si es válido, ejecuta la búsqueda y verificación de productos, cálculo de total en base de datos, tasa del día y generación de enlace a WhatsApp, respondiendo 200 con `{ codigo, totalUsd, totalBs, enlaceWhatsApp, expira }` con datos reales e idéntico formato, pero **omitiendo la persistencia** en `CarritoWeb`.
+  5. **Registro completo de rechazos [R14]:**
+     - Incorporados logs con prefijo `⚠️ [Catálogo]` y detalle de ruta y motivo sin datos personales:
+       - Validación Zod fallida: `⚠️ [Catálogo] POST /api/public/pedidos: validación fallida - ...`
+       - Cantidad combinada > 50: `⚠️ [Catálogo] POST /api/public/pedidos: cantidad combinada excede 50 unidades`
+       - Producto inexistente: `⚠️ [Catálogo] POST /api/public/pedidos: producto '<id>' no encontrado`
+       - Producto inactivo: `⚠️ [Catálogo] POST /api/public/pedidos: producto '<nombre>' inactivo`
+       - Producto agotado: `⚠️ [Catálogo] POST /api/public/pedidos: producto '<nombre>' sin stock suficiente`
+       - Teléfono de WhatsApp faltante: `⚠️ [Catálogo] POST /api/public/pedidos: número de WhatsApp no configurado`
+       - Honeypot detectado: `⚠️ [Catálogo] POST /api/public/pedidos: honeypot detectado`
+       - Límite excedido: `⚠️ [Catálogo] POST /api/public/pedidos: límite excedido para IP ...`
+  6. **Formato limpio en `getMarca`:**
+     - Retorna únicamente `{ brandName, theme: { primaryColor, secondaryColor, logoUrl, productBrandLogoUrl } }`, eliminando los duplicados en la raíz.
+- **Archivos tocados:**
+  - `routes/publicRoutes.ts` (cabecera `Vary: Origin`, eliminación de `keyGenerator` y `validate: false` en limitadores, log de límite con `⚠️ [Catálogo]`)
+  - `controllers/publicController.ts` (formato único en `getMarca`, fallback neutro `"PW"`, flujo honeypot con validación y sin persistencia, registro de rechazos `⚠️ [Catálogo]`)
+  - `middlewares/rateLimiter.js` (`apiLimiter` con clave `req.user?.id || req.ip` y sin `validate: false`)
+  - `scripts/test-api-publica.ts` (prueba anti-spoofing con 6 peticiones `X-Forwarded-For: <IP distinta>, 10.0.0.9` -> 429, validación de `Vary: Origin`, validación de formato limpio de marca, validación de honeypot realista con cuerpo válido e inválido, aislamiento limpio de servidor por bloque sin evadir límites con cabeceras)
+- **Evidencia de verificación:**
+  ```text
+  $ NODE_ENV=test npx tsx scripts/test-api-publica.ts
+  [ConfigManager] Configuración cargada para: ventimax
+  ✅ Validación de esquema exitosa.
+  ================================================================================
+  🌐 SUITE DE PRUEBAS: API PÚBLICA DEL CATÁLOGO Y CARRITO WEB (F2-1)
+  ================================================================================
+
+  ▶ Bloque 1: GET /api/public/marca...
+    ✅ Cabecera Cache-Control, Vary: Origin y formato limpio { brandName, theme }
+
+  ▶ Bloque 2: GET /api/public/catalogo (Lista blanca estricta)...
+    ✅ Lista blanca estricta: sin _id, stock, publicId ni trackStock
+
+  ▶ Bloque 3: POST /api/public/pedidos (Validación y reglas)...
+  ⚠️ [Catálogo] POST /api/public/pedidos: validación fallida - items.0: Unrecognized key: "precio"
+    ✅ Rechazo de campo 'precio' inyectado en el cuerpo (Zod .strict())
+  ⚠️ [Catálogo] POST /api/public/pedidos: validación fallida - items: El carrito debe tener al menos 1 producto
+  ⚠️ [Catálogo] POST /api/public/pedidos: validación fallida - items.0.cantidad: La cantidad mínima es 1
+  ⚠️ [Catálogo] POST /api/public/pedidos: validación fallida - items.0.cantidad: La cantidad máxima es 50
+  ⚠️ [Catálogo] POST /api/public/pedidos: validación fallida - items: El carrito no puede tener más de 20 productos
+    ✅ Rechazo de carrito vacío y cantidades fuera de rango (0, 51, 21 líneas)
+    ✅ Rechazo de cuerpo superior a 5 KB con código HTTP 413
+  ⚠️ [Catálogo] POST /api/public/pedidos: honeypot detectado
+  ⚠️ [Catálogo] POST /api/public/pedidos: validación fallida - items.0.cantidad: La cantidad mínima es 1
+    ✅ Honeypot: respuesta indistinguible (total, Bs y WhatsApp reales) sin guardar en BD
+
+  ▶ Bloque 4: Verificación de productos y creación exitosa...
+  ⚠️ [Catálogo] POST /api/public/pedidos: producto 'id-fantasma' no encontrado
+  ⚠️ [Catálogo] POST /api/public/pedidos: producto 'Fortunne High Velocity 8"' inactivo
+  ⚠️ [Catálogo] POST /api/public/pedidos: producto 'Fortunne Turbo Fan 12"' sin stock suficiente
+    ✅ Rechazo de producto inexistente, inactivo o agotado (sin exponer stock)
+    ✅ Creación exitosa de CarritoWeb con total recalculado desde la base y consolidación
+
+  ▶ Bloque 5: Simulación de CastError de Mongoose...
+    ✅ Búsqueda de producto no consulta _id con string arbitrario
+
+  ▶ Bloque 6: Sin número de WhatsApp disponible...
+  ⚠️ [Catálogo] POST /api/public/pedidos: número de WhatsApp no configurado
+    ✅ Sin número en datosNegocio, WHATSAPP_PHONE ni ADMIN_PHONE_NUMBER -> 503
+
+  ▶ Bloque 7: Formato de códigos únicos y rutas inexistentes...
+    ✅ 200 códigos generados, todos únicos y con formato ^VM-[2-9A-HJKMNP-Z]{5}$
+    ✅ GET /api/public/pedidos/:codigo responde 404
+
+  ▶ Bloque 8: TTL Index y CORS...
+    ✅ CarritoWeb define índice TTL en expiraEn con expireAfterSeconds: 0
+    ✅ CORS solo permite el origen de CATALOGO_ORIGEN
+
+  ▶ Bloque 9: Cabecera X-Robots-Tag...
+    ✅ X-Robots-Tag: noindex presente en /panel, /login y /api/admin
+
+  ▶ Bloque 10: Rate Limiting y anti-spoofing de IP...
+  ⚠️ [Catálogo] POST /api/public/pedidos: límite excedido para IP 10.0.0.9
+    ✅ Anti-spoofing con trust proxy 1: X-Forwarded-For falsificado (<IP distinta>, 10.0.0.9) da 429 a la 6ta
+
+  ================================================================================
+  🎉 TODOS LOS TESTS DE LA API PÚBLICA (F2-1) PASARON EXITOSAMENTE (16/16)
+  ================================================================================
+
+  $ ./scripts/ci.sh
+  ▶ Build
+  > ventimax@1.0.0 build
+  > tsc && node -e "const fs = require('fs'); if (fs.existsSync('config')) fs.cpSync('config', 'dist/config', { recursive: true });"
+
+  ▶ test-config-validators.ts (9/9)
+  ▶ test-config-store.ts (TODOS PASARON)
+  ▶ test-whatsapp-edge-cases.js (30/0)
+  ▶ test-inbox-service.js (364/0)
+  ▶ simulate-ig-webhook.js (37/0)
+  ▶ simulate-messenger-webhook.js (54/0)
+  ▶ test-dynamic-menu.ts (6/6)
+  ▶ test-multicategoria.ts (7/7)
+  ▶ test-mensajes-marca.ts (26/26)
+  ▶ test-privacidad.ts (6/6)
+  ▶ test-horario.ts (7/7)
+  ▶ test-seguridad.ts (16/16)
+  ▶ test-flujo-no-laborable.ts (9/9)
+  ▶ test-envios.ts (9/9)
+  ▶ test-retiro.ts (9/9)
+  ▶ test-datos-negocio.ts (9/9)
+  ▶ test-imagenes-producto.ts (9/9)
+  ▶ test-cabeceras-seguridad.ts (9/9)
+  ▶ test-api-publica.ts (16/16)
+  ▶ test-e2e-saas.js (CERTIFICACIÓN SUPERADA)
+  ▶ test-full-flow.js (Todas las comprobaciones superadas)
+  ▶ test-cash-logic.js (3/3)
+  ▶ test-mixed-payment.js (PASSED)
+  ▶ test-sales-summary.js (ÉXITO)
+  ▶ test-instagram-quick-replies.js (32/0)
+  ▶ test-web-push-fullstack.js (33/0)
+  ▶ Imports del panel (esbuild --bundle sobre 53 archivos)
+
+  ✅ Build, 26 suites e imports del panel en verde.
+  ```
+- **Desviaciones:** Ninguna. Listo para revisión de Claude.
+
+
+#### Segunda revisión de Claude (2026-10-28) — `Aprobada`
+Verificado por Claude con `./scripts/ci.sh`: build, 26 suites (`test-api-publica.ts` con los casos nuevos) y los imports del panel en verde.
+- Limitadores con la clave por defecto (`req.ip` con `trust proxy` 1) y sin `validate: false`; `apiLimiter` heredado corregido (`req.user?.id || req.ip`). La prueba con `X-Forwarded-For: <IP falsa>, 10.0.0.9` da 429 a la sexta, y la suite ya no usa la cabecera para esquivar el límite.
+- Respaldo del prefijo neutro (`"PW"`), `Vary: Origin` en todas las respuestas públicas, honeypot con la misma respuesta que un pedido real y sin guardar, registro `⚠️ [Catálogo]` de cada rechazo y `getMarca` con una sola forma.
+
+### F2-2 · El bot reconoce el código del pedido web — Backend · `Pendiente` (siguiente de Antigravity)
+
+Diseño: `docs/f2-catalogo-web.md` §3. Solo WhatsApp; Instagram/Messenger no se tocan.
+
+1. **Dónde:** en `chatFlowService._processBatch`, junto a las demás intercepciones (después de la de asesor), y **después** de las comprobaciones de control: si el bot está en modo manual o el pedido está "en manos humanas" (`estaEnManosHumanas`), **no** se carga nada (el asesor verá el código en el Inbox, F2-4).
+2. **Detección:** `\b<PREFIJO>[-\s]?([23456789ABCDEFGHJKMNPQRSTUVWXYZ]{5})\b`, sin distinguir mayúsculas (`vm 7k3q9` vale), con el prefijo de `settings.catalogo.prefijoPedido`. Se normaliza a `PREFIJO-XXXXX`.
+3. **Reclamo atómico:** `CarritoWeb.findOneAndUpdate({ codigo, estado: "pendiente", expiraEn: { $gt: ahora } }, { estado: "vinculado", telefono: from })`. Si dos teléfonos mandan el mismo código a la vez, **solo uno** lo obtiene. Si no se actualizó nada, se lee el carrito para saber por qué (usado por este teléfono, usado por otro, inexistente o vencido).
+4. **Los 6 casos** de la tabla del diseño, con estos detalles:
+   - **Válido:** cada línea se vuelve a buscar en la base por `id` de texto (sin consultar `_id` con texto). Precio **actual**; lo inactivo o sin stock se quita. Se avisa de cada cambio ("El N04 ahora cuesta $42", "El N20 ya no está disponible"). Si no queda ninguna línea, se dice y se ofrece el catálogo, sin cambiar de paso. Las líneas se cargan con la forma de siempre (`{ id, producto, price, cantidad }`) y el resumen usa `calcularTotalCarrito` (precio en $ y Bs a la tasa del día).
+   - **Botones:** "Confirmar" → el mismo camino que `completar` en `handlePreguntandoMas` (extraerlo a un método para no duplicarlo: con datos conocidos va a confirmar datos; si no, pide el nombre). "Agregar más" → `mostrarPreguntarMas` (el flujo de siempre para sumar productos).
+   - **Mismo teléfono que ya lo reclamó:** vuelve a mostrar el resumen; no duplica líneas.
+   - **Otro teléfono:** mensaje de código usado + menú; nunca muestra qué contenía.
+   - **Inexistente o vencido:** mensaje con el enlace al catálogo (`CATALOGO_ORIGEN`; si está vacío, sin enlace) y la sugerencia de escribir *Menú*.
+   - **Carrito a medias en el chat:** pregunta con botones "Reemplazar" / "Mantener" (paso nuevo `esperando_reemplazo_web`, guardando el código en el estado). "Mantener" deja todo como estaba y **no** reclama el código.
+   - **En un paso de pago** (`esperando_pago_metodo`, efectivo, `esperando_comprobante`, `pendiente_verificacion`): no carga nada; avisa que ya hay un pedido en curso y que puede escribir *CANCELAR* para empezar otro.
+5. **Rastro del origen:** cuando el pedido se crea (`crearPedidoInicial`), si el carrito vino de un código: `Pedido.origenWeb = { codigo }` (campo nuevo, modelo y tipos) y `CarritoWeb.pedidoId = <id del pedido>`. Lo usan las métricas y las insignias de F2-4.
+6. **Envío de los mensajes** siempre con `enviarYRegistrar` (M-1), nunca con `enviarTexto`/`enviarBotones` sueltos. **Textos** en `settings.messages` de **ambas** marcas (y en `test-mensajes-marca.ts`): `webOrderLoaded`, `webOrderChanged`, `webOrderEmpty`, `webOrderUsed`, `webOrderNotFound` (con `{{catalogoUrl}}`), `webOrderReplaceAsk`, `webOrderBusy`; títulos de botón de 20 caracteres como máximo.
+7. **Interruptor:** si `settings.catalogo.activo` es `false` (clave nueva, `true` por defecto; F2-4 la hará editable), el bot ignora los códigos y `POST /api/public/pedidos` responde 503.
+
+**Cierre:** suite nueva `scripts/test-pedido-web-bot.ts` (en `SUITES`): los 6 casos; precio cambiado y producto agotado; carrito vacío tras quitar lo agotado; dos teléfonos con el mismo código en paralelo → uno solo lo obtiene; modo manual y paso de pago → no carga; variantes del código (`vm7k3q9`, `VM 7K3Q9`, dentro de una frase); "Confirmar" lleva al mismo paso que `completar`; `origenWeb` y `pedidoId` guardados al crear el pedido; catálogo apagado. `./scripts/ci.sh` en verde.
+
+### F2-3 · Páginas de la tienda (sitio estático) — Frontend · `Pendiente` (después de F2-1; en paralelo con F2-2)
+
+Diseño: `docs/f2-catalogo-web.md` §1 y §5. Requisitos R1, R7, R11, R13.
+
+1. **Carpeta `catalogo/`** del repo, publicada como **Render Static Site** aparte (otro origen que el panel) [R1]. HTML + CSS + JavaScript en archivos, **sin frameworks ni CDN de terceros** y **sin scripts en línea** [R11]. Móvil primero.
+2. **Configuración:** `catalogo/build.js` (Node, sin dependencias) genera `catalogo/config.js` con `window.CATALOGO_CONFIG = { apiUrl }` a partir de la variable `API_URL` del sitio estático. `config.js` va en `.gitignore`. Para probar en local, `API_URL=http://localhost:3000`.
+3. **Páginas** (§5 del diseño): inicio (logo y colores desde `GET /api/public/marca`, buscador, categorías), categoría/resultados (foto, nombre, **precio en $ y en Bs con la fecha de la tasa**, botón Agregar; los agotados **se ven** con "Agotado" y el botón desactivado), producto (fotos, descripción, cantidad), carrito (líneas, cantidades, total, botón **"Pedir por WhatsApp"**) y confirmación ("Te abrimos WhatsApp con tu pedido VM-XXXXX; si no se abrió, toca aquí", con el código para copiar). Una sola página con vistas (`#/categoria/...`) también vale.
+4. **Datos y seguridad:**
+   - Todo dato de la API se pinta con `textContent` o creando elementos: **prohibido `innerHTML`** con datos [R13].
+   - El carrito vive en `localStorage` y solo guarda `{ productoId, cantidad }`; el total que se muestra es orientativo y el que vale es el del servidor. El `POST` manda solo `{ items: [{ productoId, cantidad }], website: "" }`, con el campo trampa `website` oculto en el formulario [R6][R9].
+   - Errores: mensaje amable (429: "espera unos minutos"; 503: "pedidos web no disponibles"); nunca el detalle técnico.
+   - La lógica del carrito (agregar, quitar, límites de 1–50 unidades y 20 líneas, armar el cuerpo del `POST`) en un módulo propio sin acceso al DOM (`catalogo/js/carrito.js`), para poder probarlo con Node.
+   - Nada de la marca escrito en los archivos: nombre, colores y logos salen de `/api/public/marca`. Las URLs relativas del logo se completan con `apiUrl`.
+5. **Cabeceras del sitio estático** en `render.yaml` (servicio nuevo de tipo static) [R11]: CSP `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://res.cloudinary.com <API_URL>; connect-src 'self' <API_URL>; object-src 'none'; frame-ancestors 'none'; base-uri 'self'`, más HSTS, `X-Content-Type-Options: nosniff` y `Referrer-Policy: strict-origin-when-cross-origin`. Anotar en `render.yaml` que `<API_URL>` se cambia por cliente.
+6. **Entorno local:** `scripts/catalogo-local.sh` sirve `catalogo/` en `http://localhost:5173` (servidor estático de Node, sin dependencias nuevas) e indica arrancar el servidor con `CATALOGO_ORIGEN=http://localhost:5173 ./scripts/dev-local.sh` (no modificar `dev-local.sh`).
+
+**Cierre:** suite nueva `scripts/test-catalogo-web.ts` (en `SUITES`): lógica del carrito (límites, sumar el mismo producto, cuerpo del `POST` sin precios ni otros campos); los HTML sin `<script>` en línea ni `on*=`; ningún `innerHTML` en `catalogo/js/`; ninguna URL externa salvo Cloudinary; ningún texto de marca (`VentiMax`, `Fortunne`, `Pachi`). Añadir `catalogo/js/*.js` al bucle de `esbuild --bundle` de `ci.sh`. Recorrido en el navegador en local (inicio, categoría, producto, carrito, pedido y apertura de WhatsApp) con la consola abierta: **0 errores de CSP**, listado en la entrega. `./scripts/ci.sh` en verde.
+
+---
+
+## Mantenimiento (barrido de Claude, 2026-10-28)
+
+Búsqueda en todo el código de los fallos que aparecieron durante la Fase 0. Limpio: no quedan consultas `$or` que mezclen el id de texto con `_id`; los teléfonos, correos y webs que aparecen son ejemplos de campos del panel o enlaces de Google Maps; ningún total del carrito se calcula fuera de `calcularTotalCarrito` (salvo el respaldo del LTV, punto M-2).
+
+### M-1 · Los mensajes del bot registran si llegaron — Backend · `Aprobada`
+
+Hoy el bot guarda en el Inbox **todos** sus mensajes como enviados, aunque WhatsApp los rechace: `_sendYGuardar` (`chatFlowService.ts`, 48 llamadas) y los pares `enviarTexto`/`enviarBotones`/`enviarLista` + `emitirYGuardar` de `chatFlowController.ts` (26) no miran el resultado. `enviarTexto` y compañía **no lanzan error**: devuelven `false` tras los reintentos, o el `wamid` si salió bien. Tampoco se guarda el `wamid`, así que los avisos de WhatsApp (entregado, leído, fallido), que el webhook ya procesa con `actualizarEstadoMensaje`, no se pueden asociar a los mensajes del bot. Consecuencia: si el token vence o Meta rechaza un envío, el asesor ve en el Inbox una conversación normal con mensajes que el cliente nunca recibió. El mismo fallo se corrigió en F0-9 para las fotos.
+
+1. **Un solo camino:** método común (p. ej. `enviarYRegistrar(from, { tipo: "texto" | "botones" | "lista", ... }, io)`) que envía, toma el resultado y guarda el mensaje con `wamid` (si es un string) y `status: "sent"`, o `status: "failed"` si el resultado es `false`, con un log `⚠️`. Instagram ya lo hace así (`instagramFlowService.ts`, `status: sendSuccess ? "sent" : "failed"`).
+2. Reemplazar los 74 sitios por ese método, sin cambiar ningún texto ni el orden de los mensajes.
+3. El Inbox ya pinta los mensajes con `status: "failed"`: comprobar que también lo hace con los del bot (no solo con los del asesor).
+4. Que el flujo **siga** aunque un mensaje falle (no lanzar), como hoy.
+
+**Cierre:** suite nueva `scripts/test-registro-envios.ts`: con el envío simulado devolviendo un `wamid`, el mensaje guardado lo lleva y queda `sent`; devolviendo `false`, queda `failed` y el flujo sigue; un aviso de estado del webhook con ese `wamid` cambia el mensaje del bot a `delivered`/`read`. `grep` sin llamadas sueltas a `enviarTexto(` seguidas de `emitirYGuardar(` en `chatFlowService.ts` y `chatFlowController.ts`. Todas las suites en verde (los textos no cambian).
+
+#### Entrega y verificación (Antigravity)
+- **Archivos tocados:**
+  - `controllers/chatFlowController.ts`: centralización del envío con `enviarYRegistrar(to, opciones, io)`. Envía según tipo (texto, botones, lista, imagen), captura wamid o maneja `false`/excepción con log `⚠️ [WhatsApp]`, asigna `status: "sent"` o `"failed"`, y llama a `emitirYGuardar`. Reemplazadas todas las llamadas directas de envío (`enviarMenu`, `mostrarCategorias`, `mostrarProductos`, `mostrarPreguntarMas`, `solicitarNombre`, `solicitarCedula`, `solicitarMetodoEnvio`, `solicitarUbicacion`, `solicitarNotas`, `solicitarMetodoPago`, `solicitarComprobante`, `solicitarConfirmacionDatos`, `mostrarOpcionesEdicion`, `solicitarOpcionesEfectivo`, `solicitarMontoEfectivoParcial`, `informarPendienteVerificacion`, `solicitarOpcionFinDeSemana`, `enviarInfoPuntoAliado`).
+  - `services/chatFlowService.ts`: agregado helper `enviarYRegistrar` delegando en `chatFlow.enviarYRegistrar`. `_sendYGuardar` delega en `this.enviarYRegistrar(from, { tipo: "texto", texto }, io)` (cubriendo las 48 llamadas existentes). Reemplazados los envíos directos en `enviarMenuFaq`, `procesarIntencionRetiro`, tasa BCV, y respuestas directas. En `enviarFotoProducto`, se captura el wamid del envío y se guarda con `status: "sent"`.
+  - `scripts/test-registro-envios.ts`: suite nueva con 7 pruebas automatizadas que cubren envío exitoso con wamid y `status: "sent"`, envío fallido con `status: "failed"` sin lanzar error, atrapado de excepciones de red, actualización por webhook a `"delivered"` y `"read"`, interactivos (botones/lista), delegación de `_sendYGuardar`, y chequeo estático (grep) de llamadas sueltas.
+  - `scripts/ci.sh`: añadida suite `test-registro-envios.ts` al array `SUITES`.
+- **Evidencia del Inbox para mensajes del bot:**
+  - Verificado en `public/src/features/inbox/components/InboxThread.js`: `esEntrante(msg)` evalúa `dir === "entrante" || dir === "cliente"`. Para mensajes con `direccion === "bot"`, `entrante` es `false`, por lo que se evalúa `STATUS_ICONO[msg.status]`. Al tener `status: "failed"`, se renderiza `{ icono: "fas fa-exclamation-triangle text-red-600", titulo: "Falló el envío" }`.
+- **Evidencia de verificación:**
+  ```text
+  $ NODE_ENV=test npx tsx scripts/test-registro-envios.ts
+  ================================================================================
+  📡 SUITE DE PRUEBAS: REGISTRO DE ENVÍOS DEL BOT (M-1)
+  ================================================================================
+  ▶ Test 1: Envío exitoso guarda con wamid y status 'sent'...
+    ✅ Test 1 superado (Mensaje con wamid y status 'sent' registrado correctamente)
+  ▶ Test 2: Envío fallido (false) guarda con status 'failed' y no interrumpe el flujo...
+  ⚠️ [WhatsApp] Falló el envío de texto a 584122222222. Registrando como fallido.
+    ✅ Test 2 superado (Envío fallido registrado con status 'failed' sin lanzar error)
+  ▶ Test 3: Excepción no controlada en cliente de WhatsApp es capturada y registrada...
+  ⚠️ [WhatsApp] Excepción enviando texto a 584123333333: ETIMEDOUT: Connection lost to graph.facebook.com
+  ⚠️ [WhatsApp] Falló el envío de texto a 584123333333. Registrando como fallido.
+    ✅ Test 3 superado (Excepción atrapada y guardada como status 'failed')
+  ▶ Test 4: Webhook de status actualiza el mensaje a 'delivered' y 'read'...
+    ✅ Test 4 superado (Transición de status sent -> delivered -> read comprobada)
+  ▶ Test 5: Envío de interactivos (botones y listas) registra wamid y status...
+    ✅ Test 5 superado (Botones y listas registran wamid y status correctamente)
+  ▶ Test 6: chatFlowService._sendYGuardar delega en enviarYRegistrar...
+    ✅ Test 6 superado (_sendYGuardar delega y registra con wamid y status)
+  ▶ Test 7: Verificación estática de código (grep check)...
+    ✅ Test 7 superado (0 llamadas sueltas detectadas en chatFlowService ni chatFlowController)
+  ================================================================================
+  🎉 TODOS LOS TESTS DE M-1 PASARON EXITOSAMENTE (7/7)
+  ================================================================================
+
+  $ ./scripts/ci.sh
+  ▶ Build
+  > ventimax@1.0.0 build
+  > tsc && node -e "const fs = require('fs'); if (fs.existsSync('config')) fs.cpSync('config', 'dist/config', { recursive: true });"
+  ▶ 27 suites (incluyendo test-registro-envios.ts)
+  ▶ Imports del panel (esbuild --bundle)
+  ✅ Build, 27 suites e imports del panel en verde.
+  ```
+- **Desviaciones:** Ninguna. Listo para revisión de Claude.
+
+#### Revisión de Claude (2026-10-28) — `Aprobada`
+Verificado por Claude con `./scripts/ci.sh`: build, 27 suites (`test-registro-envios.ts` 7/7) y los imports del panel en verde. `grep` sin envíos directos de texto, botones o listas en `chatFlowService.ts` ni `chatFlowController.ts` fuera de `enviarYRegistrar`.
+- `enviarYRegistrar` (controlador) centraliza texto, botones, lista e imagen: guarda el `wamid` cuando WhatsApp lo devuelve, `status: "failed"` si el envío devuelve `false` o lanza, y no corta el flujo. `_sendYGuardar` delega en él, así que cubre sus 48 usos sin cambiar textos.
+- Comprobado en `whatsapp.ts` que `enviarTexto`, `enviarBotones` y `enviarLista` devuelven el `wamid` (o `true`) al salir bien y `false` al fallar; el registro es correcto en los tres.
+- La suite cubre el ciclo completo: el aviso de estado del webhook con ese `wamid` pasa el mensaje del bot a `delivered` y `read`. El Inbox ya muestra "Falló el envío" con el ícono rojo.
+- Fuera de alcance, para más adelante: los envíos de `orderService.ts` y `adminController.ts` (notificaciones al admin y avisos de estado del pedido) siguen su propio camino.
+
+### M-2 · Restos menores — Backend · `Pendiente`
+
+1. **Errores internos al navegador que quedaron:** los `catch` generales de `paymentController.ts` (3) y `shippingController.ts` (3) responden **400 con `error.message`** para cualquier error, también los de la base. Separar: errores de validación → 400 con su motivo; el resto → 500 genérico. También `adminController.ts` (`postInstagramEnviar`: `err.message`; `confirmarPago`: `details: err.message`) y revisar `configAdminController.ts`.
+2. **LTV** (`adminController.ts`, ~línea 4224): el respaldo para pedidos viejos sin `pago.montoUSD` suma los productos a mano; usar `calcularTotalCarrito({ items, envio })`.
+3. Opcional: los `findById(req.params.id)` con un id mal formado dan 500 en vez de 404. Una guarda `ObjectId.isValid` → 404 en los endpoints de pedidos y métodos de pago/envío.
+
+**Cierre:** casos en una suite existente (o en `test-cabeceras-seguridad.ts`) para el punto 1; `./scripts/ci.sh` en verde.
+
+---
+
 ## Dudas para Claude
 
 _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde debajo.)_
@@ -1714,7 +2078,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 - Datos reales de las cuentas de pago: se cargan desde el panel, nunca en el repo.
 - Razón social, RIF y dirección para la política de privacidad (Meta la revisa). Se cargan en el panel: Configuración → Operación → **Datos del negocio** (F0-14). Lo mismo para correo, web, Instagram y WhatsApp.
 - ~~¿Hay punto de retiro físico?~~ Respondido el 2026-10-28 (ver Datos del negocio). Al configurar producción, cargarlo en Inventario → Envíos.
-- **Render:** `BRAND_NAME=ventimax`. **Meta:** app y número nuevos. **Atlas:** base de datos nueva para VentiMax.
+- **Render, Meta, Atlas y carga del panel:** lista paso a paso en `docs/lanzamiento-ventimax.md`.
 - ¿Se borra `config/brand/default.json`?
 - Dominio propio para el catálogo web y el panel (F2): **pendiente por decisión del dueño** (2026-10-27).
 - **TikTok (F5):** pasar la cuenta de VentiMax a cuenta de empresa (TikTok Business) y registrarse como desarrollador en el portal de TikTok for Business pidiendo acceso a la Business Messaging API. La revisión de TikTok puede tardar; conviene empezarla ya.
@@ -1725,6 +2089,20 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-10-28 | 23:30 | Revisión M-1 (aprobada). F2-2 pasa a ser la siguiente de Antigravity, con la regla de enviar siempre con `enviarYRegistrar` — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-28 | — | M-1: `enviarYRegistrar` centraliza los envíos del bot con `wamid` y estado `sent`/`failed`; suite `test-registro-envios.ts` — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
+| 2026-10-28 | 23:30 | M-1: Registro centralizado de envíos del bot con `enviarYRegistrar` (captura wamid, status sent/failed, no lanza error, Inbox compatible); suite `test-registro-envios.ts` en CI — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
+| 2026-10-28 | 23:00 | Lista de lanzamiento de VentiMax para el dueño (`docs/lanzamiento-ventimax.md`): cuentas, Meta, Render, carga del panel con los datos reales (pagos, los 3 métodos de envío con el retiro de Catia, horario, fotos) y prueba final. `render.yaml` revisado: al día — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-28 | 22:30 | Revisión F2-1 (aprobada). Orden decidido por Claude con el visto bueno del dueño: M-1 (estado de entrega de los mensajes del bot) antes de seguir con F2-2/F2-3, porque protege al equipo de ventas en el lanzamiento — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-28 | — | F2-1 (re-entrega): limitadores con `req.ip` (también `apiLimiter`), prefijo neutro, `Vary: Origin`, honeypot indistinguible, registro de rechazos — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
+| 2026-10-28 | — | F2-1 (re-entrega): limitadores de IP con trust proxy sin spoofing (también en apiLimiter), Vary: Origin, honeypot realista sin guardar, log de rechazos [R14], formato limpio de marca y suite test-api-publica.ts — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
+| 2026-10-28 | 22:00 | Barrido de mantenimiento del código: tareas M-1 (los mensajes del bot se guardan como enviados aunque WhatsApp los rechace; sin `wamid`, sin estado de entrega) y M-2 (errores internos que quedaron en pagos y envíos, respaldo del LTV, 404 en ids mal formados) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-28 | 21:30 | Tareas nuevas F2-2 (el bot reconoce el código del pedido web, con reclamo atómico) y F2-3 (páginas de la tienda como sitio estático con CSP estricta) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-28 | 21:00 | Revisión F2-1 (devuelta: límite por IP saltable con `X-Forwarded-For` —también en el `apiLimiter` heredado—, respaldo `"VM"` en el código, falta `Vary: Origin`, honeypot distinguible, registro de rechazos incompleto) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-28 | — | F2-1: API pública del catálogo (`/api/public` marca, catálogo y pedidos), `CarritoWeb` con TTL, CORS a `CATALOGO_ORIGEN`, `X-Robots-Tag` en el panel; suite `test-api-publica.ts` — Ejecutado por **Antigravity** | Antigravity (TPM) | Devuelta |
+| 2026-10-28 | 21:00 | F2-1: API pública del catálogo y carrito web (modelo CarritoWeb con TTL, router /api/public aislado, GET marca/catalogo con lista blanca, POST pedidos con Zod estricto, honeypot, tasa del día y suite test-api-publica.ts) — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
+| 2026-10-28 | 20:30 | F0-6 completada y **Fase 0 cerrada**: guía de clientes nuevos sin pendientes, `GEMINI.md` al día, documento de mejoras para Mr. Pachi completo (partes 1 a 3) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-28 | 20:00 | Historial de GitHub limpio de datos de clientes (comprobado: `main` y `origin/main` sin los archivos; en GitHub solo existe `main`). Tablero de la Fase 2 abierto con F2-1 (API pública del catálogo y carrito web) para Antigravity — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-28 | 19:30 | F0-11 corregida por Claude a pedido del dueño y aprobada: scripts del panel en archivos (`public/src/boot/`), CSP compartida en `middlewares/csp.ts` sin `'unsafe-inline'` en scripts ni WebSocket abierto, guarda de `ObjectId` en la venta manual; recorrido en Chrome sin violaciones de CSP — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-28 | 18:45 | Revisión F0-11 (devuelta: `script-src` con `'unsafe-inline'` deja sin efecto la CSP; búsqueda de producto por id de texto da `CastError` con la base real; `connect-src` con `ws:`/`wss:` sueltos) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-28 | — | F0-11: CSP en `helmet`, `/index.html` y `/login.html` redirigidos, precios de la venta manual desde la base, `500` genéricos; suite `test-cabeceras-seguridad.ts` — Ejecutado por **Antigravity** | Antigravity (TPM) | Devuelta |

@@ -124,6 +124,20 @@ class ConfigManager {
       };
     }
 
+    if (!this.config.settings.catalogo || typeof this.config.settings.catalogo !== "object") {
+      this.config.settings.catalogo = {
+        prefijoPedido: this.brand === "ventimax" ? "VM" : "MP",
+        vigenciaHoras: 72,
+      };
+    } else {
+      if (!this.config.settings.catalogo.prefijoPedido) {
+        this.config.settings.catalogo.prefijoPedido = this.brand === "ventimax" ? "VM" : "MP";
+      }
+      if (!this.config.settings.catalogo.vigenciaHoras) {
+        this.config.settings.catalogo.vigenciaHoras = 72;
+      }
+    }
+
     console.log("✅ Validación de esquema exitosa.");
   }
 

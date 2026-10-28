@@ -51,6 +51,10 @@
       "horario": "Lunes a Domingo de 8:30 am a 6:30 pm"
     }
   },
+  "catalogo": {
+    "prefijoPedido": "MP",
+    "vigenciaHoras": 72
+  },
   "messages": {
     "welcome": "*{{brandName}}*\n{{saludo}} Elige una opción de la lista, o *escríbeme tu duda* directamente:",
     "productsCatalog": "🍜 *Catálogo de Productos*\nSelecciona una opción:",
@@ -89,6 +93,7 @@
     "faqFallbackMenu": "1. Sabores y rellenos disponibles\n2. ¿Cuántas unidades trae cada caja?\n3. Horarios de atención y delivery",
     "igCatalogHeader": "{{brandEmoji}} *Catálogo y Sabores Disponibles:*",
     "pickupUnavailable": "Por ahora solo realizamos entregas a domicilio, pero un asesor puede coordinar contigo la mejor opción de entrega.",
-    "advisorHandoff": "👨‍💼 Un asesor se comunicará contigo a la brevedad. Por favor déjanos tu consulta."
+    "advisorHandoff": "👨‍💼 Un asesor se comunicará contigo a la brevedad. Por favor déjanos tu consulta.",
+    "webOrderPrefill": "Hola, quiero confirmar mi pedido web {{codigo}}"
   }
 }

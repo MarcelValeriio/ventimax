@@ -271,6 +271,68 @@ class DbMock {
       }
     };
   }
+
+  getCarritoWebModel() {
+    if (!this.data.carritosWeb) this.data.carritosWeb = [];
+    const matchQuery = (c, query) => {
+      if (!query || Object.keys(query).length === 0) return true;
+      for (const [key, val] of Object.entries(query)) {
+        if (key === "_id" && String(c._id) !== String(val)) return false;
+        if (key === "codigo" && c.codigo !== val) return false;
+        if (key === "estado" && c.estado !== val) return false;
+        if (key === "telefono" && c.telefono !== val) return false;
+        if (key === "pedidoId" && String(c.pedidoId) !== String(val)) return false;
+      }
+      return true;
+    };
+
+    return {
+      schema: {
+        indexes: () => [[{ expiraEn: 1 }, { expireAfterSeconds: 0 }]]
+      },
+      find: (query = {}) => {
+        const carritos = this.data.carritosWeb.filter((c) => matchQuery(c, query));
+        return {
+          lean: () => Promise.resolve(carritos),
+          then: (resolve) => resolve(carritos),
+          catch: () => {},
+        };
+      },
+      findOne: async (query = {}) => {
+        const found = this.data.carritosWeb.find((c) => matchQuery(c, query));
+        return found || null;
+      },
+      findById: async (id) => {
+        return this.data.carritosWeb.find((c) => String(c._id) === String(id)) || null;
+      },
+      create: async (doc) => {
+        const newDoc = {
+          _id: doc._id || `cw-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          estado: doc.estado || "pendiente",
+          telefono: doc.telefono || null,
+          pedidoId: doc.pedidoId || null,
+          creadoEn: doc.creadoEn || new Date(),
+          ...doc,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          toObject: function() { return { ...this }; }
+        };
+        this.data.carritosWeb.push(newDoc);
+        return newDoc;
+      },
+      countDocuments: async (query = {}) => {
+        return this.data.carritosWeb.filter((c) => matchQuery(c, query)).length;
+      },
+      deleteMany: async (query = {}) => {
+        if (!query || Object.keys(query).length === 0) {
+          this.data.carritosWeb = [];
+        } else {
+          this.data.carritosWeb = this.data.carritosWeb.filter((c) => !matchQuery(c, query));
+        }
+        return { acknowledged: true };
+      }
+    };
+  }
 }
 
 module.exports = new DbMock();

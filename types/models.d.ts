@@ -473,3 +473,28 @@ export interface ISuscripcionPush {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+// ==========================================
+// 18. ICarritoWeb (models/CarritoWeb.ts) - F2
+// ==========================================
+
+export interface ICarritoWebItem {
+  productoId: string;
+  nombre: string;
+  precio: number;
+  cantidad: number;
+}
+
+export interface ICarritoWeb {
+  _id?: string;
+  codigo: string;
+  items: ICarritoWebItem[];
+  total: number;
+  estado: "pendiente" | "vinculado";
+  telefono?: string | null;
+  pedidoId?: string | null | any;
+  creadoEn?: Date;
+  expiraEn: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
+}

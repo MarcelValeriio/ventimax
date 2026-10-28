@@ -1,7 +1,7 @@
 # Mejoras de VentiMax aplicables a Mr. Pachi
 
 > Para el dueño (y para quien aplique los cambios en `reply-bot-pachi`).
-> **Estado:** parte 1 (seguridad) escrita el 2026-10-27. Las partes 2 y 3 se completan al cerrar la Fase 0.
+> **Estado:** completo al cierre de la Fase 0 (2026-10-28). Parte 1 escrita el 2026-10-27; partes 2 y 3, el 2026-10-28.
 > VentiMax nació como copia de Mr. Pachi hasta el commit `77e1102`, así que los fallos de la auditoría
 > (`docs/auditoria-seguridad-2026-10.md`) casi seguro están igual allá. **Pachi está en producción con clientes
 > reales:** cada cambio necesita su propio plan, pruebas y un horario de poco tráfico para desplegar.
@@ -28,16 +28,20 @@ desplegar de una en una para saber qué causó cualquier problema.
 | 8 | **Primer administrador con contraseñas conocidas** (S-08) | Bajo en Pachi (ya tiene usuarios) | `crearAdminInicial()` | Solo útil si algún día se monta Pachi en una base nueva. **Nunca** volver a correr `scripts/seed-users.js` en producción: borra todos los usuarios |
 | 9 | **Política de privacidad con afirmaciones falsas** | Legal y de Meta: dice que escribir CANCELAR borra los datos (solo reinicia el chat) y no declara la IA (DeepSeek) ni Cloudinary | `services/paginaPrivacidad.ts` + ruta `/privacidad` + clave `legal` en la marca | En Pachi la marca es `default`: añadir `legal` con la razón social de Pachi. Mantener las URL `/privacidad.html` y `/privacidad-instagram.html` (ya registradas en Meta) |
 | 10 | **`controllers/botController.ts` muerto** con login alternativo y clave "pachi123" (S-12) | Bajo (no está montado) | Borrarlo | Confirmar con `grep` que nada lo importa |
-| — | CSP desactivada, errores internos al navegador, `/index.html` público (S-09 a S-11) | Medio/bajo | Pendiente: se hará en VentiMax en F0-11 | Se añadirá aquí cuando esté probado |
+| 11 | **CSP desactivada** (S-09), **errores internos al navegador** (S-10) y **`/index.html` público** (S-11) | Medio: sin CSP, cualquier XSS en el panel se ejecuta con la sesión del admin | `middlewares/csp.ts`, `public/src/boot/` (los scripts que estaban en línea en `index.html` y `login.html`), redirecciones de `/index.html` y `/login.html` en `index.ts`, `500` genéricos en los controladores; suite `test-cabeceras-seguridad.ts` | El paso grande es **sacar los scripts en línea** a archivos: sin eso la CSP no sirve. Probar todas las pantallas con la consola del navegador abierta antes de desplegar. `sw.js` no cachea HTML, así que nadie queda con una versión vieja |
+| 12 | **Precios de la venta manual desde el navegador** | Medio: un empleado (o alguien con su sesión) puede registrar una venta con el precio que quiera | `postManualSale` en `adminController.ts`: precio y envío leídos de la base; producto inexistente o inactivo → 400 | Cuidado con buscar por `_id` un id de texto: Mongoose lanza `CastError` (usar `ObjectId.isValid`) |
+| 13 | **Datos de clientes dentro del repositorio** | Medio (privacidad): `todas_las_direcciones.json`, `direcciones_clientes.json`, `addresses.json`, `table*.md` tienen nombres, teléfonos y direcciones reales | Sacarlos del repo, añadirlos a `.gitignore` (ver el de VentiMax) y, si se quiere, limpiar el historial como se hizo en VentiMax el 2026-10-28 | Son datos de Pachi, pero no tienen por qué estar en el código. Guardarlos fuera del repo si se necesitan |
+| 14 | **Límite de peticiones saltable** | Medio: `apiLimiter` (`middlewares/rateLimiter.js`) usa como clave la cabecera `X-Forwarded-For` completa cuando no hay sesión, y esa cabecera la escribe el cliente; con `validate: false` se apaga el aviso de la librería | Clave `req.user?.id \|\| req.ip` (con `trust proxy` en 1, `req.ip` es la IP real que ve Render) y quitar `validate: false`. Se corrige en VentiMax en F2-1 | Cambio de una línea. Revisar que Pachi tenga `app.set("trust proxy", 1)` |
 
 **Prioridad sugerida:** 1 y 2 en cuanto se pueda (bajo riesgo de romper algo, alto beneficio); 3 y 4 juntos, avisando
-al equipo; 5 a 7 en un mismo despliegue; 8 a 10 cuando convenga.
+al equipo; 5 a 7 en un mismo despliegue; 12 y 13 pronto (son cambios pequeños); 11 con calma, probando todas las
+pantallas; 8 a 10 cuando convenga.
 
 ---
 
 ## Parte 2 · Mejoras de la plantilla que Pachi podría adoptar
 
-> Escrita el 2026-10-28 con lo aprobado hasta ahora. Faltan F0-5 (envíos), F0-9 (imágenes) y F0-11 (CSP).
+> Escrita el 2026-10-28 al cerrar la Fase 0.
 
 ### 2.1 Decisión de fondo: ¿llevar parches o pasar Pachi a la plantilla?
 
@@ -64,8 +68,23 @@ Antes de decidir, hay que revisar si Pachi recibió cambios después del commit 
 | **Productos en varias categorías** (F0-7) | Un mismo producto en dos categorías del menú sin duplicarlo (p. ej. un combo en "Combos" y en "Promociones") | `services/catalogQuery.ts`, `models/Producto.ts` (`categorias`), panel de productos | Opcional: sin uso, no cambia nada |
 | **Textos del bot en la configuración** (F0-2, F0-10) | Cambiar mensajes sin tocar código | `config/brand/<marca>/settings.json` → `messages` | Solo tiene sentido con el camino B |
 | **Kanban sin métodos de pago inventados** (F0-13) | Hoy, si un pedido no tiene el método de pago poblado, la tarjeta del Kanban muestra uno **al azar** (Pago Móvil, Zelle, Efectivo o Transferencia). El equipo de Pachi puede estar viendo datos falsos | `public/src/features/dashboard/KanbanBoard.js` | Revisar en Pachi cuántos pedidos tienen `pago.metodo` como ID o vacío: esas tarjetas muestran un método inventado. Aplicar en cuanto esté aprobada en VentiMax |
+| **Métodos de envío administrables** (F0-5) | Delivery, envío nacional y retiro desde el panel, con costo fijo o "a convenir". El total que paga el cliente incluye el envío en todos lados (instrucciones de pago, efectivo, vuelto, venta manual) gracias a un único cálculo | `models/MetodoEnvio.ts`, `controllers/shippingController.ts`, `ShippingTab.js`, `calcularTotalCarrito` en `orderService.ts`, paso de envío en `chatFlowService.ts` | Útil si Pachi cobra delivery por zona. **Aunque no se adopte**, revisar en Pachi que todos los totales salgan de un solo cálculo: en VentiMax se encontraron 4 sitios que sumaban por su cuenta |
+| **Retiro en persona y "voy en persona"** (F0-12) | El bot entiende cuando el cliente prefiere buscar el pedido; el asesor cambia el envío de un pedido ya creado y anota el costo acordado | `quiereRetirar` y `procesarIntencionRetiro` en `chatFlowService.ts`, `PUT /api/admin/orders/:id/envio`, `OrderDetailsModal.js` | Depende de F0-5 |
+| **Fotos de producto** (F0-9) | Hasta 5 fotos por producto en Cloudinary; el bot manda la principal antes de preguntar la cantidad | `cloudinaryService.ts` (`subirImagenProducto`, `borrarImagen`), 3 endpoints en `adminRoutes.ts`, `ProductTab.js`, `enviarFotoProducto` en `chatFlowService.ts` | Pachi ya usa Cloudinary para los comprobantes: misma cuenta, carpeta aparte |
+| **Datos del negocio editables** (F0-14) | Razón social, RIF y contacto de la política de privacidad, y el WhatsApp al que Instagram/Messenger mandan clientes, desde el panel | `services/datosNegocioService.ts`, bloque en `SettingsPanel.js` | Revisar en Pachi `getWhatsAppPhoneNumber` de `instagramFlowService`: en VentiMax tenía un número fijo como último respaldo |
 | **Plantilla de Render** (`render.yaml`) | Recrear el servicio con la configuración correcta si hiciera falta | `render.yaml` | Pachi ya está desplegado: útil solo para un servicio de prueba |
 
 ## Parte 3 · Lo que es solo de VentiMax
 
-_(Se completa al cerrar la Fase 0.)_
+No conviene llevarlo a Pachi, o no aplica:
+
+| Qué | Por qué no |
+|---|---|
+| Marca `config/brand/ventimax/` (textos, colores, catálogo de ventiladores, prompt de IA) | Es el contenido de otro negocio. Pachi sigue con `default` (o con su propia carpeta si pasa a la plantilla) |
+| Datos del negocio de VentiMax (punto de retiro de Catia, horario, Fortunne) | Se cargan en el panel de cada negocio; no van en el código |
+| Fases siguientes: F1 (repuestos por vehículo), F2 (catálogo web), F5 (TikTok) | Se diseñaron para VentiMax y el cliente de repuestos. Pachi las recibiría solo si pasa a la plantilla (camino B de la parte 2) |
+| Historial nuevo del repositorio | Pachi conserva el suyo; ahí está su `.env` viejo (ver la nota de credenciales del dueño) |
+
+**Recomendación final:** aplicar la parte 1 como parches (1 y 2 primero) y decidir el camino B después de lanzar
+VentiMax en producción: con dos negocios funcionando sobre la misma plantilla, el tercero (repuestos) ya se hace
+con un solo código.

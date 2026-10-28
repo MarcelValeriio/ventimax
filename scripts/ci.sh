@@ -24,6 +24,8 @@ SUITES=(
   test-datos-negocio.ts
   test-imagenes-producto.ts
   test-cabeceras-seguridad.ts
+  test-api-publica.ts
+  test-registro-envios.ts
   test-e2e-saas.js
   test-full-flow.js
   test-cash-logic.js

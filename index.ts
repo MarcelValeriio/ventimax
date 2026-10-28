@@ -65,6 +65,11 @@ app.use("/src", express.static(SRC_DIR));
 app.use("/assets", express.static(path.join(PUBLIC_DIR, "assets")));
 app.use(express.static(PUBLIC_DIR, { index: false }));
 
+// 2b. API PÚBLICA (F2-1: Catálogo y Carrito Web)
+// Se monta ANTES del express.json global para tener su propio parser con límite de 5 KB y aislamiento total
+const publicRoutes = require("./routes/publicRoutes");
+app.use("/api/public", publicRoutes);
+
 // 3. MIDDLEWARES BÁSICOS
 // Capturar raw body ANTES del parseo JSON (necesario para validación HMAC)
 app.use(
@@ -138,6 +143,12 @@ app.use("/webhook/instagram", webhookLimiter, instagramWebhookRoutes(io));
 // Tercer canal: Facebook Messenger (endpoint propio y separado de WhatsApp/Instagram)
 app.use("/webhook/messenger", webhookLimiter, messengerWebhookRoutes(io));
 app.use("/webhook", webhookLimiter, webhookRoutes(io));
+// Protección contra indexación en motores de búsqueda para panel, login y API admin (R3)
+app.use(["/panel", "/login", "/api/admin"], (req, res, next) => {
+  res.setHeader("X-Robots-Tag", "noindex");
+  next();
+});
+
 app.use("/api/admin/ai-studio", require("./routes/aiStudioRoutes"));
 app.use("/api/admin", apiLimiter, adminRoutes(io));
 

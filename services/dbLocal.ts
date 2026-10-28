@@ -1574,6 +1574,108 @@ class DbLocal {
       }
     };
   }
+
+  getCarritoWebModel() {
+    const self = this;
+    const matchQuery = (c: any, query: any) => {
+      if (!query || Object.keys(query).length === 0) return true;
+      for (const [key, val] of Object.entries(query)) {
+        if (key === "_id" && String(c._id) !== String(val)) return false;
+        if (key === "codigo" && c.codigo !== val) return false;
+        if (key === "estado" && c.estado !== val) return false;
+        if (key === "telefono" && c.telefono !== val) return false;
+        if (key === "pedidoId" && String(c.pedidoId) !== String(val)) return false;
+      }
+      return true;
+    };
+
+    const findQuery = (query: any) => {
+      const exec = () => {
+        const data = self.read();
+        const carritos = (data.carritosWeb || []).filter((c: any) => matchQuery(c, query));
+        return Promise.resolve(carritos);
+      };
+      return {
+        sort: (sortObj: any) => {
+          return {
+            lean: () => exec(),
+            then: (onFulfilled: any) => exec().then(onFulfilled),
+            catch: (onRejected: any) => exec().catch(onRejected),
+          };
+        },
+        lean: () => ({
+          then: (onFulfilled: any) => exec().then(onFulfilled),
+          catch: (onRejected: any) => exec().catch(onRejected),
+        }),
+        then: (onFulfilled: any) => exec().then(onFulfilled),
+        catch: (onRejected: any) => exec().catch(onRejected),
+      };
+    };
+
+    return {
+      schema: {
+        indexes: () => [
+          [{ expiraEn: 1 }, { expireAfterSeconds: 0 }]
+        ]
+      },
+      find: (query: any) => findQuery(query),
+      findOne: (query: any) => {
+        const queryObj = findQuery(query);
+        return {
+          lean: () => queryObj.then((res: any[]) => (res && res.length > 0 ? res[0] : null)),
+          then: (onFulfilled: any, onRejected: any) =>
+            queryObj.then((res: any[]) => (res && res.length > 0 ? res[0] : null)).then(onFulfilled, onRejected),
+          catch: (onRejected: any) => queryObj.catch(onRejected),
+        };
+      },
+      findById: (id: any) => {
+        return {
+          then: (onFulfilled: any, onRejected: any) => {
+            const data = self.read();
+            const found = (data.carritosWeb || []).find((c: any) => String(c._id) === String(id));
+            return Promise.resolve(found || null).then(onFulfilled, onRejected);
+          },
+          catch: (onRejected: any) => Promise.resolve(null).catch(onRejected),
+        };
+      },
+      create: (doc: any) => {
+        const data = self.read();
+        if (!data.carritosWeb) data.carritosWeb = [];
+        const newDoc = {
+          _id: doc._id || "cw-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+          estado: doc.estado || "pendiente",
+          telefono: doc.telefono || null,
+          pedidoId: doc.pedidoId || null,
+          creadoEn: doc.creadoEn || new Date(),
+          ...doc,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        data.carritosWeb.push(newDoc);
+        self.write(data);
+        return Promise.resolve({
+          ...newDoc,
+          toObject: () => ({ ...newDoc }),
+        });
+      },
+      countDocuments: (query: any = {}) => {
+        const data = self.read();
+        const carritos = (data.carritosWeb || []).filter((c: any) => matchQuery(c, query));
+        return Promise.resolve(carritos.length);
+      },
+      deleteMany: (query: any = {}) => {
+        const data = self.read();
+        if (!data.carritosWeb) data.carritosWeb = [];
+        if (!query || Object.keys(query).length === 0) {
+          data.carritosWeb = [];
+        } else {
+          data.carritosWeb = data.carritosWeb.filter((c: any) => !matchQuery(c, query));
+        }
+        self.write(data);
+        return Promise.resolve({ deletedCount: 1 });
+      },
+    };
+  }
 }
 
 module.exports = new DbLocal();// @ts-nocheck

@@ -25,12 +25,7 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Demasiadas peticiones a la API. Reduce la frecuencia." },
-  validate: false, // Desactiva las validaciones estrictas de express-rate-limit v7
-  keyGenerator: (req) => {
-    // Si el usuario está autenticado, limitar por user ID; sino por IP
-    const fallbackIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-    return req.user?.id || fallbackIp;
-  },
+  keyGenerator: (req) => req.user?.id || req.ip,
 });
 
 module.exports = { webhookLimiter, loginLimiter, apiLimiter };
