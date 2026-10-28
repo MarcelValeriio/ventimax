@@ -127,11 +127,7 @@ const postCategoria = async (req, res) => {
     res.status(201).json({ success: true, data: populated });
   } catch (error) {
     console.error("❌ Error en postCategoria:", error.message);
-    res.status(400).json({
-      success: false,
-      error: "Error creando categoría",
-      details: error.message,
-    });
+    return responderErrorCatalogo(res, error, "Error creando categoría");
   }
 };
 
@@ -200,11 +196,7 @@ const updateCategoria = async (req, res) => {
     res.json({ success: true, data: updatedCat });
   } catch (error) {
     console.error("❌ Error en updateCategoria:", error);
-    res.status(400).json({
-      success: false,
-      error: "Error al actualizar la categoría.",
-      details: error.message,
-    });
+    return responderErrorCatalogo(res, error, "Error al actualizar la categoría.");
   }
 };
 
@@ -252,6 +244,24 @@ const deleteCategoria = async (req, res) => {
 /**
  * Endpoints de Inventario (Fase C)
  */
+/**
+ * Error al crear o editar productos y categorías: el usuario ve qué corregir si es un dato inválido
+ * o repetido; cualquier otro error queda solo en el log (500 genérico, F0-11).
+ */
+function responderErrorCatalogo(res, error, mensajeGenerico) {
+  if (error?.name === "ValidationError") {
+    return res.status(400).json({ success: false, error: `${mensajeGenerico} ${error.message}` });
+  }
+  if (error?.code === 11000) {
+    const campo = Object.keys(error.keyValue || {})[0];
+    return res.status(400).json({
+      success: false,
+      error: `${mensajeGenerico} Ya existe uno con ese ${campo === "slug" ? "nombre" : campo || "valor"}.`,
+    });
+  }
+  return res.status(500).json({ success: false, error: mensajeGenerico });
+}
+
 const getProducts = async (req, res) => {
   try {
     const { categoria, sort } = req.query;
@@ -277,7 +287,6 @@ const getProducts = async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Error obteniendo productos",
-      details: error.message,
     });
   }
 };
@@ -348,11 +357,7 @@ const postProduct = async (req, res) => {
     res.status(201).json({ success: true, data: populated });
   } catch (error) {
     console.error("❌ Error en postProduct:", error);
-    res.status(400).json({
-      success: false,
-      error: "No se pudo crear el producto.",
-      details: error.message,
-    });
+    return responderErrorCatalogo(res, error, "No se pudo crear el producto.");
   }
 };
 
@@ -474,11 +479,7 @@ const updateProduct = async (req, res) => {
     res.json({ success: true, data: updatedProduct });
   } catch (error) {
     console.error("❌ Error en updateProduct:", error);
-    res.status(400).json({
-      success: false,
-      error: "Error al actualizar el producto.",
-      details: error.message,
-    });
+    return responderErrorCatalogo(res, error, "Error al actualizar el producto.");
   }
 };
 
@@ -1116,7 +1117,7 @@ const postInstagramEnviar = async (req, res, io = null) => {
     console.error("❌ Error en postInstagramEnviar:", err);
     res
       .status(500)
-      .json({ success: false, error: err.message || "Error al enviar mensaje por Instagram" });
+      .json({ success: false, error: "Error al enviar mensaje por Instagram" });
   }
 };
 
@@ -1188,7 +1189,7 @@ const postInstagramEnviarImagen = async (req, res, io = null) => {
     console.error("❌ Error en postInstagramEnviarImagen:", err);
     return res.status(500).json({
       success: false,
-      error: err.message || "Error al enviar imagen por Instagram",
+      error: "Error al enviar imagen por Instagram",
     });
   }
 };
@@ -1202,7 +1203,7 @@ const getWhatsAppProfile = async (req, res) => {
     console.error("❌ Error en getWhatsAppProfile:", err);
     return res.status(500).json({
       success: false,
-      error: err.message || "Error consultando perfil de WhatsApp Business",
+      error: "Error consultando perfil de WhatsApp Business",
     });
   }
 };
@@ -1226,7 +1227,7 @@ const postWhatsAppProfile = async (req, res) => {
     console.error("❌ Error en postWhatsAppProfile:", err);
     return res.status(500).json({
       success: false,
-      error: err.message || "Error actualizando perfil de WhatsApp Business",
+      error: "Error actualizando perfil de WhatsApp Business",
     });
   }
 };
@@ -1252,7 +1253,7 @@ const postWhatsAppProfilePicture = async (req, res) => {
     console.error("❌ Error en postWhatsAppProfilePicture:", err);
     return res.status(500).json({
       success: false,
-      error: err.message || "Error actualizando foto de perfil de WhatsApp Business",
+      error: "Error actualizando foto de perfil de WhatsApp Business",
     });
   }
 };
@@ -1644,7 +1645,6 @@ const getMedia = async (req, res) => {
     res.status(status).json({
       success: false,
       error: message,
-      details: err.response?.data || err.message,
     });
   }
 };
@@ -1958,7 +1958,7 @@ const confirmarPago = async (req, res, io, modosOperacion) => {
     console.error("❌ Error en confirmarPago:", err.message);
     res
       .status(500)
-      .json({ error: "Error procesando pago", details: err.message });
+      .json({ error: "Error procesando pago" });
   }
 };
 
@@ -3193,10 +3193,10 @@ const postUser = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("❌ Error en postUser:", error);
     res.status(500).json({
       success: false,
       error: "Error creando usuario",
-      details: error.message,
     });
   }
 };
@@ -3749,7 +3749,6 @@ const postManualSale = async (req, res, io) => {
     res.status(500).json({
       success: false,
       error: "Error interno al procesar la venta manual",
-      details: error.message,
     });
   }
 };
@@ -4007,7 +4006,6 @@ const postPushSubscribe = async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Error guardando suscripción push",
-      details: error.message,
     });
   }
 };
@@ -4032,7 +4030,6 @@ const postPushUnsubscribe = async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Error eliminando suscripción push",
-      details: error.message,
     });
   }
 };
@@ -4069,7 +4066,6 @@ const postPushTest = async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Error enviando notificación de prueba",
-      details: error.message,
     });
   }
 };
@@ -4193,7 +4189,6 @@ const getTopProducts = async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Error consultando top productos",
-      details: error.message,
     });
   }
 };
@@ -4256,15 +4251,10 @@ const getCustomerCRM = async (req, res) => {
     for (const p of pedidos) {
       let montoUSD = Number(p.pago?.montoUSD);
       if (isNaN(montoUSD) || montoUSD <= 0) {
-        if (Array.isArray(p.items) && p.items.length > 0) {
-          montoUSD = p.items.reduce(
-            (sum, item) =>
-              sum + (Number(item.price) || 0) * (Number(item.cantidad) || 0),
-            0
-          );
-        } else {
-          montoUSD = 0;
-        }
+        montoUSD = orderService.calcularTotalCarrito({
+          items: p.items || [],
+          envio: p.envio,
+        });
       }
       ltvUSD += montoUSD;
 
@@ -4306,7 +4296,6 @@ const getCustomerCRM = async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Error consultando datos CRM del cliente",
-      details: error.message,
     });
   }
 };

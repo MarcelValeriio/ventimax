@@ -173,7 +173,10 @@ export async function getCatalogo(req: any, res: any) {
     return res.status(200).json({
       tasa,
       fechaTasa,
-      categorias: categoriasResponse,
+      // Solo categorías con algún producto: una vacía (p. ej. "General" de la siembra) sería un botón sin nada
+      categorias: categoriasResponse.filter((c: any) =>
+        productosResponse.some((p: any) => p.categorias.includes(c.slug)),
+      ),
       productos: productosResponse,
     });
   } catch (error: any) {

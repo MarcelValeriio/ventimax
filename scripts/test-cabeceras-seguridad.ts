@@ -330,6 +330,135 @@ async function main() {
     dbLocal.read = originalRead;
   });
 
+  // --------------------------------------------------------------------------
+  // TEST 5: Errores de base de datos en métodos de pago y envío (M-2)
+  // --------------------------------------------------------------------------
+  console.log("\n▶ Bloque 5: Errores de base de datos en métodos de pago y envío...");
+
+  const mongoose = require("mongoose");
+  const MetodoPago = require("../models/MetodoPago");
+  const paymentController = require("../controllers/paymentController");
+  const shippingController = require("../controllers/shippingController");
+  const idValido = new mongoose.Types.ObjectId().toString();
+
+  const errorGenerico = () => new Error("conexión perdida con 10.0.0.5:27017");
+  const errorValidacion = (mensaje: string) => {
+    const e: any = new Error(mensaje);
+    e.name = "ValidationError";
+    return e;
+  };
+
+  await prueba("Crear método de envío con fallo de base responde 500 sin el detalle interno", async () => {
+    const originalRead = dbLocal.read;
+    dbLocal.read = () => {
+      throw errorGenerico();
+    };
+    try {
+      const req = { body: { nombre: "Envío prueba M-2", tipo: "envio_nacional", costoTipo: "a_convenir" } };
+      const res = mockRes();
+      await shippingController.createShippingMethod(req, res);
+      assert.strictEqual(res.statusCode, 500);
+      assert.strictEqual(res.cuerpo.error, "Error al guardar el método de envío");
+      assert.ok(!JSON.stringify(res.cuerpo).includes("conexión perdida"), "El detalle interno no debe salir al navegador");
+    } finally {
+      dbLocal.read = originalRead;
+    }
+  });
+
+  await prueba("Actualizar método de pago con fallo de base responde 500 sin el detalle interno", async () => {
+    const originalFindById = MetodoPago.findById;
+    MetodoPago.findById = () => {
+      throw errorGenerico();
+    };
+    try {
+      const req = { params: { id: idValido }, body: { nombre: "Pago M-2" } };
+      const res = mockRes();
+      await paymentController.updatePayment(req, res);
+      assert.strictEqual(res.statusCode, 500);
+      assert.strictEqual(res.cuerpo.error, "Error al actualizar el método de pago");
+      assert.ok(!JSON.stringify(res.cuerpo).includes("conexión perdida"), "El detalle interno no debe salir al navegador");
+    } finally {
+      MetodoPago.findById = originalFindById;
+    }
+  });
+
+  await prueba("ValidationError al crear método de envío sigue respondiendo 400 con su motivo", async () => {
+    const originalRead = dbLocal.read;
+    dbLocal.read = () => {
+      throw errorValidacion("Validación fallida: costo fuera de rango");
+    };
+    try {
+      const req = { body: { nombre: "Envío validación M-2", tipo: "envio_nacional", costoTipo: "a_convenir" } };
+      const res = mockRes();
+      await shippingController.createShippingMethod(req, res);
+      assert.strictEqual(res.statusCode, 400);
+      assert.ok(String(res.cuerpo.error).includes("costo fuera de rango"));
+    } finally {
+      dbLocal.read = originalRead;
+    }
+  });
+
+  await prueba("ValidationError al actualizar método de pago sigue respondiendo 400 con su motivo", async () => {
+    const originalFindById = MetodoPago.findById;
+    const originalUpdate = MetodoPago.findByIdAndUpdate;
+    MetodoPago.findById = () => Promise.resolve({ nombre: "Anterior" });
+    MetodoPago.findByIdAndUpdate = () => {
+      throw errorValidacion("Validación fallida: tipo inválido");
+    };
+    try {
+      const req = { params: { id: idValido }, body: { tipo: "inventado" } };
+      const res = mockRes();
+      await paymentController.updatePayment(req, res);
+      assert.strictEqual(res.statusCode, 400);
+      assert.ok(String(res.cuerpo.error).includes("tipo inválido"));
+    } finally {
+      MetodoPago.findById = originalFindById;
+      MetodoPago.findByIdAndUpdate = originalUpdate;
+    }
+  });
+
+  await prueba("Método de pago con id mal formado responde 404 sin consultar la base", async () => {
+    const originalFindById = MetodoPago.findById;
+    const originalDelete = MetodoPago.findByIdAndDelete;
+    let consultas = 0;
+    MetodoPago.findById = () => {
+      consultas++;
+      return Promise.resolve(null);
+    };
+    MetodoPago.findByIdAndDelete = () => {
+      consultas++;
+      return Promise.resolve(null);
+    };
+    try {
+      const resUpdate = mockRes();
+      await paymentController.updatePayment({ params: { id: "no-es-un-id" }, body: {} }, resUpdate);
+      assert.strictEqual(resUpdate.statusCode, 404);
+      const resDelete = mockRes();
+      await paymentController.deletePayment({ params: { id: "no-es-un-id" } }, resDelete);
+      assert.strictEqual(resDelete.statusCode, 404);
+      assert.strictEqual(consultas, 0, "El id mal formado no debe llegar a la consulta");
+    } finally {
+      MetodoPago.findById = originalFindById;
+      MetodoPago.findByIdAndDelete = originalDelete;
+    }
+  });
+
+  await prueba("Actualizar método de pago inexistente responde 404 (sin error de referencia)", async () => {
+    const originalFindById = MetodoPago.findById;
+    const originalUpdate = MetodoPago.findByIdAndUpdate;
+    MetodoPago.findById = () => Promise.resolve(null);
+    MetodoPago.findByIdAndUpdate = () => Promise.resolve(null);
+    try {
+      const res = mockRes();
+      await paymentController.updatePayment({ params: { id: idValido }, body: {} }, res);
+      assert.strictEqual(res.statusCode, 404);
+      assert.strictEqual(res.cuerpo.error, "Método de pago no encontrado");
+    } finally {
+      MetodoPago.findById = originalFindById;
+      MetodoPago.findByIdAndUpdate = originalUpdate;
+    }
+  });
+
   console.log(`\n🎉 TODAS LAS PRUEBAS DE SEGURIDAD (F0-11) SUPERADAS (${ok} pruebas).`);
 }
 

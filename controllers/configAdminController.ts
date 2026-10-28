@@ -101,7 +101,7 @@ export const updateConfigAdmin = async (req: Request, res: Response) => {
     console.error("❌ Error actualizando configuración administrativa:", error);
     res.status(500).json({
       success: false,
-      error: error.message || "Error al actualizar la configuración"
+      error: "Error al actualizar la configuración"
     });
   }
 };
@@ -208,7 +208,7 @@ export const updateHorarioConfig = async (req: Request, res: Response) => {
     console.error("❌ Error actualizando horario de atención:", error);
     res.status(500).json({
       success: false,
-      error: error.message || "Error al actualizar horario de atención",
+      error: "Error al actualizar horario de atención",
     });
   }
 };
@@ -265,7 +265,7 @@ export const updateFlujoNoLaborableConfig = async (req: Request, res: Response) 
     console.error("❌ Error actualizando flujo no laborable:", error);
     res.status(500).json({
       success: false,
-      error: error.message || "Error al actualizar configuración de flujo no laborable",
+      error: "Error al actualizar configuración de flujo no laborable",
     });
   }
 };

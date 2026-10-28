@@ -8,6 +8,23 @@ const { registrarAuditoria } = require("../services/auditService");
 const TIPOS_VALIDOS = ["delivery_local", "envio_nacional", "retiro", "otro"];
 const COSTO_TIPOS_VALIDOS = ["fijo", "a_convenir"];
 
+/**
+ * Responde un error de base de datos o inesperado sin filtrar su detalle al navegador.
+ * - ValidationError: 400 con el motivo (es un dato que el usuario debe corregir).
+ * - CastError (id mal formado): 400 con un mensaje genérico.
+ * - Cualquier otro: se registra en el log y responde 500 genérico.
+ */
+const responderErrorEnvio = (res: any, error: any, mensajeGenerico: string, contexto: string) => {
+  if (error?.name === "ValidationError") {
+    return res.status(400).json({ success: false, error: error.message });
+  }
+  if (error?.name === "CastError") {
+    return res.status(400).json({ success: false, error: "Identificador inválido" });
+  }
+  console.error(`❌ Error en ${contexto}:`, error);
+  return res.status(500).json({ success: false, error: mensajeGenerico });
+};
+
 const getShippingMethods = async (req: any, res: any) => {
   try {
     const query: any = {};
@@ -98,7 +115,7 @@ const createShippingMethod = async (req: any, res: any) => {
 
     res.status(201).json({ success: true, data: shipping });
   } catch (error: any) {
-    res.status(400).json({ success: false, error: error.message });
+    return responderErrorEnvio(res, error, "Error al guardar el método de envío", "createShippingMethod");
   }
 };
 
@@ -181,6 +198,9 @@ const updateShippingMethod = async (req: any, res: any) => {
     const shipping = await MetodoEnvio.findByIdAndUpdate(id, updateData, {
       returnDocument: "after",
     });
+    if (!shipping) {
+      return res.status(404).json({ success: false, error: "Método de envío no encontrado" });
+    }
 
     await registrarAuditoria(req, {
       recursoId: shipping._id,
@@ -193,7 +213,7 @@ const updateShippingMethod = async (req: any, res: any) => {
 
     res.json({ success: true, data: shipping });
   } catch (error: any) {
-    res.status(400).json({ success: false, error: error.message });
+    return responderErrorEnvio(res, error, "Error al actualizar el método de envío", "updateShippingMethod");
   }
 };
 
@@ -215,7 +235,7 @@ const deleteShippingMethod = async (req: any, res: any) => {
 
     res.json({ success: true });
   } catch (error: any) {
-    res.status(400).json({ success: false, error: error.message });
+    return responderErrorEnvio(res, error, "Error al eliminar el método de envío", "deleteShippingMethod");
   }
 };
 

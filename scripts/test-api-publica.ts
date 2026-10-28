@@ -206,6 +206,13 @@ async function main() {
         assert.deepStrictEqual(keys, ["nombre", "slug"], `Campos inesperados en categoría: ${keys.join(", ")}`);
         assert.notStrictEqual(cat.slug, "inactiva", "Categoría inactiva no debe aparecer");
       }
+      // Toda categoría publicada tiene al menos un producto (una vacía sería un botón sin nada)
+      for (const cat of json.categorias) {
+        assert.ok(
+          json.productos.some((p: any) => p.categorias.includes(cat.slug)),
+          `La categoría '${cat.slug}' aparece sin productos`,
+        );
+      }
 
       // Productos: lista blanca estricta
       const whitelistKeys = [

@@ -2332,13 +2332,20 @@ Pedido por el dueño el 2026-10-29, con una conversación real del Instagram de 
 - **Verificación:** `test-cortesia-social.ts` 9/9, `simulate-ig-webhook.js` 37/0, `simulate-messenger-webhook.js` 54/0, `test-instagram-quick-replies.js` 32/0, `chatFlowService.ts` sin cambios de M-3. `./scripts/ci.sh` en verde salvo `test-pedido-web-bot.ts` prueba 13, que falla por el trabajo **en curso** de F2-4 (ver nota en F2-4).
 - **De paso:** `middlewares/rateLimiter.js` usa `ipKeyGenerator(req.ip)` en el `apiLimiter`. El registro del primer despliegue en Render mostraba `ERR_ERL_KEY_GEN_IPV6`: sin ese ayudante, un cliente IPv6 podía cambiar de dirección y saltar el límite.
 
-### M-2 · Restos menores — Backend · `Pendiente`
+### M-2 · Restos menores — Backend · `Aprobada`
 
 1. **Errores internos al navegador que quedaron:** los `catch` generales de `paymentController.ts` (3) y `shippingController.ts` (3) responden **400 con `error.message`** para cualquier error, también los de la base. Separar: errores de validación → 400 con su motivo; el resto → 500 genérico. También `adminController.ts` (`postInstagramEnviar`: `err.message`; `confirmarPago`: `details: err.message`) y revisar `configAdminController.ts`.
 2. **LTV** (`adminController.ts`, ~línea 4224): el respaldo para pedidos viejos sin `pago.montoUSD` suma los productos a mano; usar `calcularTotalCarrito({ items, envio })`.
 3. Opcional: los `findById(req.params.id)` con un id mal formado dan 500 en vez de 404. Una guarda `ObjectId.isValid` → 404 en los endpoints de pedidos y métodos de pago/envío.
 
 **Cierre:** casos en una suite existente (o en `test-cabeceras-seguridad.ts`) para el punto 1; `./scripts/ci.sh` en verde.
+
+#### Entrega (subagente Haiku 5.5) y revisión de Claude (2026-10-29) — `Aprobada`
+- **Subagente:** `paymentController.ts` y `shippingController.ts` con un ayudante que separa ValidationError/CastError (400) del resto (500 genérico con el detalle en el log); id mal formado → 404 en pagos; 404 si el método no existe al editar. `adminController.ts`: 500 sin detalle en 15 respuestas (Instagram, perfil de WhatsApp, ventas, push, CRM…) y LTV con `calcularTotalCarrito`. `configAdminController.ts`: 3 respuestas 500 sin `error.message`. `test-cabeceras-seguridad.ts`: 6 casos nuevos (17/17).
+- **Punto 3 omitido con razón en envíos:** `test-envios.ts` usa ids del mock que no son ObjectId; ahí un id mal formado da 400 "Identificador inválido" por CastError.
+- **Ajuste de Claude:** las 4 respuestas de productos y categorías que seguían devolviendo `details: error.message` (el panel nunca lo muestra) pasan por `responderErrorCatalogo`: dato inválido o repetido → 400 con un mensaje claro ("Ya existe uno con ese nombre"); el resto → 500 genérico. `grep` sin `details: err(or).message` en `controllers/`.
+- **Mejora futura (no bloquea):** con los 500 genéricos, el asesor ya no ve el motivo que da Meta cuando falla un envío de Instagram (p. ej. fuera de la ventana de 24 h). Conviene traducir esos códigos de Meta a mensajes claros en vez de mostrar el texto crudo.
+- `./scripts/ci.sh` en verde: build, 31 suites e imports.
 
 ---
 
@@ -2347,6 +2354,8 @@ Pedido por el dueño el 2026-10-29, con una conversación real del Instagram de 
 _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde debajo.)_
 
 ## Pendientes del dueño
+
+- **Render → Blueprints → ventimax → Manual Sync** para crear la tienda (`ventimax-tienda`) y aplicar `CATALOGO_ORIGEN` en el servidor; el push no lo hizo solo (2026-10-29).
 
 - **Limpiar el historial de GitHub** de los datos de clientes de Mr. Pachi (comandos dados por Claude el 2026-10-28). Hacerlo cuando el working tree esté limpio, después del commit de F0-9.
 
@@ -2366,6 +2375,8 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-10-29 | 04:20 | Comprobado en producción tras el push de F2-4/M-3: servidor sin errores (push activo, sin el aviso IPv6, catálogo inicializado), `/api/public/catalogo` con 6 productos y precio en Bs, `/privacidad` 200, `/health` ok. La tienda **no se creó**: el Blueprint no sincronizó solo (pendiente del dueño: Blueprints → ventimax → Manual Sync). Arreglo: el catálogo público ya no publica categorías vacías ("General" de la siembra) + prueba — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-29 | 04:00 | M-2 hecha por el subagente Haiku 5.5 y revisada por Claude (aprobada, con un ajuste en productos y categorías). Primera tarea con el equipo nuevo — Ejecutado por **Claude** + subagente | Claude (Cerebro) | Completado |
 | 2026-10-29 | 03:30 | Revisión F2-4 (aprobada): **Fase 2 cerrada**. Cambio de equipo: Antigravity sin tokens; desde ahora Claude con un subagente Haiku 5.5 para la ejecución — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | — | F2-4: panel del catálogo web (configuración con caché, insignias en Inbox/Kanban/Ventas, contadores anónimos de abuso, métrica de pedidos web); suite `test-catalogo-panel.ts` — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
 | 2026-10-29 | 03:30 | F2-4: El panel muestra y configura el catálogo web (Setting key 'catalogo', catalogoConfigService, catalogoAbusoService, ContadorCatalogo, badge en Inbox, badge y comanda en Kanban, KPIs en Ventas, sección Catálogo web en Configuración, suite test-catalogo-panel.ts) — Ejecutado por **Antigravity** | Antigravity (TPM) | Lista para revisión |
