@@ -119,6 +119,7 @@ Firmas en el historial: `— Ejecutado por **Antigravity**`, `— Ejecutado por 
 | F2 | Catálogo web público con carrito y pedido a WhatsApp con código no adivinable. **Diseño: `docs/f2-catalogo-web.md`.** Requisitos de seguridad obligatorios: `docs/auditoria-seguridad-2026-10.md` (sección F2) | Diseñada (espera cierre de F0) |
 | F3 | Búsqueda con IA sobre la BD (texto y notas de voz), registro de búsquedas sin resultado, pase a asesor | Pendiente |
 | F4 | Formularios nativos (WhatsApp Flows), lectura de fotos de piezas, equivalencias entre marcas | Pendiente |
+| F5 | **Canal TikTok** (Business Messaging API): mensajes directos de la cuenta de empresa en el Inbox, como cuarto canal con el mismo esquema que Instagram (preguntas frecuentes por el bot; para comprar, enlace a WhatsApp). Beta abierta en Latinoamérica; requiere cuenta TikTok Business y app aprobada (revisión de seguridad y privacidad de TikTok). Investigación previa (2026-10-28, subagente): la documentación oficial de TikTok no se pudo leer sin navegador, así que lo técnico (endpoints, JSON del webhook, firma) está **sin verificar**. Según integradores: ventana de 48 h desde el último mensaje del cliente, unos 10 mensajes por ventana, solo texto e imagen (sin botones confirmados), tokens de ~24 h que se renuevan, y Latinoamérica disponible (Venezuela sin confirmar). Antes del diseño hay que leer la documentación oficial con sesión iniciada. Se diseña después de F0, junto a F2 | Pendiente (requisitos del dueño) |
 | — | Costo de envío por kilómetro | Pendiente (después de F0) |
 
 ---
@@ -1116,7 +1117,7 @@ En una base vacía hoy no hay forma segura de crear el primer administrador: `sc
 - **Verificación:** build OK; 12 suites en verde (30/0 · 364/0 · 37/0 · 54/0 · 6/6 · 7/7 · mensajes · 6/6 · 7/7 · 16/16 · validadores · configStore); esbuild `--bundle` OK en `KanbanBoard.js` y `useInboxSocket.js`. En servidor local real: `/health` → `{"status":"ok"}`; cookie `Max-Age=2592000`; sesión sin caducidad → 401; verificación de webhook sin token → 403; POST de webhook sin firma → rechazado; base vacía con `ADMIN_USER`/`ADMIN_PASS` → administrador creado con clave cifrada y login correcto; `NODE_ENV=production` con `JWT_SECRET` corto → el proceso termina.
 - **Efecto para el dueño:** las sesiones abiertas antes de este cambio dejan de valer; hay que volver a iniciar sesión una vez.
 
-### F0-9 · Imágenes de producto — Backend + Frontend · `Pendiente` (después de F0-5)
+### F0-9 · Imágenes de producto — Backend + Frontend · `Aprobada`
 
 Pedido por el dueño el 2026-10-27. Hoy `Producto` no tiene imagen. Hace falta para el bot y para el catálogo web (F2).
 
@@ -1136,14 +1137,103 @@ Pedido por el dueño el 2026-10-27. Hoy `Producto` no tiene imagen. Hace falta p
    - En el formulario del producto: miniaturas, botón "Subir foto", borrar con confirmación, "Marcar como principal", contador "N/5". Mostrar el error del servidor tal cual (formato, tamaño, límite, Cloudinary no configurado).
    - Miniatura de la foto principal en la lista de productos; si no tiene, el emoji actual.
    - Las fotos se gestionan en un producto ya guardado: en un producto nuevo, aviso "Guarda el producto para añadir fotos".
-5. **Bot de WhatsApp** (`services/chatFlowService.ts`, en los dos puntos donde se pasa a `esperando_cantidad`, hoy ~líneas 1152 y 1195): si el producto tiene foto y `settings.features.sendProductImage` no es `false`, enviar antes de la pregunta de cantidad `enviarImagenPorUrl(from, imagenes[0].url, "<nombre> — $<precio>\n<descripción>")` y guardarla en el historial como los demás mensajes. Si el envío falla, log `⚠️` y el flujo sigue igual. Añadir `"sendProductImage": true` en `features` de **ambas** marcas.
+5. **Bot de WhatsApp** (`services/chatFlowService.ts`, en los dos puntos donde se pasa a `esperando_cantidad`, hoy ~líneas 1316 y 1358; ubicarlos con `grep -n 'paso: "esperando_cantidad"'`): si el producto tiene foto y `settings.features.sendProductImage` no es `false`, enviar antes de la pregunta de cantidad `enviarImagenPorUrl(from, imagenes[0].url, "<nombre> — $<precio>\n<descripción>")` y guardarla en el historial como los demás mensajes. Si el envío falla, log `⚠️` y el flujo sigue igual. Añadir `"sendProductImage": true` en `features` de **ambas** marcas.
 6. **Instagram y Messenger:** `services/instagram.ts` y `services/messenger.ts` ya envían imágenes por URL. Revisar si `instagramFlowService.ts` tiene un paso equivalente de elección de producto; si lo tiene, escribirlo en **Dudas para Claude** antes de tocarlo.
 7. **`products.json`:** aceptar `imagenes` opcional (array de URLs) en la siembra (`services/dbSeed.ts`), con `publicId: ""`. Las marcas actuales no lo usan.
 8. **Reglas:** no tocar `features/whatsapp/**` ni `features/instagram/**`. Ninguna foto ni cuenta de Cloudinary se crea en esta tarea.
 
-**Cierre:** suite nueva `scripts/test-imagenes-producto.ts` (subir 1 y hasta 5, la sexta rechazada, formato no permitido rechazado, borrar, marcar principal, permiso `product:edit` exigido, y el bot envía la foto antes de la cantidad solo si existe y la opción está activa). Las 9 suites de regresión en verde y esbuild `--bundle` en los dos archivos del panel. En el entorno local, el panel muestra el aviso de Cloudinary no configurado sin romperse.
+**Cierre:** suite nueva `scripts/test-imagenes-producto.ts` (subir 1 y hasta 5, la sexta rechazada, formato no permitido rechazado, borrar, marcar principal, permiso `product:edit` exigido, y el bot envía la foto antes de la cantidad solo si existe y la opción está activa). Añadir la suite a `SUITES` de `scripts/ci.sh` y entregar con `./scripts/ci.sh` en verde. En el entorno local, el panel muestra el aviso de Cloudinary no configurado sin romperse.
 
-### F0-11 · Endurecer cabeceras y errores — Backend + Frontend · `Pendiente` (después de F0-8 y F0-9)
+#### Entrega y verificación (Antigravity)
+- **Archivos tocados:**
+  - `models/Producto.ts`: campo `imagenes` con array de objetos `{ url, publicId }`, por defecto `[]`, validador de máximo 5 imágenes.
+  - `types/models.d.ts`: tipo `imagenes` en `IProducto`.
+  - `services/dbLocal.ts` & `services/dbMock.ts`: mocks actualizados con soporte de `imagenes: []`, métodos `findById` con `.save()` para persistir modificaciones de imágenes.
+  - `services/cloudinaryService.ts`: `subirImagenProducto` (carpeta `<BRAND_NAME>/productos`, mock en test, error claro "Cloudinary no está configurado" en local sin credenciales) y `borrarImagen(publicId)`. Función `uploadFromBuffer` preservada intacta.
+  - `controllers/adminController.ts`: `postProductImage` (valida límite de 5, audita `subir_imagen_producto`), `deleteProductImage` (elimina de producto y Cloudinary, resiliente con log `⚠️`, audita `eliminar_imagen_producto`), `setPrimaryProductImage` (mueve índice a la posición 0, audita `marcar_imagen_principal_producto`), y `getProducts` exponiendo `imagenes`.
+  - `routes/adminRoutes.ts`: middleware multer dedicado `uploadProductoImagen` (JPG, PNG, WebP, max 5MB) y las 3 rutas protegidas con `authorize(["product:edit"])`.
+  - `services/dbSeed.ts`: soporte para sembrar catálogo con `imagenes` opcionales mapeadas a `{ url, publicId: "" }`, usando mocks en entorno test.
+  - `services/chatFlowService.ts`: en las dos transiciones a `esperando_cantidad` (~1325 y ~1395), si `settings.features.sendProductImage` no es `false` y el producto tiene foto, envía la imagen por `whatsapp.enviarImagenPorUrl` con caption `${name} — $${price}\n${desc}`, registra en historial y captura fallos con log `⚠️` para no interrumpir el flujo.
+  - `config/brand/default/settings.json` & `config/brand/ventimax/settings.json`: agregado `"sendProductImage": true` en `features`.
+  - `public/src/features/inventory/components/ProductTab.js`: gestión de imágenes en el modal de producto (miniaturas, contador N/5, subir con feedback de error real del servidor, marcar como principal, eliminar con confirmación y aviso para productos nuevos).
+  - `public/src/features/dashboard/ProductTable.js`: visualización de miniatura de foto principal en tabla/tarjetas y fallback al emoji de categoría.
+  - `scripts/test-imagenes-producto.ts`: suite nueva con 9 casos de prueba exhaustivos.
+  - `scripts/ci.sh`: añadida `test-imagenes-producto.ts` a `SUITES`.
+- **Canal Instagram/Messenger:**
+  - Se verificó `services/instagramFlowService.ts`: el flujo actual redirige con enlace a WhatsApp para la selección de catálogo y pedidos. No existe paso de elección de producto en Instagram, por lo que no requirió modificaciones ni afectación de reglas.
+- **Evidencia de verificación:**
+  ```text
+  $ NODE_ENV=test npx tsx scripts/test-imagenes-producto.ts
+  [ConfigManager] Configuración cargada para: ventimax
+  ✅ Validación de esquema exitosa.
+  ================================================================================
+  🖼️  SUITE DE PRUEBAS: IMÁGENES DE PRODUCTO (F0-9)
+  ================================================================================
+  ▶ Test 1: Verificación de permisos y autorización granular...
+    ✅ Permiso product:edit correctamente asignado en la matriz de roles
+  ▶ Test 2: Validación de entrada en postProductImage...
+    ✅ Validaciones iniciales superadas (sin archivo y producto 404)
+  ▶ Test 3: Subida de imágenes (hasta 5) y rechazo de la 6ta...
+    ✅ Límite estricto de 5 imágenes y auditoría verificados con éxito
+  ▶ Test 4: Comportamiento cuando Cloudinary no está configurado...
+    ✅ Error 'Cloudinary no está configurado' manejado limpiamente
+  ▶ Test 5: Marcar imagen como principal...
+    ✅ Cambio de imagen principal verificado exitosamente
+  ▶ Test 6: Eliminación de imagen y resiliencia ante fallos de Cloudinary...
+    ✅ Eliminación de imagen y resiliencia verificadas exitosamente
+  ▶ Test 7: GET /api/admin/products expone el campo imagenes...
+    ✅ GET /api/admin/products incluye correctamente el array de imágenes
+  ▶ Test 8: Siembra de products.json con soporte de imagenes opcionales...
+    ✅ Siembra con imagenes opcionales validada exitosamente
+  ▶ Test 9: Bot de WhatsApp envía foto de producto antes de pedir cantidad...
+    ✅ Envío condicional de imagen por WhatsApp y resiliencia validados
+  ================================================================================
+  🎉 TODOS LOS CASOS DE PRUEBA DE IMÁGENES DE PRODUCTO PASARON EXITOSAMENTE (9/9)
+  ================================================================================
+
+  $ ./scripts/ci.sh
+  ▶ Build
+  ▶ test-config-validators.ts
+  ▶ test-config-store.ts
+  ▶ test-whatsapp-edge-cases.js
+  ▶ test-inbox-service.js
+  ▶ simulate-ig-webhook.js
+  ▶ simulate-messenger-webhook.js
+  ▶ test-dynamic-menu.ts
+  ▶ test-multicategoria.ts
+  ▶ test-mensajes-marca.ts
+  ▶ test-privacidad.ts
+  ▶ test-horario.ts
+  ▶ test-seguridad.ts
+  ▶ test-flujo-no-laborable.ts
+  ▶ test-envios.ts
+  ▶ test-retiro.ts
+  ▶ test-datos-negocio.ts
+  ▶ test-imagenes-producto.ts
+  ▶ test-e2e-saas.js
+  ▶ test-full-flow.js
+  ▶ test-cash-logic.js
+  ▶ test-mixed-payment.js
+  ▶ test-sales-summary.js
+  ▶ test-instagram-quick-replies.js
+  ▶ test-web-push-fullstack.js
+  ▶ Imports del panel (esbuild --bundle)
+  ✅ Build, 24 suites e imports del panel en verde.
+  ```
+- **Desviaciones:** Ninguna. Listo para revisión de Claude.
+
+#### Revisión de Claude (2026-10-28) — `Aprobada` (con ajustes hechos por Claude)
+Verificado por Claude con `./scripts/ci.sh`: build, 24 suites (`test-imagenes-producto.ts` 9/9) y los imports del panel en verde, antes y después de los ajustes. Bien resuelto: modelo con máximo 5, `uploadFromBuffer` intacta, multer propio de 5 MB solo para JPG/PNG/WebP, los 3 endpoints con `product:edit` y auditoría, borrado resiliente si Cloudinary falla, gestión de fotos en los dos formularios del panel con miniatura en la lista y siembra con `imagenes` opcionales. Instagram/Messenger revisados: no tienen paso de elección de producto.
+
+**Ajustes hechos por Claude** (pequeños; se corrigieron directamente para no frenar el cierre de F0):
+1. **El bot guardaba como enviada una foto que no salió.** `enviarImagenPorUrl` no lanza error al fallar: devuelve `false`. El `try/catch` no lo detectaba, así que el historial mostraba una foto que el cliente nunca recibió y no quedaba el `⚠️`. Ahora se comprueba el resultado. Además, el bloque repetido en los dos puntos de `esperando_cantidad` pasó a un solo método, `enviarFotoProducto`, con el precio formateado con `formatUsd`.
+2. **Marca escrita en el código:** `cloudinaryService` usaba `"ventimax"` como respaldo de `BRAND_NAME` (regla 5). Ahora usa `"default"`.
+3. **Interruptor de prueba activo en producción:** `FORZAR_CLOUDINARY_DESCONFIGURADO` ahora solo se respeta con `NODE_ENV=test`.
+4. **Errores `500` con detalle interno** en los 3 endpoints nuevos: ahora devuelven un mensaje genérico (misma regla que en F0-12).
+
+Menor, no se cambia: si dos fotos se suben a la vez con 4 ya cargadas, una falla por el validador del modelo y su archivo queda en Cloudinary sin usar. Es poco probable con un solo administrador.
+
+### F0-11 · Endurecer cabeceras y errores — Backend + Frontend · `En curso` (después de F0-8 y F0-9)
 
 Hallazgos S-09 a S-11 de `docs/auditoria-seguridad-2026-10.md`.
 
@@ -1410,7 +1500,7 @@ Encontrado por Claude el 2026-10-28 al revisar los totales. Viene de Mr. Pachi (
 #### Revisión de Claude (2026-10-28) — `Aprobada`
 Verificado por Claude: `./scripts/ci.sh` en verde y `grep -rn "random\|aleatori" public/src` sin resultados. Se quitó la asignación al azar. El método sale del objeto poblado (el listado de pedidos ya hace `populate("pago.metodo")`) o, si llega como ID, del mapa de `/api/admin/payments`. Sin método se muestra "Sin método" (o "Pendiente" si falta el pago), y 💵 aparece solo con efectivo de verdad.
 - Nota: el rol `repartidor` no tiene `payment_method:view`, así que para él el mapa queda vacío. No afecta, porque los pedidos ya llegan poblados; si alguno trae un ID suelto, verá "Sin método", nunca un dato inventado.
-- Queda pendiente la comprobación a ojo con `demo-local.ts`. La hará Claude junto con la re-entrega de F0-12, que toca la misma pantalla.
+- Comprobado en el entorno local (2026-10-28) con `demo-local.ts`: el listado del Kanban (`/api/admin/pedidos-historial`) entrega el método real de cada pedido ("Pago Móvil (demo)", "Efectivo (demo)") y ya no hay ninguna rama que invente uno. Los datos de demostración no incluyen pedidos sin método o con un ID suelto: esos dos casos quedan cubiertos por la lectura del código, no vistos en pantalla.
 
 ### F0-14 · Datos del negocio editables desde el panel — **Claude** · `Completada`
 
@@ -1429,7 +1519,7 @@ Pedido por el dueño el 2026-10-28: la razón social, el RIF y el contacto de la
   3. Ejemplos de Mr. Pachi en los campos de días no laborables del panel ("Kelly Bakery", "Club Social Chino", "Delivery Gratis") cambiados por textos genéricos.
 - **Sin cambiar a propósito:** `pushService` sigue leyendo el correo de la marca al arrancar (solo se usa si falta `VAPID_EMAIL`), y el perfil de WhatsApp de `whatsapp.ts` es un mock de pruebas.
 - **Verificación:** `./scripts/ci.sh` en verde (build, 23 suites, imports del panel); `test-datos-negocio.ts` 9/9; `test-privacidad.ts` 6/6.
-- **Pendiente a ojo:** probar el bloque en el entorno local (junto con F0-13).
+- **Comprobado en el entorno local (2026-10-28):** el servidor arranca cargando datos del negocio y días no laborables; `PUT` inválido → 400 con el motivo del RIF; `PUT` válido normaliza RIF, web y WhatsApp; `/privacidad` muestra razón social, RIF, contacto y "28 de octubre de 2026"; tras reiniciar el servidor los datos siguen. De paso, F0-12 de punta a punta: retiro creado con el cuerpo del panel, costo acordado de $8 → total $58 con la tasa del día y `aConvenir: false`, cambio a retiro → $50, pedido entregado → 400. Todo lo creado para la prueba se borró y la demostración se recargó.
 
 ### F0-6 · Documentación — Claude · `En curso`
 
@@ -1529,6 +1619,8 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 ## Pendientes del dueño
 
+- **Limpiar el historial de GitHub** de los datos de clientes de Mr. Pachi (comandos dados por Claude el 2026-10-28). Hacerlo cuando el working tree esté limpio, después del commit de F0-9.
+
 - Número de WhatsApp de VentiMax, correo, web e Instagram.
 - Logo propio de VentiMax para el panel (el de Fortunne queda solo para el catálogo).
 - Datos reales de las cuentas de pago: se cargan desde el panel, nunca en el repo.
@@ -1537,6 +1629,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 - **Render:** `BRAND_NAME=ventimax`. **Meta:** app y número nuevos. **Atlas:** base de datos nueva para VentiMax.
 - ¿Se borra `config/brand/default.json`?
 - Dominio propio para el catálogo web y el panel (F2): **pendiente por decisión del dueño** (2026-10-27).
+- **TikTok (F5):** pasar la cuenta de VentiMax a cuenta de empresa (TikTok Business) y registrarse como desarrollador en el portal de TikTok for Business pidiendo acceso a la Business Messaging API. La revisión de TikTok puede tardar; conviene empezarla ya.
 
 ---
 
@@ -1544,6 +1637,12 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-10-28 | 18:00 | Revisión F0-9 (aprobada con 4 ajustes hechos por Claude: foto no enviada guardada como enviada, marca `"ventimax"` como respaldo en Cloudinary, interruptor de prueba activo en producción, errores 500 con detalle). Investigación de la API de TikTok anotada en F5 — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-28 | — | F0-9: imágenes de producto (modelo, Cloudinary, 3 endpoints, panel, foto antes de la cantidad, suite `test-imagenes-producto.ts`) — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
+| 2026-10-28 | 17:30 | F0-9: imágenes de producto (modelo hasta 5, Cloudinary con modo local seguro, endpoints con product:edit y auditoría, panel con miniaturas y fotos principales, bot envía foto antes de pedir cantidad, suite `test-imagenes-producto.ts`) — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
+| 2026-10-28 | 17:00 | Datos personales de clientes reales de Mr. Pachi (nombres, teléfonos, direcciones) hallados en la raíz del repo y subidos a GitHub: 5 archivos de datos y 2 scripts movidos fuera del proyecto (`../datos-mr-pachi-fuera-del-repo/`), patrones añadidos a `.gitignore`. Documentos viejos de Pachi (`CHANGELOG`, `ROADMAP`, `TS_MIGRATION`, `IACONTENT`, `.agy_task.md`) archivados en `docs/historico-pachi/`. Limpieza del historial de GitHub: la hace el dueño cuando el árbol esté limpio — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-28 | 16:30 | Comprobación en el entorno local de F0-14, F0-13 y F0-12 de punta a punta (datos del negocio que sobreviven al reinicio, costo acordado y tasa del día, retiro, bloqueo de pedidos entregados) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-28 | 16:00 | Fase nueva F5 (canal TikTok por la Business Messaging API) en la hoja de ruta, con los requisitos del dueño. F0-9 actualizada a las líneas actuales del código y a `./scripts/ci.sh` — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-28 | 15:30 | F0-14: datos legales y de contacto editables desde el panel (`datosNegocioService`, endpoints, bloque en Operación, suite `test-datos-negocio.ts`). De paso: número de WhatsApp fijo de Mr. Pachi quitado de Instagram/Messenger, flujo de días no laborables cargado al arrancar y ejemplos de Pachi del panel. Revisión F0-12 (aprobada) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-28 | — | F0-12 (re-entrega): costo acordado como monto fijo marcado, tasa del día, `advisorHandoff`, casos del cuerpo del panel — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
 | 2026-10-27 | 14:30 | Governance: AGENTS.md reescrito para VentiMax (historial de Mr. Pachi retirado, queda en git), hoja de ruta F0–F4, datos del negocio y tablero de la Fase 0; logo de Fortunne en `public/assets/brand/ventimax/` — Ejecutado por **Claude** | Claude (Cerebro) | Completado |

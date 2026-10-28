@@ -1,8 +1,22 @@
 const fs = require("fs").promises;
 const path = require("path");
-const Producto = require("../models/Producto");
-const Categoria = require("../models/Categoria");
+let Producto = require("../models/Producto");
+let Categoria = require("../models/Categoria");
 const configManager = require("./configManager");
+
+/**
+ * Obtiene los modelos adecuados según el entorno
+ */
+const getModels = () => {
+  if (process.env.NODE_ENV === "test") {
+    const dbLocal = require("./dbLocal");
+    return {
+      Producto: dbLocal.getProductoModel(),
+      Categoria: dbLocal.getCategoriaModel(),
+    };
+  }
+  return { Producto, Categoria };
+};
 
 /**
  * Helper para generar slugs limpios y consistentes para categorías
@@ -22,8 +36,10 @@ const generarSlug = (texto: string): string => {
  */
 const seedDatabase = async () => {
   try {
+    const { Producto: ProdModel, Categoria: CatModel } = getModels();
+
     // 1. Verificar si ya existen productos
-    const count = await Producto.countDocuments();
+    const count = await ProdModel.countDocuments();
     
     if (count > 0) {
       console.log("ℹ️ [SEED] El catálogo ya contiene datos, omitiendo siembra.");
@@ -43,10 +59,10 @@ const seedDatabase = async () => {
     // 3. Gestionar categorías requeridas (por defecto "General")
     const categoryMap = new Map(); // slug -> Categoria doc
 
-    let catGeneral = await Categoria.findOne({ slug: "general" });
+    let catGeneral = await CatModel.findOne({ slug: "general" });
     if (!catGeneral) {
       console.log("🌱 [SEED] Creando categoría inicial 'General'...");
-      catGeneral = await Categoria.create({ nombre: "General", slug: "general" });
+      catGeneral = await CatModel.create({ nombre: "General", slug: "general" });
     }
     categoryMap.set("general", catGeneral);
 
@@ -61,10 +77,10 @@ const seedDatabase = async () => {
         const nombre = catNombre.trim();
         const slug = generarSlug(nombre);
         if (!categoryMap.has(slug)) {
-          let cat = await Categoria.findOne({ slug });
+          let cat = await CatModel.findOne({ slug });
           if (!cat) {
             console.log(`🌱 [SEED] Creando categoría '${nombre}' (${slug})...`);
-            cat = await Categoria.create({ nombre, slug });
+            cat = await CatModel.create({ nombre, slug });
           }
           categoryMap.set(slug, cat);
         }
@@ -90,15 +106,31 @@ const seedDatabase = async () => {
         }
       }
 
+      let imagenesMapped: any[] = [];
+      if (Array.isArray(p.imagenes)) {
+        imagenesMapped = p.imagenes
+          .map((img: any) => {
+            if (typeof img === "string" && img.trim()) {
+              return { url: img.trim(), publicId: "" };
+            }
+            if (img && typeof img === "object" && img.url) {
+              return { url: String(img.url).trim(), publicId: img.publicId || "" };
+            }
+            return null;
+          })
+          .filter(Boolean);
+      }
+
       return {
         ...prodData,
+        imagenes: imagenesMapped,
         categoria: catPrincipalId,
         categorias: catIds
       };
     });
 
     // 5. Inserción masiva
-    await Producto.insertMany(productsWithCat);
+    await ProdModel.insertMany(productsWithCat);
 
     console.log(`✅ [SEED] Catálogo sembrado con ${productsWithCat.length} productos.`);
   } catch (error: any) {

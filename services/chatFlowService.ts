@@ -44,12 +44,14 @@ const chatFlow = require("../controllers/chatFlowController");
 const { isAskingForBCVRate } = require("./intentClassifier");
 const { buscarFAQ, getSaboresEnStock, getMenuDinamico } = require("./faqMatcher");
 const { obtenerTasaUSD } = require("./bcv");
+const whatsapp = require("./whatsapp");
 const {
   enviarTexto,
+  enviarImagenPorUrl,
   enviarBotones,
   enviarLista,
   notificarAdminConFallback,
-} = require("./whatsapp");
+} = whatsapp;
 const {
   formatBs,
   formatUsd,
@@ -1316,6 +1318,9 @@ class ChatFlowService {
           { paso: "esperando_cantidad", carrito },
           io,
         );
+
+        await this.enviarFotoProducto(from, prodDirecto, io);
+
         const unitPlural = configManager.get("settings.sales.unitPlural") || "unidades";
         const promptQtyDirect =
           configManager.format("settings.messages.promptQuantityDirect", {
@@ -1358,6 +1363,9 @@ class ChatFlowService {
         { paso: "esperando_cantidad", carrito },
         io,
       );
+
+      await this.enviarFotoProducto(from, producto, io);
+
       const unitPlural = configManager.get("settings.sales.unitPlural") || "unidades";
       const promptQty =
         configManager.format("settings.messages.promptQuantity", {
@@ -1711,6 +1719,30 @@ class ChatFlowService {
         "⚠️ Cédula inválida. Por favor, introduce tu documento con su letra si aplica (7 a 9 dígitos, ej: V-12345678, E-12345678 o J-123456789).\n\n💡 Si deseas reiniciar este proceso, escribe *CANCELAR* para volver al menú.",
         io,
       );
+    }
+  }
+
+  /**
+   * Envía la foto principal del producto antes de pedir la cantidad (F0-9).
+   * Solo si tiene foto y settings.features.sendProductImage no es false. Si falla, el flujo sigue.
+   */
+  async enviarFotoProducto(from, producto, io) {
+    const url = producto?.imagenes?.[0]?.url;
+    if (!url || configManager.get("settings.features.sendProductImage") === false) return;
+    const desc = producto.description ? `\n${producto.description}` : "";
+    const caption = `${producto.name} — $${formatUsd(Number(producto.price) || 0)}${desc}`;
+    try {
+      // enviarImagenPorUrl devuelve false si WhatsApp rechaza el envío (no lanza)
+      const enviado = await whatsapp.enviarImagenPorUrl(from, url, caption);
+      if (!enviado) {
+        console.warn(`⚠️ No se pudo enviar la foto del producto (${producto.name}); se sigue sin ella.`);
+        return;
+      }
+      if (orderService.emitirYGuardar) {
+        await orderService.emitirYGuardar(from, caption, "bot", io, "image", null, null, null, null, url);
+      }
+    } catch (imgErr: any) {
+      console.warn(`⚠️ Error enviando la foto del producto (${producto.name}):`, imgErr.message);
     }
   }
 

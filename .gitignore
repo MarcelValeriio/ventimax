@@ -1,5 +1,5 @@
 # ==============================================================================
-# YURI-BOT / REPLY BOT PACHI - REPOSITORY GITIGNORE
+# VENTIMAX (PLANTILLA MULTIMARCA) - REPOSITORY GITIGNORE
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -57,6 +57,16 @@ firebase-adminsdk*.json
 # Base de datos JSON temporal de tests/mocks locales (services/dbLocal.js)
 temp_db.json
 temp_db*.json
+
+# Datos personales de clientes (exportaciones de pedidos, direcciones, teléfonos): nunca al repo
+todas_las_direcciones*.json
+direcciones_clientes*.json
+addresses*.json
+table.md
+table-no-phone.md
+*clientes*.csv
+*clientes*.xlsx
+exports/
 
 # SQLite, Redis y bases de datos embebidas
 *.sqlite

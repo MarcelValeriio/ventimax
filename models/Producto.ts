@@ -7,6 +7,19 @@ const productoSchema = new Schema<IProducto>({
   price: { type: Number, required: true }, // Cambiado de 'precio' a 'price'
   description: { type: String }, // Nuevo campo
   emoji: { type: String },
+  imagenes: {
+    type: [
+      {
+        url: { type: String, required: true },
+        publicId: { type: String, default: "" },
+      },
+    ],
+    default: [],
+    validate: [
+      (val: any[]) => !val || val.length <= 5,
+      "{PATH} no puede tener más de 5 imágenes",
+    ],
+  },
   categoria: { type: Schema.Types.ObjectId, ref: "Categoria", required: true },
   categorias: [{ type: Schema.Types.ObjectId, ref: "Categoria", default: [] }],
   activo: { type: Boolean, default: true },

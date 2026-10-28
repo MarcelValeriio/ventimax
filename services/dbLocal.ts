@@ -135,7 +135,38 @@ class DbLocal {
       findOne: async (query = {}) => {
         const data = this.read();
         let products = data.productos || [];
-        return products.find((p) => matchProductQuery(p, query)) || null;
+        const p = products.find((prod) => matchProductQuery(prod, query)) || null;
+        if (!p) return null;
+        const doc = JSON.parse(JSON.stringify(p));
+        doc.save = async () => {
+          const currentData = this.read();
+          const idx = (currentData.productos || []).findIndex((item) => String(item._id) === String(doc._id) || String(item.id) === String(doc.id));
+          if (idx !== -1) {
+            currentData.productos[idx] = { ...doc };
+            delete currentData.productos[idx].save;
+            this.write(currentData);
+          }
+          return doc;
+        };
+        return doc;
+      },
+      findById: async (id) => {
+        const data = this.read();
+        let products = data.productos || [];
+        const p = products.find((prod) => String(prod._id) === String(id) || String(prod.id) === String(id)) || null;
+        if (!p) return null;
+        const doc = JSON.parse(JSON.stringify(p));
+        doc.save = async () => {
+          const currentData = this.read();
+          const idx = (currentData.productos || []).findIndex((item) => String(item._id) === String(doc._id) || String(item.id) === String(doc.id));
+          if (idx !== -1) {
+            currentData.productos[idx] = { ...doc };
+            delete currentData.productos[idx].save;
+            this.write(currentData);
+          }
+          return doc;
+        };
+        return doc;
       },
       exists: async (query = {}) => {
         const data = this.read();
@@ -146,6 +177,7 @@ class DbLocal {
       create: async (product) => {
         const data = this.read();
         data.productos = data.productos || [];
+        if (!product.imagenes) product.imagenes = [];
         data.productos.push(product);
         this.write(data);
         return product;
@@ -155,6 +187,7 @@ class DbLocal {
         data.productos = data.productos || [];
         const toInsert = Array.isArray(prods) ? prods : [prods];
         for (const p of toInsert) {
+          if (!p.imagenes) p.imagenes = [];
           data.productos.push(p);
         }
         this.write(data);

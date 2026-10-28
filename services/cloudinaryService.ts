@@ -31,7 +31,90 @@ const uploadFromBuffer = (buffer, folder = "vouchers") => {
   });
 };
 
+const estanCredencialesConfiguradas = () => {
+  return Boolean(
+    process.env.CLOUDINARY_CLOUD_NAME &&
+    process.env.CLOUDINARY_API_KEY &&
+    process.env.CLOUDINARY_API_SECRET
+  );
+};
+
+/**
+ * Sube una imagen de producto a Cloudinary en la carpeta <BRAND_NAME>/productos
+ * @param {Buffer} buffer - Buffer de la imagen
+ * @returns {Promise<{ url: string, publicId: string }>}
+ */
+const subirImagenProducto = async (buffer) => {
+  // Solo para las pruebas: simula una instalación sin credenciales
+  if (process.env.NODE_ENV === "test" && process.env.FORZAR_CLOUDINARY_DESCONFIGURADO === "true") {
+    throw new Error("Cloudinary no está configurado");
+  }
+
+  if (process.env.NODE_ENV === "test") {
+    const brand = process.env.BRAND_NAME || "default";
+    const publicId = `${brand}/productos/mock_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    return {
+      url: `https://res.cloudinary.com/test-cloud/image/upload/v12345/${publicId}.png`,
+      publicId,
+    };
+  }
+
+  if (!estanCredencialesConfiguradas()) {
+    throw new Error("Cloudinary no está configurado");
+  }
+
+  const brand = process.env.BRAND_NAME || "default";
+  const folder = `${brand}/productos`;
+
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: "image" },
+      (error, result) => {
+        if (result) {
+          resolve({
+            url: result.secure_url,
+            publicId: result.public_id,
+          });
+        } else {
+          reject(error);
+        }
+      }
+    );
+    stream.end(buffer);
+  });
+};
+
+/**
+ * Elimina una imagen de Cloudinary por su publicId
+ * @param {string} publicId - ID público de la imagen
+ * @returns {Promise<any>}
+ */
+const borrarImagen = async (publicId) => {
+  // Solo para las pruebas: simula una instalación sin credenciales
+  if (process.env.NODE_ENV === "test" && process.env.FORZAR_CLOUDINARY_DESCONFIGURADO === "true") {
+    throw new Error("Cloudinary no está configurado");
+  }
+
+  if (process.env.NODE_ENV === "test") {
+    return { result: "ok" };
+  }
+
+  if (!estanCredencialesConfiguradas()) {
+    throw new Error("Cloudinary no está configurado");
+  }
+
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.destroy(publicId, { resource_type: "image" }, (error, result) => {
+      if (error) reject(error);
+      else resolve(result);
+    });
+  });
+};
+
 module.exports = {
   cloudinary,
   uploadFromBuffer,
+  subirImagenProducto,
+  borrarImagen,
+  estanCredencialesConfiguradas,
 };

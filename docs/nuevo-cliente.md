@@ -1,8 +1,8 @@
 # Guía: poner el bot en marcha para un cliente nuevo
 
 > Para el dueño del proyecto (y para Claude/Antigravity cuando preparen la marca).
-> Estado: **Fase 0, actualizada el 2026-10-28.** Las secciones marcadas ⏳ dependen de tareas de
-> `AGENTS.md` que aún no están aprobadas (F0-9 fotos): se confirman al cerrarlas.
+> Estado: **Fase 0, actualizada el 2026-10-28.** Todas las secciones están confirmadas; solo falta
+> F0-11 (cabeceras de seguridad), que no cambia ningún paso de esta guía.
 
 El código es el mismo para todos los clientes. Lo que cambia por cliente es:
 
@@ -242,7 +242,7 @@ Para medir ventas de anuncios Click-to-WhatsApp: `META_PIXEL_ID`, `META_CAPI_TOK
    | Entorno | `NODE_ENV=production` (obligatorio: activa las cookies seguras y la comprobación de `JWT_SECRET`) |
    | Seguridad | `JWT_SECRET`: mínimo 32 caracteres aleatorios, distinto por cliente (`openssl rand -hex 32`); sin él el servidor no arranca |
    | Primer administrador | `ADMIN_USER` y `ADMIN_PASS` (mínimo 12 caracteres), ver sección 2.1 |
-   | Imágenes | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (una cuenta por cliente) |
+   | Imágenes | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (una cuenta por cliente). Guardan los comprobantes de pago y las fotos de producto (carpeta `<marca>/productos`). Sin ellas, al subir una foto el panel dice "Cloudinary no está configurado" |
    | WhatsApp | Las de la sección 3.1 |
    | Alertas | `ADMIN_PHONE_NUMBER`, `ADMIN_PHONE_NUMBER_2`, `DELIVERY_PHONE_NUMBER` (formato internacional sin `+`: `58412...`) |
    | IA | `DEEPSEEK_API_KEY` (asistente y copiloto); `GEMINI_API_KEY`, `GLADIA_API_KEY`, `DEEPGRAM_API_KEY` si se usan |
@@ -279,7 +279,7 @@ Entrar en `https://<servicio>.onrender.com/panel`.
 
 1. **Usuarios:** cambiar contraseñas y crear las cuentas del equipo (admin, cajero, repartidor).
 2. **Inventario → Categorías y productos:** revisar precios, descripciones, categorías adicionales
-   ("También aparece en") y stock si se controla. Subir hasta 5 fotos por producto ⏳ (F0-9); la
+   ("También aparece en") y stock si se controla. Subir hasta 5 fotos por producto (JPG, PNG o WebP, hasta 5 MB cada una); la
    principal es la que el bot envía al cliente.
 3. **Inventario → Pagos:** crear cada método de pago con sus datos reales y activarlo. Sin métodos activos
    el bot no puede cerrar ventas.
@@ -374,5 +374,4 @@ Desde un teléfono que **no** sea del negocio:
 
 | Tema | Tarea |
 |---|---|
-| Imágenes de producto (requieren cuenta de Cloudinary por cliente) | F0-9 |
 | Cabeceras de seguridad (CSP): puede pedir revisar el panel tras desplegar | F0-11 |

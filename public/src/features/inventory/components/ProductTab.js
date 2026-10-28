@@ -367,6 +367,9 @@ const ProductTab = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [productImages, setProductImages] = useState([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
     id: "",
     name: "",
@@ -471,6 +474,7 @@ const ProductTab = () => {
   const handleOpenModal = (product = null) => {
     if (product) {
       setEditingProduct(product);
+      setProductImages(product.imagenes || []);
       setFormData({
         id: product.id,
         name: product.name,
@@ -489,6 +493,7 @@ const ProductTab = () => {
       });
     } else {
       setEditingProduct(null);
+      setProductImages([]);
       setFormData({
         id: "",
         name: "",
@@ -501,6 +506,74 @@ const ProductTab = () => {
       });
     }
     setIsModalOpen(true);
+  };
+
+  const handleUploadImage = async (ev) => {
+    const file = ev.target.files?.[0];
+    if (!file || !editingProduct) return;
+    try {
+      setUploadingImage(true);
+      const data = new FormData();
+      data.append("imagen", file);
+      const res = await apiClient.post(
+        `/api/admin/products/${editingProduct.id}/imagenes`,
+        data,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      const updatedProduct = res.data?.data;
+      if (updatedProduct) {
+        setProductImages(updatedProduct.imagenes || []);
+        setEditingProduct(updatedProduct);
+      }
+      fetchProducts();
+      window.showToast?.("✅ Imagen subida correctamente", "success");
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.message || err.message;
+      window.showToast?.(`❌ ${msg}`, "error");
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDeleteImage = async (index) => {
+    if (!editingProduct) return;
+    if (!window.confirm("¿Seguro que deseas eliminar esta imagen?")) return;
+    try {
+      const res = await apiClient.delete(
+        `/api/admin/products/${editingProduct.id}/imagenes/${index}`
+      );
+      const updatedProduct = res.data?.data;
+      if (updatedProduct) {
+        setProductImages(updatedProduct.imagenes || []);
+        setEditingProduct(updatedProduct);
+      }
+      fetchProducts();
+      window.showToast?.("🗑️ Imagen eliminada", "success");
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.message || err.message;
+      window.showToast?.(`❌ ${msg}`, "error");
+    }
+  };
+
+  const handleSetPrimaryImage = async (index) => {
+    if (!editingProduct) return;
+    try {
+      const res = await apiClient.put(
+        `/api/admin/products/${editingProduct.id}/imagenes/principal`,
+        { indice: index }
+      );
+      const updatedProduct = res.data?.data;
+      if (updatedProduct) {
+        setProductImages(updatedProduct.imagenes || []);
+        setEditingProduct(updatedProduct);
+      }
+      fetchProducts();
+      window.showToast?.("⭐ Imagen marcada como principal", "success");
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.message || err.message;
+      window.showToast?.(`❌ ${msg}`, "error");
+    }
   };
 
   const handleCloseModal = () => {
@@ -1008,6 +1081,124 @@ const ProductTab = () => {
                   placeholder: "Ingredientes, tamaño...",
                 }),
               ),
+              // Sección de Imágenes del Producto
+              e(
+                "div",
+                { className: "border-t border-gray-100 dark:border-gray-700 pt-4" },
+                e(
+                  "div",
+                  { className: "flex justify-between items-center mb-2" },
+                  e(
+                    "label",
+                    {
+                      className:
+                        "block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest",
+                    },
+                    `Fotos del Producto (${productImages.length}/5)`
+                  ),
+                  editingProduct && productImages.length < 5 &&
+                    e(
+                      "button",
+                      {
+                        type: "button",
+                        onClick: () => fileInputRef.current?.click(),
+                        disabled: uploadingImage,
+                        className:
+                          "text-xs px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold rounded-lg hover:bg-emerald-500/20 transition flex items-center gap-1",
+                      },
+                      e("i", { className: `fas ${uploadingImage ? "fa-spinner fa-spin" : "fa-upload"}` }),
+                      uploadingImage ? "Subiendo..." : "Subir foto"
+                    )
+                ),
+                !editingProduct
+                  ? e(
+                      "div",
+                      {
+                        className:
+                          "p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-dashed border-gray-200 dark:border-gray-700 text-xs text-gray-400 text-center",
+                      },
+                      "💡 Guarda el producto para añadir fotos"
+                    )
+                  : e(
+                      "div",
+                      null,
+                      e("input", {
+                        type: "file",
+                        ref: fileInputRef,
+                        accept: "image/jpeg,image/png,image/webp",
+                        onChange: handleUploadImage,
+                        className: "hidden",
+                      }),
+                      productImages.length === 0
+                        ? e(
+                            "div",
+                            {
+                              className:
+                                "p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-dashed border-gray-200 dark:border-gray-700 text-xs text-gray-400 text-center cursor-pointer hover:border-emerald-400 transition",
+                              onClick: () => fileInputRef.current?.click(),
+                            },
+                            "📷 No hay fotos. Haz clic en 'Subir foto' para agregar (máx 5)."
+                          )
+                        : e(
+                            "div",
+                            { className: "grid grid-cols-5 gap-2 mt-2" },
+                            productImages.map((img, idx) =>
+                              e(
+                                "div",
+                                {
+                                  key: img.publicId || idx,
+                                  className:
+                                    "relative group rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 aspect-square bg-gray-100 dark:bg-gray-900",
+                                },
+                                e("img", {
+                                  src: img.url,
+                                  alt: `Foto ${idx + 1}`,
+                                  className: "w-full h-full object-cover",
+                                }),
+                                idx === 0 &&
+                                  e(
+                                    "span",
+                                    {
+                                      className:
+                                        "absolute top-1 left-1 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow",
+                                    },
+                                    "Principal"
+                                  ),
+                                e(
+                                  "div",
+                                  {
+                                    className:
+                                      "absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1",
+                                  },
+                                  idx > 0 &&
+                                    e(
+                                      "button",
+                                      {
+                                        type: "button",
+                                        title: "Marcar como principal",
+                                        onClick: () => handleSetPrimaryImage(idx),
+                                        className:
+                                          "p-1 bg-emerald-600 text-white rounded text-[10px] hover:bg-emerald-700 w-full font-bold",
+                                      },
+                                      "⭐ Principal"
+                                    ),
+                                  e(
+                                    "button",
+                                    {
+                                      type: "button",
+                                      title: "Eliminar foto",
+                                      onClick: () => handleDeleteImage(idx),
+                                      className:
+                                        "p-1 bg-red-600 text-white rounded text-[10px] hover:bg-red-700 w-full font-bold",
+                                    },
+                                    "🗑️ Borrar"
+                                  )
+                                )
+                              )
+                            )
+                          )
+                    )
+              ),
               // Footer Buttons
               e(
                 "div",
@@ -1056,14 +1247,21 @@ const ProductTab = () => {
                 e(
                   "div",
                   { className: "flex items-center gap-3" },
-                  e(
-                    "span",
-                    {
-                      className:
-                        "text-2xl bg-gray-50 dark:bg-gray-900 w-12 h-12 flex items-center justify-center rounded-xl",
-                    },
-                    p.emoji,
-                  ),
+                  p.imagenes && p.imagenes.length > 0 && p.imagenes[0].url
+                    ? e("img", {
+                        src: p.imagenes[0].url,
+                        alt: p.name,
+                        className:
+                          "w-12 h-12 object-cover rounded-xl border border-gray-100 dark:border-gray-700",
+                      })
+                    : e(
+                        "span",
+                        {
+                          className:
+                            "text-2xl bg-gray-50 dark:bg-gray-900 w-12 h-12 flex items-center justify-center rounded-xl",
+                        },
+                        p.emoji,
+                      ),
                   e(
                     "div",
                     null,
@@ -1279,7 +1477,14 @@ const ProductTab = () => {
                       className:
                         "px-6 py-4 text-gray-800 dark:text-gray-100 font-medium",
                     },
-                    e("span", { className: "mr-3 text-lg" }, p.emoji),
+                    p.imagenes && p.imagenes.length > 0 && p.imagenes[0].url
+                      ? e("img", {
+                          src: p.imagenes[0].url,
+                          alt: p.name,
+                          className:
+                            "w-7 h-7 object-cover rounded-lg inline-block mr-3 align-middle border border-gray-100 dark:border-gray-700",
+                        })
+                      : e("span", { className: "mr-3 text-lg" }, p.emoji),
                     p.name,
                   ),
                   e(

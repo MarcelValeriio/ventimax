@@ -7,6 +7,45 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+const uploadProductoImagen = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req: any, file: any, cb: any) => {
+    const allowedMimes = ["image/jpeg", "image/png", "image/webp"];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      const err: any = new Error("Solo se permiten imágenes en formato JPG, PNG o WebP");
+      err.code = "INVALID_FILE_TYPE";
+      cb(err, false);
+    }
+  },
+});
+
+const handleUploadProductoImagen = (req: any, res: any, next: any) => {
+  uploadProductoImagen.single("imagen")(req, res, (err: any) => {
+    if (err) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          success: false,
+          error: "La imagen no puede exceder 5 MB",
+        });
+      }
+      if (err.code === "INVALID_FILE_TYPE") {
+        return res.status(400).json({
+          success: false,
+          error: err.message,
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        error: err.message || "Error al procesar la imagen",
+      });
+    }
+    next();
+  });
+};
+
 module.exports = function (io) {
   const express = require("express");
   const router = express.Router();
@@ -245,6 +284,25 @@ module.exports = function (io) {
     isAuthenticated,
     authorize(["product:delete"]),
     adminController.deleteProduct,
+  );
+  router.post(
+    "/products/:id/imagenes",
+    isAuthenticated,
+    authorize(["product:edit"]),
+    handleUploadProductoImagen,
+    adminController.postProductImage,
+  );
+  router.delete(
+    "/products/:id/imagenes/:indice",
+    isAuthenticated,
+    authorize(["product:edit"]),
+    adminController.deleteProductImage,
+  );
+  router.put(
+    "/products/:id/imagenes/principal",
+    isAuthenticated,
+    authorize(["product:edit"]),
+    adminController.setPrimaryProductImage,
   );
 
   // Gestión de Chats (Admin y Cajero para seguimiento)

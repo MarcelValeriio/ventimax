@@ -188,6 +188,11 @@ export interface IEtiquetaIg {
 // 5. IProducto (models/Producto.js)
 // ==========================================
 
+export interface IProductoImagen {
+  url: string;
+  publicId?: string;
+}
+
 export interface IProducto {
   _id?: string;
   id: string; // ej. 'prod-001'
@@ -195,6 +200,7 @@ export interface IProducto {
   price: number;
   description?: string;
   emoji?: string;
+  imagenes?: IProductoImagen[];
   categoria: string | any; // ObjectId ref 'Categoria'
   categorias?: (string | any)[]; // Array de ObjectId ref 'Categoria' para multicategoría
   activo?: boolean;

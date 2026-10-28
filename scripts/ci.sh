@@ -22,6 +22,7 @@ SUITES=(
   test-envios.ts
   test-retiro.ts
   test-datos-negocio.ts
+  test-imagenes-producto.ts
   test-e2e-saas.js
   test-full-flow.js
   test-cash-logic.js

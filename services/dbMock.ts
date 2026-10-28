@@ -170,19 +170,48 @@ class DbMock {
         return chain;
       },
       findOne: async (query = {}) => {
-        return this.data.productos.find((p) => matchProductQuery(p, query)) || null;
+        const p = this.data.productos.find((prod) => matchProductQuery(prod, query)) || null;
+        if (!p) return null;
+        const doc = JSON.parse(JSON.stringify(p));
+        doc.save = async () => {
+          const idx = this.data.productos.findIndex((item) => String(item._id) === String(doc._id) || String(item.id) === String(doc.id));
+          if (idx !== -1) {
+            this.data.productos[idx] = { ...doc };
+            delete this.data.productos[idx].save;
+          }
+          return doc;
+        };
+        return doc;
+      },
+      findById: async (id) => {
+        const p = this.data.productos.find((prod) => String(prod._id) === String(id) || String(prod.id) === String(id)) || null;
+        if (!p) return null;
+        const doc = JSON.parse(JSON.stringify(p));
+        doc.save = async () => {
+          const idx = this.data.productos.findIndex((item) => String(item._id) === String(doc._id) || String(item.id) === String(doc.id));
+          if (idx !== -1) {
+            this.data.productos[idx] = { ...doc };
+            delete this.data.productos[idx].save;
+          }
+          return doc;
+        };
+        return doc;
       },
       exists: async (query = {}) => {
         const p = this.data.productos.find((prod) => matchProductQuery(prod, query));
         return p ? { _id: p._id || p.id } : null;
       },
       create: async (product) => {
+        if (!product.imagenes) product.imagenes = [];
         this.data.productos.push(product);
         return product;
       },
       insertMany: async (prods) => {
         const toInsert = Array.isArray(prods) ? prods : [prods];
-        for (const p of toInsert) this.data.productos.push(p);
+        for (const p of toInsert) {
+          if (!p.imagenes) p.imagenes = [];
+          this.data.productos.push(p);
+        }
         return toInsert;
       },
       deleteMany: async (query = {}) => {

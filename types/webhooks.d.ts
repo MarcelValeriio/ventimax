@@ -2,7 +2,6 @@
  * types/webhooks.d.ts
  * Definiciones de tipos para el Webhook de Meta Cloud API (WhatsApp & Instagram).
  * Basado en controllers/webhookController.js.
- * Fase 2: Migración a TypeScript - Reply Bot Pachi
  */
 
 // ==========================================

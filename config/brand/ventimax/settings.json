@@ -29,7 +29,8 @@
   },
   "features": {
     "showBcvRate": true,
-    "allowManualStepOverride": true
+    "allowManualStepOverride": true,
+    "sendProductImage": true
   },
   "watchdog": {
     "disabledDays": [

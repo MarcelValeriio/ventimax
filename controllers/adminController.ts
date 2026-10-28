@@ -1,5 +1,6 @@
 const path = require("path");
 const axios = require("axios");
+const mongoose = require("mongoose");
 const MensajeOriginal = require("../models/Mensaje");
 const EtiquetaOriginal = require("../models/Etiqueta");
 const MensajeIgOriginal = require("../models/MensajeIg");
@@ -497,6 +498,195 @@ const deleteProduct = async (req, res) => {
   } catch (error) {
     console.error("❌ Error en deleteProduct:", error);
     res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+const postProductImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!req.file || !req.file.buffer) {
+      return res
+        .status(400)
+        .json({ success: false, error: "No se proporcionó ningún archivo de imagen" });
+    }
+
+    const producto = await Producto.findOne({
+      $or: [{ id: id }, ...(mongoose.Types.ObjectId.isValid(id) ? [{ _id: id }] : [])],
+    });
+    if (!producto) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Producto no encontrado" });
+    }
+
+    if (producto.imagenes && producto.imagenes.length >= 5) {
+      return res
+        .status(400)
+        .json({ success: false, error: "El producto ya tiene el límite máximo de 5 imágenes" });
+    }
+
+    const cloudinaryService = require("../services/cloudinaryService");
+    let resultado;
+    try {
+      resultado = await cloudinaryService.subirImagenProducto(req.file.buffer);
+    } catch (cloudErr: any) {
+      console.error("❌ Error subiendo imagen de producto:", cloudErr.message);
+      if (cloudErr.message === "Cloudinary no está configurado") {
+        return res
+          .status(400)
+          .json({ success: false, error: "Cloudinary no está configurado" });
+      }
+      return res
+        .status(500)
+        .json({ success: false, error: "Error al subir la imagen a Cloudinary" });
+    }
+
+    if (!producto.imagenes) producto.imagenes = [];
+    producto.imagenes.push({
+      url: resultado.url,
+      publicId: resultado.publicId,
+    });
+
+    if (typeof producto.save === "function") {
+      await producto.save();
+    } else {
+      await Producto.findOneAndUpdate(
+        { id: producto.id },
+        { $set: { imagenes: producto.imagenes } }
+      );
+    }
+
+    await registrarAuditoria(req, {
+      recursoId: producto._id ? producto._id.toString() : producto.id,
+      tipoRecurso: "producto",
+      accion: "subir_imagen_producto",
+      detalles: `Imagen subida para el producto ${producto.name}. Total: ${producto.imagenes.length}/5`,
+      nuevo: producto.imagenes,
+    });
+
+    return res.status(201).json({
+      success: true,
+      data: producto,
+      imagen: resultado,
+      message: "Imagen subida correctamente",
+    });
+  } catch (error: any) {
+    console.error("❌ Error en postProductImage:", error.message);
+    return res.status(500).json({ success: false, error: "Error al subir la imagen del producto" });
+  }
+};
+
+const deleteProductImage = async (req, res) => {
+  try {
+    const { id, indice } = req.params;
+    const idx = parseInt(indice, 10);
+
+    const producto = await Producto.findOne({
+      $or: [{ id: id }, ...(mongoose.Types.ObjectId.isValid(id) ? [{ _id: id }] : [])],
+    });
+    if (!producto) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Producto no encontrado" });
+    }
+
+    if (isNaN(idx) || idx < 0 || !producto.imagenes || idx >= producto.imagenes.length) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Índice de imagen no válido" });
+    }
+
+    const [imagenEliminada] = producto.imagenes.splice(idx, 1);
+
+    if (typeof producto.save === "function") {
+      await producto.save();
+    } else {
+      await Producto.findOneAndUpdate(
+        { id: producto.id },
+        { $set: { imagenes: producto.imagenes } }
+      );
+    }
+
+    if (imagenEliminada && imagenEliminada.publicId) {
+      const cloudinaryService = require("../services/cloudinaryService");
+      try {
+        await cloudinaryService.borrarImagen(imagenEliminada.publicId);
+      } catch (cloudErr: any) {
+        console.warn(`⚠️ Error eliminando imagen de Cloudinary (${imagenEliminada.publicId}):`, cloudErr.message);
+      }
+    }
+
+    await registrarAuditoria(req, {
+      recursoId: producto._id ? producto._id.toString() : producto.id,
+      tipoRecurso: "producto",
+      accion: "eliminar_imagen_producto",
+      detalles: `Imagen eliminada del producto ${producto.name} en índice ${idx}. Restantes: ${producto.imagenes.length}`,
+      anterior: imagenEliminada,
+      nuevo: producto.imagenes,
+    });
+
+    return res.json({
+      success: true,
+      data: producto,
+      message: "Imagen eliminada correctamente",
+    });
+  } catch (error: any) {
+    console.error("❌ Error en deleteProductImage:", error.message);
+    return res.status(500).json({ success: false, error: "Error al eliminar la imagen del producto" });
+  }
+};
+
+const setPrimaryProductImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { indice } = req.body || {};
+    const idx = parseInt(indice, 10);
+
+    const producto = await Producto.findOne({
+      $or: [{ id: id }, ...(mongoose.Types.ObjectId.isValid(id) ? [{ _id: id }] : [])],
+    });
+    if (!producto) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Producto no encontrado" });
+    }
+
+    if (isNaN(idx) || idx < 0 || !producto.imagenes || idx >= producto.imagenes.length) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Índice de imagen no válido" });
+    }
+
+    if (idx > 0) {
+      const [imagenSeleccionada] = producto.imagenes.splice(idx, 1);
+      producto.imagenes.unshift(imagenSeleccionada);
+
+      if (typeof producto.save === "function") {
+        await producto.save();
+      } else {
+        await Producto.findOneAndUpdate(
+          { id: producto.id },
+          { $set: { imagenes: producto.imagenes } }
+        );
+      }
+    }
+
+    await registrarAuditoria(req, {
+      recursoId: producto._id ? producto._id.toString() : producto.id,
+      tipoRecurso: "producto",
+      accion: "marcar_imagen_principal_producto",
+      detalles: `Imagen en índice ${idx} marcada como principal para el producto ${producto.name}`,
+      nuevo: producto.imagenes,
+    });
+
+    return res.json({
+      success: true,
+      data: producto,
+      message: "Imagen marcada como principal",
+    });
+  } catch (error: any) {
+    console.error("❌ Error en setPrimaryProductImage:", error.message);
+    return res.status(500).json({ success: false, error: "Error al marcar la imagen principal" });
   }
 };
 
@@ -4156,6 +4346,9 @@ module.exports = {
   postProduct,
   updateProduct,
   deleteProduct,
+  postProductImage,
+  deleteProductImage,
+  setPrimaryProductImage,
   getBCVRate,
   getCategorias,
   postCategoria,
