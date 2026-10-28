@@ -1585,6 +1585,16 @@ class DbLocal {
         if (key === "estado" && c.estado !== val) return false;
         if (key === "telefono" && c.telefono !== val) return false;
         if (key === "pedidoId" && String(c.pedidoId) !== String(val)) return false;
+        if (key === "expiraEn") {
+          const expTime = new Date(c.expiraEn).getTime();
+          if (val && typeof val === "object" && "$gt" in val) {
+            const gtTime = new Date((val as any).$gt).getTime();
+            if (isNaN(expTime) || expTime <= gtTime) return false;
+          } else {
+            const valTime = new Date(val as any).getTime();
+            if (expTime !== valTime) return false;
+          }
+        }
       }
       return true;
     };
@@ -1626,6 +1636,28 @@ class DbLocal {
           then: (onFulfilled: any, onRejected: any) =>
             queryObj.then((res: any[]) => (res && res.length > 0 ? res[0] : null)).then(onFulfilled, onRejected),
           catch: (onRejected: any) => queryObj.catch(onRejected),
+        };
+      },
+      findOneAndUpdate: (filter: any, update: any, options: any = {}) => {
+        const exec = () => {
+          const data = self.read();
+          data.carritosWeb = data.carritosWeb || [];
+          const index = data.carritosWeb.findIndex((c: any) => matchQuery(c, filter));
+          if (index === -1) return null;
+
+          const cw = data.carritosWeb[index];
+          const updateData = update.$set ? update.$set : update;
+          Object.assign(cw, updateData, { updatedAt: new Date() });
+          self.write(data);
+          return {
+            ...cw,
+            toObject: () => ({ ...cw }),
+          };
+        };
+        return {
+          lean: () => Promise.resolve(exec()),
+          then: (onFulfilled: any, onRejected: any) => Promise.resolve(exec()).then(onFulfilled, onRejected),
+          catch: (onRejected: any) => Promise.resolve(exec()).catch(onRejected),
         };
       },
       findById: (id: any) => {

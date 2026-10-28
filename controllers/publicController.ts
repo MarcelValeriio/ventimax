@@ -186,6 +186,13 @@ export async function getCatalogo(req: any, res: any) {
  */
 export async function postPedidoWeb(req: any, res: any) {
   try {
+    if (configManager.get("settings.catalogo.activo") === false) {
+      console.warn("⚠️ [Catálogo] POST /api/public/pedidos: catálogo web desactivado");
+      return res.status(503).json({
+        error: "El servicio de pedidos web se encuentra temporalmente suspendido",
+      });
+    }
+
     const prefijo = configManager.get("settings.catalogo.prefijoPedido") || "PW";
     const vigenciaHoras = Number(configManager.get("settings.catalogo.vigenciaHoras")) || 72;
 

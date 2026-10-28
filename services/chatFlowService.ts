@@ -21,6 +21,8 @@ let CategoriaOriginal = require("../models/Categoria");
 let Categoria = CategoriaOriginal;
 let MetodoEnvioOriginal = require("../models/MetodoEnvio");
 let MetodoEnvio = MetodoEnvioOriginal;
+let CarritoWebOriginal = require("../models/CarritoWeb");
+let CarritoWeb = CarritoWebOriginal;
 
 // Soporte para Pruebas de Integración (Mock)
 if (process.env.NODE_ENV === "test") {
@@ -36,6 +38,9 @@ if (process.env.NODE_ENV === "test") {
   }
   if (typeof dbLocal.getCategoriaModel === "function") {
     Categoria = dbLocal.getCategoriaModel();
+  }
+  if (typeof dbLocal.getCarritoWebModel === "function") {
+    CarritoWeb = dbLocal.getCarritoWebModel();
   }
 }
 const configManager = require("./configManager");
@@ -162,6 +167,10 @@ class ChatFlowService {
       esperando_efectivo_monto: this.handleEsperandoEfectivoMonto.bind(this),
       esperando_comprobante: this.handlePendienteComprobante.bind(this),
       pendiente_verificacion: this.handlePendienteVerificacion.bind(this),
+      esperando_confirmacion_web:
+        this.handleEsperandoConfirmacionWeb.bind(this),
+      esperando_reemplazo_web:
+        this.handleEsperandoReemplazoWeb.bind(this),
     };
 
     // Mapa de colas y debounce en memoria indexado por número de WhatsApp (from)
@@ -537,6 +546,34 @@ class ChatFlowService {
         "👨‍💼 Un asesor se comunicará contigo a la brevedad. Por favor déjanos tu consulta.";
       await this._sendYGuardar(from, msgAsesor, io);
       return;
+    }
+
+    // Intercepción de código de pedido web (F2-2)
+    // Solo si el catálogo está activo (por defecto true)
+    if (configManager.get("settings.catalogo.activo") !== false) {
+      const prefijo = (configManager.get("settings.catalogo.prefijoPedido") || "PW").trim();
+      const escapedPrefijo = prefijo.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+      const webOrderRegex = new RegExp(`\\b${escapedPrefijo}[-\\s]?([23456789ABCDEFGHJKMNPQRSTUVWXYZ]{5})\\b`, "i");
+
+      let codigoNormalizado: string | null = null;
+      for (const item of batch) {
+        if (item.text) {
+          const match = String(item.text).match(webOrderRegex);
+          if (match) {
+            codigoNormalizado = `${prefijo.toUpperCase()}-${match[1].toUpperCase()}`;
+            break;
+          }
+        }
+      }
+
+      if (codigoNormalizado) {
+        await this.procesarCodigoPedidoWeb({
+          from,
+          codigo: codigoNormalizado,
+          io,
+        });
+        return;
+      }
     }
 
     // Tasa BCV
@@ -1470,6 +1507,32 @@ class ChatFlowService {
     }
   }
 
+  /**
+   * Ruta compartida para avanzar hacia la confirmación de datos (si el cliente ya es conocido)
+   * o solicitar nombre/apellido/cédula (si faltan datos). Reutilizada por completar y pedido web (F2-2).
+   */
+  async avanzarAConfirmacionODatosCliente({ from, carrito, io }) {
+    if (
+      carrito.nombre &&
+      carrito.cedula &&
+      (carrito.ubicacion || carrito.direccion_manual)
+    ) {
+      await orderService.setEstado(
+        from,
+        { paso: "esperando_confirmacion_datos", carrito },
+        io,
+      );
+      return await chatFlow.solicitarConfirmacionDatos(from, carrito, io);
+    } else {
+      await orderService.setEstado(
+        from,
+        { paso: "esperando_datos_cliente", carrito },
+        io,
+      );
+      return await chatFlow.solicitarNombre(from, io);
+    }
+  }
+
   async handlePreguntandoMas({ from, low, io, estado }) {
     let carrito = estado.carrito || { items: [] };
     if (!carrito.items) carrito.items = [];
@@ -1477,26 +1540,13 @@ class ChatFlowService {
     if (low === "productos") {
       await chatFlow.mostrarCategorias(from, io);
       await orderService.setEstado(from, { paso: "esperando_seleccion" }, io);
-    } else if (low === "completar" || low === "finalizar") {
-      if (
-        carrito.nombre &&
-        carrito.cedula &&
-        (carrito.ubicacion || carrito.direccion_manual)
-      ) {
-        await orderService.setEstado(
-          from,
-          { paso: "esperando_confirmacion_datos", carrito },
-          io,
-        );
-        await chatFlow.solicitarConfirmacionDatos(from, carrito, io);
-      } else {
-        await orderService.setEstado(
-          from,
-          { paso: "esperando_datos_cliente" },
-          io,
-        );
-        await chatFlow.solicitarNombre(from, io);
-      }
+    } else if (
+      low === "completar" ||
+      low === "finalizar" ||
+      low === "web_confirmar" ||
+      low === "confirmar"
+    ) {
+      await this.avanzarAConfirmacionODatosCliente({ from, carrito, io });
     } else {
       await chatFlow.mostrarPreguntarMas(from, io);
     }
@@ -2404,6 +2454,386 @@ class ChatFlowService {
     console.log(
       `[Bot] ${from} espera verificación manual. (Msgs: ${estado.mensajesEnEsperaCount || 0})`,
     );
+  }
+
+  /**
+   * Procesa la intercepción de un código de pedido web (F2-2).
+   * Maneja los 6 casos del diseño (§3 de docs/f2-catalogo-web.md) con reclamo atómico en CarritoWeb.
+   */
+  async procesarCodigoPedidoWeb({ from, codigo, io, forzarReemplazo = false }: { from: string; codigo: string; io: any; forzarReemplazo?: boolean }) {
+    const estado = await orderService.getEstado(from);
+    const pasoActual = estado?.paso || "inicio";
+
+    // 1. Si está en un paso de pago o verificación: no carga nada y avisa
+    const pasosPago = [
+      "esperando_pago_metodo",
+      "esperando_efectivo_opcion",
+      "esperando_efectivo_monto",
+      "esperando_comprobante",
+      "pendiente_verificacion",
+    ];
+
+    if (pasosPago.includes(pasoActual)) {
+      const msgBusy =
+        configManager.get("settings.messages.webOrderBusy") ||
+        "⚠️ Ya tienes un pedido en proceso de pago o verificación. Por favor completa tu pedido actual o escribe *CANCELAR* si deseas empezar desde cero.";
+      await this.enviarYRegistrar(from, { tipo: "texto", texto: msgBusy }, io);
+      return;
+    }
+
+    // 2. Si ya tiene un carrito a medias en el chat con productos y es un código distinto
+    const carritoActual = estado?.carrito || { items: [] };
+    const itemsEnCarrito = Array.isArray(carritoActual.items) ? carritoActual.items : [];
+
+    if (!forzarReemplazo && itemsEnCarrito.length > 0 && carritoActual.codigoWeb !== codigo) {
+      const brandName = configManager.get("settings.brandName");
+      const itemsCount = itemsEnCarrito.reduce(
+        (acc: number, it: any) => acc + (Number(it.cantidad) || 1),
+        0
+      );
+      const msgReplace =
+        configManager.format("settings.messages.webOrderReplaceAsk", {
+          codigo,
+          itemsCount,
+          brandName,
+        }) ||
+        `🛒 Ya tienes un pedido en preparación en el chat con ${itemsCount} productos.\n\n¿Deseas reemplazar tu carrito actual por el pedido web *${codigo}*?`;
+
+      const buttons = [
+        { id: "web_reemplazar", title: "🔄 Reemplazar" },
+        { id: "web_mantener", title: "✋ Mantener actual" },
+      ];
+
+      await orderService.setEstado(
+        from,
+        { paso: "esperando_reemplazo_web", codigoWebPendiente: codigo },
+        io
+      );
+
+      await this.enviarYRegistrar(
+        from,
+        {
+          tipo: "botones",
+          texto: msgReplace,
+          buttons,
+        },
+        io
+      );
+      return;
+    }
+
+    // 3. Reclamo atómico: CarritoWeb.findOneAndUpdate
+    const ahora = new Date();
+    let cwDoc = await CarritoWeb.findOneAndUpdate(
+      {
+        codigo,
+        estado: "pendiente",
+        expiraEn: { $gt: ahora },
+      },
+      {
+        $set: {
+          estado: "vinculado",
+          telefono: from,
+        },
+      },
+      { returnDocument: "after" }
+    );
+
+    if (cwDoc && typeof cwDoc.toObject === "function") {
+      cwDoc = cwDoc.toObject();
+    }
+
+    // 4. Si no se obtuvo documento en el findOneAndUpdate atómico:
+    if (!cwDoc) {
+      let existing = await CarritoWeb.findOne({ codigo });
+      if (existing && typeof existing.toObject === "function") {
+        existing = existing.toObject();
+      }
+
+      // Caso A: Inexistente o expirado
+      if (!existing || new Date(existing.expiraEn).getTime() <= ahora.getTime()) {
+        const catalogoOrigen = process.env.CATALOGO_ORIGEN || "";
+        const catalogoUrlTexto = catalogoOrigen
+          ? `Puedes armarlo de nuevo en ${catalogoOrigen}\n\n`
+          : "";
+        const msgNotFound =
+          configManager.format("settings.messages.webOrderNotFound", {
+            codigo,
+            catalogoUrl: catalogoOrigen,
+            catalogoUrlTexto,
+          }) ||
+          `⚠️ No encontramos el pedido web *${codigo}* o ya venció (tienen una validez de 3 días).\n\n${catalogoUrlTexto}Puedes explorar nuestro catálogo escribiendo *Menú*.`;
+
+        await this.enviarYRegistrar(from, { tipo: "texto", texto: msgNotFound }, io);
+        return;
+      }
+
+      // Caso B: Código ya vinculado
+      if (existing.estado === "vinculado") {
+        // Vinculado por OTRO teléfono
+        if (existing.telefono && existing.telefono !== from) {
+          const msgUsed =
+            configManager.format("settings.messages.webOrderUsed", { codigo }) ||
+            `⚠️ El código de pedido web *${codigo}* ya fue vinculado y utilizado anteriormente.\n\nSi necesitas asistencia o deseas realizar una nueva compra, escribe *Menú*.`;
+          await this.enviarYRegistrar(from, { tipo: "texto", texto: msgUsed }, io);
+          return;
+        }
+
+        // Vinculado por este MISMO teléfono y ya convertido en pedido: no se vuelve a cargar
+        // (evita un segundo pedido con el mismo carrito web)
+        if (existing.pedidoId) {
+          const msgYaRegistrado =
+            configManager.format("settings.messages.webOrderUsed", { codigo }) ||
+            `⚠️ El código de pedido web *${codigo}* ya fue utilizado.`;
+          await this.enviarYRegistrar(from, { tipo: "texto", texto: msgYaRegistrado }, io);
+          return;
+        }
+
+        // Vinculado por este MISMO teléfono (reenvió el código): recargar sin duplicar
+        cwDoc = existing;
+      }
+    }
+
+    // 5. Verificación de cada línea en la BD con precios y stock actuales (sin consultar _id con texto)
+    const itemsCargados: Array<{
+      id: string;
+      producto: string;
+      price: number;
+      cantidad: number;
+    }> = [];
+    const avisosCambios: string[] = [];
+
+    for (const it of cwDoc.items || []) {
+      const prod = await Producto.findOne({ id: it.productoId });
+
+      if (!prod || prod.activo === false) {
+        avisosCambios.push(`• *${it.nombre || it.productoId}* ya no está disponible.`);
+        continue;
+      }
+
+      const cantidad = Number(it.cantidad) || 1;
+      if (prod.trackStock === true) {
+        const stockDisponible = Number(prod.stock) || 0;
+        if (stockDisponible < cantidad) {
+          if (stockDisponible <= 0) {
+            avisosCambios.push(`• *${prod.name}* se agotó.`);
+          } else {
+            // Nunca se dice el stock exacto (R4); solo que no alcanza
+            avisosCambios.push(`• *${prod.name}* no tiene disponibilidad suficiente para ${cantidad} ${configManager.get("settings.sales.unitPlural") || "unidades"}.`);
+          }
+          continue;
+        }
+      }
+
+      const precioActual = Number(prod.price) || 0;
+      const precioOriginal = Number(it.precio) || 0;
+
+      if (precioActual !== precioOriginal) {
+        avisosCambios.push(
+          `• *${prod.name}* ahora cuesta $${formatUsd(precioActual)} (antes $${formatUsd(precioOriginal)}).`
+        );
+      }
+
+      itemsCargados.push({
+        id: prod.id,
+        producto: prod.name,
+        price: precioActual,
+        cantidad,
+      });
+    }
+
+    // 6. Si no queda ninguna línea tras quitar agotados/inactivos:
+    if (itemsCargados.length === 0) {
+      let msgEmpty =
+        configManager.get("settings.messages.webOrderEmpty") ||
+        "⚠️ Los productos de tu pedido web ya no se encuentran disponibles en este momento. Te invitamos a consultar nuestro catálogo actualizado escribiendo *Menú*.";
+      if (avisosCambios.length > 0) {
+        msgEmpty = `ℹ️ *Avisos sobre tu pedido web:*\n${avisosCambios.join("\n")}\n\n${msgEmpty}`;
+      }
+      await this.enviarYRegistrar(from, { tipo: "texto", texto: msgEmpty }, io);
+      return;
+    }
+
+    // 7. Si hubo avisos de cambios, enviar aviso informativo
+    if (avisosCambios.length > 0) {
+      const msgChanged =
+        configManager.format("settings.messages.webOrderChanged", {
+          cambios: avisosCambios.join("\n"),
+        }) || `ℹ️ *Avisos sobre tu pedido web:*\n${avisosCambios.join("\n")}`;
+      await this.enviarYRegistrar(from, { tipo: "texto", texto: msgChanged }, io);
+    }
+
+    // 8. Cargar líneas en carrito del estado y mostrar resumen
+    const nuevoCarrito = {
+      ...(estado.carrito || {}),
+      items: itemsCargados,
+      codigoWeb: codigo,
+      origenWeb: { codigo },
+    };
+
+    const totalUSD = orderService.calcularTotalCarrito(nuevoCarrito);
+    const tasaRes = await obtenerTasaUSD();
+    const tasa = tasaRes?.tasa || 0;
+    const totalVESRaw = totalUSD * tasa;
+    const totalVES = totalVESRaw > 0 ? formatBs(totalVESRaw) : "N/A";
+
+    const brandName = configManager.get("settings.brandName");
+    const resumenItems = itemsCargados
+      .map((i) => `• ${i.producto} x${i.cantidad} — $${formatUsd(i.price * i.cantidad)}`)
+      .join("\n");
+
+    const msgLoaded =
+      configManager.format("settings.messages.webOrderLoaded", {
+        codigo,
+        resumen: resumenItems,
+        totalUSD: formatUsd(totalUSD),
+        totalVES,
+        brandName,
+      }) ||
+      `🛒 *Pedido Web ${codigo} Recibido*\n\n${resumenItems}\n\n💰 *Total:* $${formatUsd(totalUSD)} / Bs. ${totalVES}\n\n¿Deseas confirmar tu pedido?`;
+
+    const buttons = [
+      { id: "web_confirmar", title: "✅ Confirmar" },
+      { id: "web_agregar_mas", title: "➕ Agregar más" },
+    ];
+
+    await orderService.setEstado(
+      from,
+      {
+        paso: "esperando_confirmacion_web",
+        carrito: nuevoCarrito,
+      },
+      io
+    );
+
+    await this.enviarYRegistrar(
+      from,
+      {
+        tipo: "botones",
+        texto: msgLoaded,
+        buttons,
+      },
+      io
+    );
+  }
+
+  async handleEsperandoConfirmacionWeb({ from, low, text, io, estado }: any) {
+    let carrito = estado.carrito || { items: [] };
+    if (!carrito.items) carrito.items = [];
+
+    const clean = (low || "").trim();
+
+    if (
+      clean === "web_confirmar" ||
+      clean === "confirmar" ||
+      clean === "si" ||
+      clean === "sí" ||
+      clean === "completar" ||
+      clean === "finalizar"
+    ) {
+      await this.avanzarAConfirmacionODatosCliente({ from, carrito, io });
+    } else if (
+      clean === "web_agregar_mas" ||
+      clean === "agregar más" ||
+      clean === "agregar mas" ||
+      clean === "productos" ||
+      clean === "modificar"
+    ) {
+      await chatFlow.mostrarPreguntarMas(from, io);
+      await orderService.setEstado(from, { paso: "preguntando_mas" }, io);
+    } else {
+      const totalUSD = orderService.calcularTotalCarrito(carrito);
+      const tasaRes = await obtenerTasaUSD();
+      const tasa = tasaRes?.tasa || 0;
+      const totalVESRaw = totalUSD * tasa;
+      const totalVES = totalVESRaw > 0 ? formatBs(totalVESRaw) : "N/A";
+      const brandName = configManager.get("settings.brandName");
+      const resumenItems = (carrito.items || [])
+        .map((i: any) => `• ${i.producto} x${i.cantidad} — $${formatUsd(i.price * i.cantidad)}`)
+        .join("\n");
+
+      const msgLoaded =
+        configManager.format("settings.messages.webOrderLoaded", {
+          codigo: carrito.codigoWeb || "",
+          resumen: resumenItems,
+          totalUSD: formatUsd(totalUSD),
+          totalVES,
+          brandName,
+        }) ||
+        `🛒 *Pedido Web ${carrito.codigoWeb || ""}*\n\n${resumenItems}\n\n💰 *Total:* $${formatUsd(totalUSD)} / Bs. ${totalVES}\n\n¿Deseas confirmar tu pedido?`;
+
+      const buttons = [
+        { id: "web_confirmar", title: "✅ Confirmar" },
+        { id: "web_agregar_mas", title: "➕ Agregar más" },
+      ];
+
+      await this.enviarYRegistrar(
+        from,
+        {
+          tipo: "botones",
+          texto: msgLoaded,
+          buttons,
+        },
+        io
+      );
+    }
+  }
+
+  async handleEsperandoReemplazoWeb({ from, low, io, estado }: any) {
+    const clean = (low || "").trim();
+    const codigo = estado.codigoWebPendiente;
+
+    if (
+      clean === "web_reemplazar" ||
+      clean === "reemplazar" ||
+      clean === "si" ||
+      clean === "sí" ||
+      clean === "cambiar"
+    ) {
+      await orderService.setEstado(from, { codigoWebPendiente: null }, io);
+      await this.procesarCodigoPedidoWeb({
+        from,
+        codigo,
+        io,
+        forzarReemplazo: true,
+      });
+    } else if (
+      clean === "web_mantener" ||
+      clean === "mantener" ||
+      clean === "no" ||
+      clean === "conservar"
+    ) {
+      await orderService.setEstado(from, { paso: "preguntando_mas", codigoWebPendiente: null }, io);
+      await chatFlow.mostrarPreguntarMas(from, io);
+    } else {
+      const itemsCount = (estado.carrito?.items || []).reduce(
+        (acc: number, it: any) => acc + (Number(it.cantidad) || 1),
+        0
+      );
+      const brandName = configManager.get("settings.brandName");
+      const msgReplace =
+        configManager.format("settings.messages.webOrderReplaceAsk", {
+          codigo,
+          itemsCount,
+          brandName,
+        }) ||
+        `🛒 Ya tienes un pedido en preparación en el chat con ${itemsCount} productos.\n\n¿Deseas reemplazar tu carrito actual por el pedido web *${codigo}*?`;
+
+      const buttons = [
+        { id: "web_reemplazar", title: "🔄 Reemplazar" },
+        { id: "web_mantener", title: "✋ Mantener actual" },
+      ];
+
+      await this.enviarYRegistrar(
+        from,
+        {
+          tipo: "botones",
+          texto: msgReplace,
+          buttons,
+        },
+        io
+      );
+    }
   }
 }
 

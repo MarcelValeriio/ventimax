@@ -36,6 +36,13 @@ const CLAVES_MENSAJES = [
   "pickupUnavailable",
   "advisorHandoff",
   "webOrderPrefill",
+  "webOrderLoaded",
+  "webOrderChanged",
+  "webOrderEmpty",
+  "webOrderUsed",
+  "webOrderNotFound",
+  "webOrderReplaceAsk",
+  "webOrderBusy",
 ];
 
 function testMarca(brandNameTarget: string) {

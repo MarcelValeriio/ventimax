@@ -89,6 +89,9 @@ export interface IPedido {
   ubicacion?: IUbicacionPedido;
   envio?: IEnvioPedido;
   notas?: string | null;
+  origenWeb?: {
+    codigo?: string;
+  };
   pago?: IPagoPedido;
   ctwaClid?: string | null;
   idFormateado?: string;

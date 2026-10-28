@@ -32,6 +32,9 @@ const PedidoSchema = new Schema<IPedido>({
     cambioTrasCotizar: { type: Boolean, default: false },
   },
   notas: { type: String, default: null },
+  origenWeb: {
+    codigo: { type: String, default: null }
+  },
   pago: {
     metodo: { type: String },
     montoUSD: { type: Number },

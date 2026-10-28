@@ -160,6 +160,11 @@ class OrderService {
           longitud: null,
         },
         ...(carrito?.envio ? { envio: carrito.envio } : {}),
+        ...(carrito?.origenWeb?.codigo
+          ? { origenWeb: { codigo: carrito.origenWeb.codigo } }
+          : carrito?.codigoWeb
+            ? { origenWeb: { codigo: carrito.codigoWeb } }
+            : {}),
         ctwaClid: ctwaClid,
         estado: "pendiente_pago",
         timestamp: new Date(),
@@ -181,6 +186,23 @@ class OrderService {
         console.log(
           `✅ [OrderService] Pedido DB Creado/Actualizado: ${doc._id} para ${tel}`,
         );
+
+        // Si el pedido proviene de un código de catálogo web, asociamos pedidoId en CarritoWeb (F2-2)
+        if (doc.origenWeb?.codigo) {
+          try {
+            const CarritoWebModel =
+              process.env.NODE_ENV === "test"
+                ? require("./dbLocal").getCarritoWebModel()
+                : require("../models/CarritoWeb");
+            await CarritoWebModel.findOneAndUpdate(
+              { codigo: doc.origenWeb.codigo },
+              { $set: { pedidoId: doc._id } }
+            );
+          } catch (cwErr: any) {
+            console.error("⚠️ Error vinculando pedidoId a CarritoWeb:", cwErr.message);
+          }
+        }
+
         // NOTIFICACIÓN AL PANEL
         if (io) {
           console.log(

@@ -128,6 +128,7 @@ class ConfigManager {
       this.config.settings.catalogo = {
         prefijoPedido: this.brand === "ventimax" ? "VM" : "MP",
         vigenciaHoras: 72,
+        activo: true,
       };
     } else {
       if (!this.config.settings.catalogo.prefijoPedido) {
@@ -135,6 +136,9 @@ class ConfigManager {
       }
       if (!this.config.settings.catalogo.vigenciaHoras) {
         this.config.settings.catalogo.vigenciaHoras = 72;
+      }
+      if (this.config.settings.catalogo.activo === undefined) {
+        this.config.settings.catalogo.activo = true;
       }
     }
 

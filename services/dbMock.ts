@@ -282,6 +282,16 @@ class DbMock {
         if (key === "estado" && c.estado !== val) return false;
         if (key === "telefono" && c.telefono !== val) return false;
         if (key === "pedidoId" && String(c.pedidoId) !== String(val)) return false;
+        if (key === "expiraEn") {
+          const expTime = new Date(c.expiraEn).getTime();
+          if (val && typeof val === "object" && "$gt" in val) {
+            const gtTime = new Date(val.$gt).getTime();
+            if (isNaN(expTime) || expTime <= gtTime) return false;
+          } else {
+            const valTime = new Date(val).getTime();
+            if (expTime !== valTime) return false;
+          }
+        }
       }
       return true;
     };
@@ -301,6 +311,17 @@ class DbMock {
       findOne: async (query = {}) => {
         const found = this.data.carritosWeb.find((c) => matchQuery(c, query));
         return found || null;
+      },
+      findOneAndUpdate: async (filter = {}, update = {}, options = {}) => {
+        const index = this.data.carritosWeb.findIndex((c) => matchQuery(c, filter));
+        if (index === -1) return null;
+        const cw = this.data.carritosWeb[index];
+        const updateData = update.$set ? update.$set : update;
+        Object.assign(cw, updateData, { updatedAt: new Date() });
+        return {
+          ...cw,
+          toObject: function() { return { ...this }; }
+        };
       },
       findById: async (id) => {
         return this.data.carritosWeb.find((c) => String(c._id) === String(id)) || null;
