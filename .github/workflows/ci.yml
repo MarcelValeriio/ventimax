@@ -1,0 +1,35 @@
+# Verificación automática en cada push y pull request: build, suites con mocks e imports del panel.
+# No usa secretos ni se conecta a ninguna base o API real (NODE_ENV=test).
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verificacion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: bash scripts/ci.sh
+
+  dependencias:
+    # Avisa si aparece una vulnerabilidad alta en dependencias de producción. No bloquea el despliegue:
+    # una vulnerabilidad nueva publicada hoy no la causó el último cambio. Revisar el aviso y corregir.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm audit --omit=dev --audit-level=high

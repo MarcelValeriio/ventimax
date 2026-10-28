@@ -1,0 +1,91 @@
+{
+  "brandName": "Mr. Pachi",
+  "botIdentity": "Yuri-Bot",
+  "whatsappPhone": "584123285446",
+  "sales": {
+    "unitSingular": "caja",
+    "unitPlural": "cajas"
+  },
+  "brandEmoji": "🥟",
+  "categoryEmoji": "🥟",
+  "theme": {
+    "primaryColor": "#059669",
+    "secondaryColor": "#10b981",
+    "logoUrl": "/assets/favicon.svg"
+  },
+  "features": {
+    "showBcvRate": true,
+    "allowManualStepOverride": true
+  },
+  "watchdog": {
+    "disabledDays": [
+      0,
+      6
+    ],
+    "startHour": "10:00",
+    "endHour": "17:00"
+  },
+  "horarioAtencion": {
+    "zonaHoraria": "America/Caracas",
+    "dias": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "apertura": "10:00",
+    "cierre": "17:00"
+  },
+  "flujoNoLaborable": {
+    "activo": true,
+    "entregaDiferida": {
+      "activo": true,
+      "texto": "Delivery Gratis"
+    },
+    "retiroEnPunto": {
+      "activo": true,
+      "nombre": "Punto Aliado — Mr. Pachi (Pick Up)",
+      "direccion": "Club Social Chino, Av. Principal de El Bosque (Chacaíto). Local: Kelly Bakery",
+      "horario": "Lunes a Domingo de 8:30 am a 6:30 pm"
+    }
+  },
+  "messages": {
+    "welcome": "*{{brandName}}*\n{{saludo}} Elige una opción de la lista, o *escríbeme tu duda* directamente:",
+    "productsCatalog": "🍜 *Catálogo de Productos*\nSelecciona una opción:",
+    "cartTitle": "🛒 *Tu Carrito*",
+    "cartEmpty": "🛒 Carrito vacío. Usa 'Productos' en el menú.",
+    "editPanel": "🛠️ *Panel de Edición*",
+    "promptPersonalData": "📝 Por favor, indícanos tu *Nombre, Apellido y Cédula* para registrar tu pedido (máx. 40 caracteres para el nombre):\n\n_Ejemplo: Juan Pérez 12345678_\n\n💡 _Si deseas empezar de nuevo en cualquier momento, escribe *CANCELAR*._",
+    "promptAddress": "📍 Ahora envíame tu *dirección* o comparte tu *ubicación*.",
+    "promptPayment": "💳 ¿Cómo deseas pagar?\n\n💡 _Si deseas empezar de nuevo, escribe *CANCELAR*._",
+    "confirmPurchase": "✅ *Confirma compra*",
+    "paymentInstructionsHeader": "💳 *Instrucciones ({{metodo}})*",
+    "paymentSuccess": "✅ ¡Pago Confirmado! Tu pedido está en preparación.",
+    "receiptReceived": "✅ ¡Gracias! Recibimos tu comprobante. Nuestro equipo lo verificará a la brevedad.",
+    "receiptPending": "⚠️ Aún no hemos recibido tu comprobante. Por favor, envía una foto del pago.",
+    "reminderVerification": "⏳ Tu comprobante está en cola de verificación. Te avisaremos pronto.",
+    "orderNotificationAdmin": "🛍️ *NUEVA COMPRA*\n📞 {{telefono}}\n📦 {{items}}\n👤 {{nombre}} (ID: {{cedula}})\n💰 Total: ${{totalUSD}}",
+    "botStarted": "🚀 *{{botIdentity}} Online (ID: {{pid}})*",
+    "botStopped": "🔌 *{{botIdentity}} Offline (ID: {{pid}})*",
+    "botError": "⚠️ *ERROR*\n❌ {{error}}",
+    "welcomeDetailed": "{{saludo}}\nBienvenido a *{{brandName}}* (asistente *{{botIdentity}}*). \n\n Somos tu tienda de comida asiática artesanal y congelada en Caracas, recuerda que nuestro horario de atencion es de Lunes a Viernes de 10:00am a 5:00pm y nuestro delivery estará gratis solo entregas en Avenidas Principales. \n\n Si en Algun momento el bot no responde, puedes escribir *Cancelar* para reiniciar la conversación.",
+    "menuFooter": "{{brandName}}",
+    "menuTitle": "🥢 Menú {{brandName}}",
+    "promptQuantity": "¿Cuántas *CAJAS* deseas agregar? 📦 \n\n (Recuerda que cada caja trae 25 unidades.\n\n Escribe solo el número):",
+    "promptQuantityDirect": "¿Cuántas *CAJAS* deseas agregar? 📦 (Recuerda que cada caja trae 25 unidades. Escribe solo el número ya sean, 1, 2, 3 cajas):",
+    "orderDispatched": "🛵 ¡Tu pedido está en camino!\n\nEl repartidor ya lleva tu Pedido {{id}} hacia la dirección indicada: {{direccion}}.\n\n¡Prepárate para recibir tu comida asiática artesanal! 🥡✨",
+    "orderDelivered": "🏁 ¡Pedido Entregado!\n\n¡Gracias por tu compra! Esperamos que disfrutes tu comida asiática. Si deseas volver a ordenar en el futuro, solo escribe 'Menú' y estaré encantado de ayudarte de nuevo. 🥡",
+    "manualOrderRequest": "¡Hola! Para agilizar tu atención y tomar tu pedido de inmediato de forma manual, por favor envíanos los siguientes datos en un solo mensaje:\n\n👤 Nombre:\n🪪 Cédula de identidad:\n🥟 Tu pedido (sabores de los dumplings y cantidad):\n📍 Dirección exacta de entrega o Ubicacion GPS:\n🛵 Nota para la entrega (opcional):\n\nEn cuanto nos envíes esta información, procesamos tu pedido al instante. ¡Muchas gracias! ✨",
+    "weekendGreeting": "{{greetingPrefix}} Bienvenido a *{{brandName}}* 🥟✨\n\nHoy no estamos despachando (horario habitual: *{{horarioTexto}}*).\n\n¿Cómo deseas continuar?",
+    "weekendDeliveryConfirm": "🎉 ¡Excelente! Tu pedido será registrado con *{{textoModalidad}}* para el día *{{proximoDiaHabil}}* a partir de las {{horaApertura}} 🛵🥟",
+    "weekendButtonPedir": "🛵 Pedir {{proximoDiaHabil}}",
+    "weekendButtonPuntoAliado": "🏪 Punto Aliado",
+    "puntoAliadoInfo": "🏪 *{{nombrePunto}}*\n\n¡Puedes comprar y retirar hoy mismo en nuestro punto aliado!\n\n📍 *Ubicación:* {{direccionPunto}}\n🕒 *Horario:* {{horarioPunto}}\n\n🥟 Allí disponen de toda nuestra variedad de dumplings congelados listos para llevar.\n\n💡 _Si prefieres hacer tu pedido para el {{proximoDiaHabil}} con Delivery Gratis, escribe *pedir* o *menu*._",
+    "reactivationNotice": "¡Hola! 😊 Si deseas ver de nuevo nuestro menú de comida asiática congelada, escribe \"menú\" en cualquier momento. ¡Estamos a tu orden! 🥟",
+    "stockEmpty": "En este momento no hay sabores disponibles.",
+    "stockHeader": "🥟 *Sabores y Rellenos Disponibles para hoy:*",
+    "faqFallbackMenu": "1. Sabores y rellenos disponibles\n2. ¿Cuántas unidades trae cada caja?\n3. Horarios de atención y delivery",
+    "igCatalogHeader": "{{brandEmoji}} *Catálogo y Sabores Disponibles:*"
+  }
+}

@@ -1,0 +1,248 @@
+// @ts-nocheck
+const mongoose = require("mongoose");
+
+/**
+ * Mock de Base de Datos en memoria para Pruebas de Integración
+ * Sustituye los modelos de Mongoose por una implementación simple en memoria.
+ */
+class DbMock {
+  data: Record<string, any>;
+
+  constructor() {
+    this.data = {
+      etiquetas: {},
+      mensajes: [],
+      productos: [],
+      categorias: []
+    };
+  }
+
+  async connect() {
+    console.log("🟡 [DbMock] Usando base de datos en memoria para el test.");
+    return Promise.resolve();
+  }
+
+  getEtiquetaModel() {
+    return {
+      findOne: (query) => {
+        const exec = () => Promise.resolve(this.data.etiquetas[query.telefono] || null);
+        return {
+          lean: () => exec(),
+          then: (onFulfilled, onRejected) => exec().then(onFulfilled, onRejected),
+          catch: (onRejected) => exec().catch(onRejected)
+        };
+      },
+      findOneAndUpdate: async (query, update, options) => {
+        let doc = this.data.etiquetas[query.telefono];
+        if (!doc) {
+          doc = { telefono: query.telefono, paso: "inicio", carrito: { items: [] }, etiqueta: "nuevo" };
+          this.data.etiquetas[query.telefono] = doc;
+        }
+        
+        // Aplicar actualizaciones simples
+        if (update.paso) doc.paso = update.paso;
+        if (update.etiqueta) doc.etiqueta = update.etiqueta;
+        if (update.carrito) doc.carrito = { ...doc.carrito, ...update.carrito };
+        
+        return doc;
+      },
+      create: async (data) => {
+        this.data.etiquetas[data.telefono] = { ...data };
+        return this.data.etiquetas[data.telefono];
+      },
+      deleteOne: async (query) => {
+        delete this.data.etiquetas[query.telefono];
+        return { deletedCount: 1 };
+      }
+    };
+  }
+
+  getMensajeModel() {
+    return {
+      create: async (data) => {
+        this.data.mensajes.push(data);
+        return data;
+      },
+      find: () => ({
+        sort: () => ({
+          skip: () => ({
+            limit: async () => this.data.mensajes
+          })
+        })
+      }),
+      countDocuments: async () => this.data.mensajes.length,
+      aggregate: async () => []
+    };
+  }
+
+  getProductoModel() {
+    const matchProductQuery = (p, query) => {
+      if (!query || Object.keys(query).length === 0) return true;
+
+      for (const [key, val] of Object.entries(query)) {
+        if (key === "$and" && Array.isArray(val)) {
+          if (!val.every((sub) => matchProductQuery(p, sub))) return false;
+          continue;
+        }
+        if (key === "$or" && Array.isArray(val)) {
+          if (!val.some((sub) => matchProductQuery(p, sub))) return false;
+          continue;
+        }
+        if (key === "activo") {
+          if (val !== undefined && p.activo !== val) return false;
+          continue;
+        }
+        if (key === "categoria") {
+          const target = String(val?._id || val);
+          const mainCat = String(p.categoria?._id || p.categoria || "");
+          if (mainCat !== target) return false;
+          continue;
+        }
+        if (key === "categorias") {
+          const target = String(val?._id || val);
+          const inCategorias =
+            Array.isArray(p.categorias) &&
+            p.categorias.some((c) => String(c?._id || c) === target);
+          if (!inCategorias) return false;
+          continue;
+        }
+        if (key === "trackStock") {
+          if (val && typeof val === "object" && val.$ne !== undefined) {
+            if (p.trackStock === val.$ne) return false;
+          } else if (p.trackStock !== val) {
+            return false;
+          }
+          continue;
+        }
+        if (key === "stock") {
+          if (val && typeof val === "object" && val.$gt !== undefined) {
+            if (!((Number(p.stock) || 0) > val.$gt)) return false;
+          } else if (val && typeof val === "object" && val.$gte !== undefined) {
+            if (!((Number(p.stock) || 0) >= val.$gte)) return false;
+          } else if (p.stock !== val) {
+            return false;
+          }
+          continue;
+        }
+        if (key === "id") {
+          if (val !== undefined && p.id !== val) return false;
+          continue;
+        }
+        if (key === "_id") {
+          if (val !== undefined && String(p._id) !== String(val)) return false;
+          continue;
+        }
+        if (key === "name") {
+          if (val instanceof RegExp) {
+            if (!val.test(p.name)) return false;
+          } else if (val !== undefined && p.name !== val) {
+            return false;
+          }
+          continue;
+        }
+        if (val !== undefined && p[key] !== val) return false;
+      }
+      return true;
+    };
+
+    return {
+      find: (query = {}) => {
+        let products = this.data.productos.filter((p) => matchProductQuery(p, query));
+        const chain = {
+          populate: () => chain,
+          select: () => chain,
+          sort: (sortCriteria) => {
+            if (typeof sortCriteria === "object") {
+              const key = Object.keys(sortCriteria)[0];
+              const dir = sortCriteria[key];
+              products = [...products].sort((a, b) => (a[key] > b[key] ? dir : -dir));
+            }
+            return chain;
+          },
+          limit: (n) => {
+            products = products.slice(0, n);
+            return Promise.resolve(products);
+          },
+          lean: () => Promise.resolve(products),
+          then: (resolve, reject) => Promise.resolve(products).then(resolve, reject),
+          catch: (reject) => Promise.resolve(products).catch(reject),
+        };
+        return chain;
+      },
+      findOne: async (query = {}) => {
+        return this.data.productos.find((p) => matchProductQuery(p, query)) || null;
+      },
+      exists: async (query = {}) => {
+        const p = this.data.productos.find((prod) => matchProductQuery(prod, query));
+        return p ? { _id: p._id || p.id } : null;
+      },
+      create: async (product) => {
+        this.data.productos.push(product);
+        return product;
+      },
+      insertMany: async (prods) => {
+        const toInsert = Array.isArray(prods) ? prods : [prods];
+        for (const p of toInsert) this.data.productos.push(p);
+        return toInsert;
+      },
+      deleteMany: async (query = {}) => {
+        if (!query || Object.keys(query).length === 0) {
+          const count = this.data.productos.length;
+          this.data.productos = [];
+          return { deletedCount: count };
+        }
+        const initial = this.data.productos.length;
+        this.data.productos = this.data.productos.filter((p) => !matchProductQuery(p, query));
+        return { deletedCount: initial - this.data.productos.length };
+      },
+      countDocuments: async (query = {}) => {
+        return this.data.productos.filter((p) => matchProductQuery(p, query)).length;
+      },
+      findOneAndUpdate: async (query, update) => {
+        let p = this.data.productos.find((prod) => matchProductQuery(prod, query));
+        if (p) {
+          if (update.$inc) {
+            for (let k in update.$inc) p[k] = (p[k] || 0) + update.$inc[k];
+          }
+          if (update.$set) Object.assign(p, update.$set);
+          for (let k in update) {
+            if (!k.startsWith("$")) p[k] = update[k];
+          }
+          return p;
+        }
+        return null;
+      }
+    };
+  }
+
+  getCategoriaModel() {
+    return {
+      find: (query = {}) => {
+        let cats = this.data.categorias;
+        if (query.padre !== undefined) cats = cats.filter(c => c.padre === query.padre);
+        const chain = {
+          sort: () => chain,
+          lean: () => Promise.resolve(cats),
+          then: (resolve) => resolve(cats)
+        };
+        return chain;
+      },
+      findOne: async (query = {}) => {
+        if (query.slug) return this.data.categorias.find(c => c.slug === query.slug) || null;
+        if (query._id) return this.data.categorias.find(c => String(c._id) === String(query._id)) || null;
+        return this.data.categorias[0] || null;
+      },
+      findById: async (id) => {
+        return this.data.categorias.find(c => String(c._id) === String(id)) || null;
+      },
+      create: async (data) => {
+        const cat = { _id: `cat-${Date.now()}-${Math.random()}`, ...data };
+        this.data.categorias.push(cat);
+        return cat;
+      }
+    };
+  }
+}
+
+module.exports = new DbMock();
+// @ts-nocheck

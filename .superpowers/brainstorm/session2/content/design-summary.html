@@ -1,0 +1,40 @@
+<h2>Diseño de Paginación Clásica</h2>
+<p class="subtitle">Así se verá el control al final de tu tabla</p>
+
+<div class="mockup">
+  <div class="mockup-body" style="padding: 20px; background: #fff;">
+    <table class="w-full text-left border-collapse" style="opacity: 0.5;">
+      <thead>
+        <tr style="border-bottom: 2px solid #eee;">
+          <th style="padding: 10px;">ID</th>
+          <th style="padding: 10px;">CLIENTE</th>
+          <th style="padding: 10px;">TOTAL</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid #eee;"><td style="padding: 10px;">#1020</td><td style="padding: 10px;">Juan Perez</td><td style="padding: 10px;">$25.00</td></tr>
+        <tr style="border-bottom: 1px solid #eee;"><td style="padding: 10px;">#1019</td><td style="padding: 10px;">Maria Garcia</td><td style="padding: 10px;">$12.50</td></tr>
+      </tbody>
+    </table>
+    
+    <div style="margin-top: 20px; display: flex; justify-content: center; align-items: center; gap: 8px;">
+      <button class="mock-button" style="padding: 5px 10px; min-width: 40px;">&laquo;</button>
+      <button class="mock-button" style="padding: 5px 10px; background: #10b981; color: white;">1</button>
+      <button class="mock-button" style="padding: 5px 10px;">2</button>
+      <button class="mock-button" style="padding: 5px 10px;">3</button>
+      <span style="color: #999;">...</span>
+      <button class="mock-button" style="padding: 5px 10px;">12</button>
+      <button class="mock-button" style="padding: 5px 10px; min-width: 40px;">&raquo;</button>
+    </div>
+    <p style="text-align: center; font-size: 11px; color: #666; margin-top: 10px;">Mostrando 20 de 234 pedidos</p>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 30px;">
+  <h3>Resumen del Diseño</h3>
+  <ul>
+    <li><strong>Backend:</strong> Actualizaremos <code>getSalesSummary</code> para filtrar en la base de datos y usar <code>.skip()</code> y <code>.limit(20)</code>.</li>
+    <li><strong>KPIs:</strong> Los cuadros de arriba (Total USD, Pedidos, etc.) se calcularán sobre TODO el periodo filtrado, no solo sobre los 20 visibles.</li>
+    <li><strong>Frontend:</strong> El dashboard pedirá la página 1 por defecto y se refrescará al tocar un número.</li>
+  </ul>
+</div>

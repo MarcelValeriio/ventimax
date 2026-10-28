@@ -1,0 +1,19 @@
+<h2>Paginación del Historial Contable</h2>
+<p class="subtitle">¿Cómo prefieres implementar la carga de datos?</p>
+
+<div class="options">
+  <div class="option" data-choice="server" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Desde el Servidor (Recomendado)</h3>
+      <p>El backend solo carga 20 pedidos por página. Ideal si tienes cientos o miles de pedidos. Mejora la velocidad de carga inicial.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="client" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Desde el Cliente</h3>
+      <p>El backend sigue enviando todo, pero el frontend solo muestra 20. Más simple de implementar, pero puede volverse lento si hay muchísimos datos.</p>
+    </div>
+  </div>
+</div>

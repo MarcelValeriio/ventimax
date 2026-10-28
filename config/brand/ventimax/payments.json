@@ -1,0 +1,22 @@
+{
+  "transferencia": {
+    "nombre": "Transferencia Bancaria",
+    "instrucciones": "🏦 Transfiere a la cuenta:\nBanco: PENDIENTE_DUEÑO\nCuenta: PENDIENTE_DUEÑO\nTitular: PENDIENTE_DUEÑO\nCédula: PENDIENTE_DUEÑO\n\n⚠️ Envía el comprobante a este chat para confirmar."
+  },
+  "pago movil": {
+    "nombre": "Pago Móvil",
+    "instrucciones": "📱 Pago móvil al número PENDIENTE_DUEÑO\nBanco: PENDIENTE_DUEÑO\nCédula: PENDIENTE_DUEÑO\n\n⚠️ Envía el comprobante a este chat para confirmar."
+  },
+  "usdt": {
+    "nombre": "USDT",
+    "instrucciones": "💎 Transfiere USDT (red TRC20) a la billetera:\n`PENDIENTE_DUEÑO`\n\n⚠️ Envía el comprobante a este chat para confirmar."
+  },
+  "zelle": {
+    "nombre": "Zelle",
+    "instrucciones": "💵 Envía el pago por Zelle al correo:\nPENDIENTE_DUEÑO\n\n⚠️ Envía el comprobante a este chat para confirmar."
+  },
+  "efectivo": {
+    "nombre": "Efectivo 💵",
+    "instrucciones": "Prepara tu monto en dólares. Indica si necesitas vuelto al recibir."
+  }
+}

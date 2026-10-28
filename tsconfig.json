@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "./dist",
+    "rootDir": "./",
+    "allowJs": true,
+    "checkJs": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": false,
+    "sourceMap": true
+  },
+  "include": [
+    "index.js",
+    "index.ts",
+    "controllers/**/*",
+    "models/**/*",
+    "services/**/*",
+    "middlewares/**/*",
+    "routes/**/*",
+    "utils/**/*",
+    "validators/**/*",
+    "data/**/*",
+    "src/**/*",
+    "types/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "public",
+    "scripts",
+    "coverage",
+    "temp_db.json"
+  ]
+}

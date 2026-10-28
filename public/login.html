@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Acceso Administrativo</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        /* Paleta oficial de WhatsApp Dark Mode */
+        --wa-bg: #111b21;
+        --wa-card: #202c33;
+        --wa-green: #00a884;
+        --wa-green-hover: #029676;
+        --wa-text-main: #e9edef;
+        --wa-text-muted: #8696a0;
+        --wa-input-bg: #2a3942;
+        --error-bg: rgba(239, 68, 68, 0.1);
+        --error-text: #ef4444;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--wa-bg);
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--wa-text-main);
+        margin: 0;
+      }
+
+      .login-container {
+        width: 100%;
+        max-width: 400px;
+        padding: 20px;
+      }
+
+      .login-card {
+        background-color: var(--wa-card);
+        padding: 40px;
+        border-radius: 16px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+        text-align: center;
+      }
+
+      .logo-area {
+        margin-bottom: 30px;
+      }
+
+      .logo-circle {
+        width: 64px;
+        height: 64px;
+        background-color: var(--wa-green);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        margin: 0 auto 16px;
+        box-shadow: 0 4px 15px rgba(0, 168, 132, 0.3);
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--wa-text-main);
+        letter-spacing: -0.5px;
+      }
+
+      p.subtitle {
+        color: var(--wa-text-muted);
+        font-size: 0.9rem;
+        margin-bottom: 32px;
+      }
+
+      .form-group {
+        text-align: left;
+        margin-bottom: 20px;
+      }
+
+      label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: var(--wa-text-muted);
+      }
+
+      input {
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 8px;
+        background-color: var(--wa-input-bg);
+        border: 1px solid transparent;
+        color: var(--wa-text-main);
+        font-family: inherit;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        outline: none;
+      }
+
+      input::placeholder {
+        color: #6b7c85;
+      }
+
+      input:focus {
+        border-color: var(--wa-green);
+        background-color: #26353d;
+      }
+
+      button {
+        width: 100%;
+        background-color: var(--wa-green);
+        color: var(--wa-bg);
+        padding: 14px;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-top: 10px;
+      }
+
+      button:hover {
+        background-color: var(--wa-green-hover);
+      }
+
+      button:active {
+        transform: scale(0.98);
+      }
+
+      .error-message {
+        margin-top: 20px;
+        padding: 12px;
+        background-color: var(--error-bg);
+        color: var(--error-text);
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        display: none;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+      }
+
+      .footer {
+        margin-top: 30px;
+        font-size: 0.75rem;
+        color: var(--wa-text-muted);
+      }
+
+      .footer b {
+        color: var(--wa-green);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-container">
+      <div class="login-card">
+        <div class="logo-area">
+          <img
+            src="/assets/favicon.svg"
+            class="logo"
+            width="64"
+            height="64"
+            alt="Logo"
+          />
+          <h1 id="brandTitle">Acceso al Panel</h1>
+          <p class="subtitle" id="brandSubtitle">Gestión Administrativa</p>
+        </div>
+
+        <form id="loginForm">
+          <div class="form-group">
+            <label for="usuario">Usuario</label>
+            <input
+              type="text"
+              id="usuario"
+              autocomplete="off"
+              placeholder="Ingresa tu usuario"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="password">Contraseña</label>
+            <input
+              type="password"
+              id="password"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          <button type="submit">Ingresar al Panel</button>
+        </form>
+
+        <div id="errorContainer" class="error-message"></div>
+
+        <div class="footer">
+          &copy; <span id="currentYear">2026</span> <b id="brandFooter">SaaS</b> | Gestión de Pedidos
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Cargar identidad de marca dinámica Whitelabel
+      document.addEventListener("DOMContentLoaded", async () => {
+        try {
+          const res = await fetch("/api/config");
+          if (res.ok) {
+            const data = await res.json();
+            const brandName = data.settings?.brandName || data.brandName || "Panel";
+            const botIdentity = data.settings?.botIdentity || data.botIdentity || "";
+            
+            document.title = `Acceso | ${brandName}`;
+            
+            const brandTitleEl = document.getElementById("brandTitle");
+            if (brandTitleEl) brandTitleEl.textContent = botIdentity ? `Panel ${botIdentity}` : `Panel ${brandName}`;
+            
+            const brandSubEl = document.getElementById("brandSubtitle");
+            if (brandSubEl) brandSubEl.textContent = `${brandName} | Acceso Administrativo`;
+            
+            const brandFooterEl = document.getElementById("brandFooter");
+            if (brandFooterEl) brandFooterEl.textContent = brandName;
+            
+            const yearEl = document.getElementById("currentYear");
+            if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+            if (data.settings?.theme?.logoUrl) {
+              const logoEl = document.querySelector(".logo-area img.logo");
+              if (logoEl) logoEl.src = data.settings.theme.logoUrl;
+              const favicon = document.querySelector("link[rel~='icon']");
+              if (favicon) favicon.href = data.settings.theme.logoUrl;
+            }
+            if (data.settings?.theme?.primaryColor) {
+              document.documentElement.style.setProperty("--wa-green", data.settings.theme.primaryColor);
+            }
+          }
+        } catch (err) {
+          console.warn("No se pudo cargar la configuración de marca en login:", err);
+        }
+      });
+
+      const form = document.getElementById("loginForm");
+      const errorDiv = document.getElementById("errorContainer");
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const usuario = document.getElementById("usuario").value;
+        const password = document.getElementById("password").value;
+
+        errorDiv.textContent = "";
+        errorDiv.style.display = "none";
+
+        try {
+          const response = await fetch("/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ usuario, password }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            // Guardar info del usuario para el panel
+            if (data.user) {
+              localStorage.setItem("user", JSON.stringify(data.user));
+            }
+            window.location.href = data.redirect || "/panel";
+          } else {
+            const errorData = await response.json();
+            errorDiv.textContent =
+              errorData.error || "Usuario o contraseña incorrectos";
+            errorDiv.style.display = "block";
+          }
+        } catch (err) {
+          errorDiv.textContent = "Error de conexión con el servidor";
+          errorDiv.style.display = "block";
+        }
+      });
+    </script>
+  </body>
+</html>

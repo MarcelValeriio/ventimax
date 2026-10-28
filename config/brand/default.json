@@ -1,0 +1,45 @@
+{
+  "brandName": "Mr. Pachi",
+  "botIdentity": "Yuri-Bot",
+  "messages": {
+    "welcome": "*{{brandName}}*\n{{saludo}} Elige una opción de la lista, o *escríbeme tu duda* directamente:",
+    "productsCatalog": "🍜 *Productos*\nSelecciona el producto:",
+    "cartTitle": "🛒 *Tu Carrito*",
+    "cartEmpty": "🛒 Carrito vacío. Usa 'Productos' en el menú.",
+    "editPanel": "🛠️ *Panel de Edición*",
+    "promptPersonalData": "📝 Ingresa tu nombre completo y cédula (Ej: Juan Perez 12345678).",
+    "promptAddress": "📍 Ahora envíame tu *dirección* o comparte tu *ubicación*.",
+    "promptPayment": "💳 ¿Cómo deseas pagar?",
+    "confirmPurchase": "✅ *Confirma compra*",
+    "paymentInstructionsHeader": "💳 *Instrucciones ({{metodo}})*",
+    "paymentSuccess": "✅ ¡Pago Confirmado! Tu pedido está en preparación. 🥟",
+    "receiptReceived": "✅ ¡Gracias! Recibimos tu comprobante. Nuestro equipo de ventas lo verificará a la brevedad para liberar tu pedido. ¡Gracias por tu paciencia! 🥟",
+    "receiptPending": "⚠️ Aún no hemos recibido tu comprobante. Por favor, envía una *foto o captura de pantalla* del pago para poder procesar tu pedido. 🥟",
+    "reminderVerification": "⏳ Tu comprobante ya ha sido recibido y está en cola para ser verificado por nuestro equipo. Te avisaremos apenas tu pedido sea liberado. ¡Muchas gracias! 🥟",
+    "orderNotificationAdmin": "🛍️ *NUEVA COMPRA CONFIRMADA*\n📞 {{telefono}}\n📦 {{items}}\n👤 {{nombre}} (ID: {{cedula}})\n💰 Total: ${{totalUSD}}",
+    "botError": "⚠️ *ERROR CRÍTICO*\n❌ {{error}}\n🕒 {{time}}",
+    "botStarted": "🚀 *{{botIdentity}} Online (ID: {{pid}})*\nEl bot se ha iniciado y está listo para recibir pedidos.\n🕒 {{time}}",
+    "botStopped": "🔌 *{{botIdentity}} Retirado (ID: {{pid}})*\nRender está cerrando esta instancia antigua para dar paso a la nueva.\n🕒 {{time}}"
+  },
+  "products": [
+    { "id": 1, "nombre": "Kit Dumplings", "precio": 15, "emoji": "🥟" }
+  ],
+  "paymentMethods": {
+    "transferencia": {
+      "nombre": "Transferencia Bancaria",
+      "instrucciones": "🏦 Transfiere a la cuenta:\nBanco: Ejemplo Banco\nCuenta: 0000-0000-0000-0000\nTitular: Mr. Pachi\nCédula: 12.345.678\n\n⚠️ Envía el comprobante a este chat para confirmar."
+    },
+    "pago movil": {
+      "nombre": "Pago Móvil",
+      "instrucciones": "📱 Pago móvil al número 0412-1234567\nBanco: Ejemplo Banco\nCédula: 12.345.678\n\n⚠️ Envía el comprobante a este chat para confirmar."
+    },
+    "usdt": {
+      "nombre": "USDT",
+      "instrucciones": "💎 Transfiere USDT (red TRC20) a la billetera:\n`TXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX`\n\n⚠️ Envía el comprobante a este chat para confirmar."
+    },
+    "zelle": {
+      "nombre": "Zelle",
+      "instrucciones": "💵 Envía el pago por Zelle al correo:\npagos@masaypalitostv.com\n\n⚠️ Envía el comprobante a este chat para confirmar."
+    }
+  }
+}

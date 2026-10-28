@@ -1,0 +1,89 @@
+<h2>Propuesta de Clon UI WhatsApp Business</h2>
+<p class="subtitle">Comparativa entre la interfaz actual y el diseño de alta fidelidad propuesto</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header" style="background: #059669; color: white;">Actual (Pachi-Kid Dashboard)</div>
+    <div class="mockup-body" style="background: #f3f4f6; padding: 10px; font-family: sans-serif;">
+      <div style="background: #ffffff; border-bottom: 1px solid #e5e7eb; padding: 10px; font-weight: bold;">
+        📱 +58 412 1234567
+      </div>
+      <div style="height: 200px; display: flex; flex-direction: column; gap: 8px; padding: 10px; overflow-y: auto;">
+        <div style="align-self: flex-start; background: #ffffff; padding: 8px 12px; border-radius: 12px; border-top-left-radius: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 14px; max-width: 80%;">
+          Hola, quisiera hacer un pedido
+        </div>
+        <div style="align-self: flex-end; background: #059669; color: white; padding: 8px 12px; border-radius: 12px; border-top-right-radius: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 14px; max-width: 80%;">
+          ¡Claro! ¿Qué te gustaría ordenar hoy?
+        </div>
+      </div>
+      <div style="padding: 10px; display: flex; gap: 8px;">
+        <div style="flex: 1; background: #f3f4f6; border: 1px solid #d1d5db; padding: 8px; border-radius: 8px; font-size: 14px; color: #9ca3af;">Respuesta rápida...</div>
+        <div style="width: 36px; height: 36px; background: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">➜</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header" style="background: #008069; color: white;">Propuesta (WhatsApp High-Fidelity)</div>
+    <div class="mockup-body" style="background: #efe7dd; padding: 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; position: relative;">
+      <!-- Header Estilo WhatsApp -->
+      <div style="background: #008069; color: white; padding: 10px 16px; display: flex; align-items: center; gap: 12px;">
+        <div style="width: 32px; height: 32px; background: #ddd; border-radius: 50%; overflow: hidden;">
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" style="width: 100%;">
+        </div>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; font-size: 15px;">+58 412 1234567</div>
+          <div style="font-size: 11px; opacity: 0.8;">en línea</div>
+        </div>
+        <div style="display: flex; gap: 16px; font-size: 18px;">
+          <span>📞</span> <span>📹</span> <span>⋮</span>
+        </div>
+      </div>
+      
+      <!-- Timeline con Rabillo y Colores Exactos -->
+      <div style="height: 180px; display: flex; flex-direction: column; gap: 4px; padding: 12px; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-size: contain;">
+        <!-- Recibido -->
+        <div style="align-self: flex-start; background: #ffffff; padding: 6px 7px 8px 9px; border-radius: 0 7.5px 7.5px 7.5px; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); font-size: 14.2px; max-width: 85%; position: relative;">
+          Hola, quisiera hacer un pedido
+          <div style="font-size: 11px; color: #667781; text-align: right; margin-top: 2px;">10:53 am</div>
+          <div style="position: absolute; left: -8px; top: 0; width: 0; height: 0; border-top: 0px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid #ffffff;"></div>
+        </div>
+        <!-- Enviado -->
+        <div style="align-self: flex-end; background: #dcf8c6; padding: 6px 7px 8px 9px; border-radius: 7.5px 0 7.5px 7.5px; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); font-size: 14.2px; max-width: 85%; position: relative;">
+          ¡Claro! ¿Qué te gustaría ordenar hoy?
+          <div style="font-size: 11px; color: #667781; text-align: right; margin-top: 2px;">
+            10:54 am <span style="color: #53bdeb;">✓✓</span>
+          </div>
+          <div style="position: absolute; right: -8px; top: 0; width: 0; height: 0; border-top: 0px solid transparent; border-bottom: 10px solid transparent; border-left: 10px solid #dcf8c6;"></div>
+        </div>
+      </div>
+
+      <!-- Input Rediseñado -->
+      <div style="padding: 5px 10px; display: flex; gap: 8px; align-items: center; background: #f0f2f5;">
+        <div style="font-size: 20px;">😊 📎</div>
+        <div style="flex: 1; background: #ffffff; padding: 9px 12px; border-radius: 8px; font-size: 15px; color: #3b4a54;">Escribe un mensaje</div>
+        <div style="width: 45px; height: 45px; background: #008069; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px;">➤</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>¿Qué nivel de cambio prefieres?</h3>
+  <div class="options" data-choice="change-level" onclick="toggleSelect(this)">
+    <div class="option" data-choice="only-colors">
+      <div class="letter">1</div>
+      <div class="content">
+        <h3>Sólo Colores</h3>
+        <p>Ajustar colores de Tailwind a los tokens de WhatsApp sin cambiar la estructura HTML actual.</p>
+      </div>
+    </div>
+    <div class="option" data-choice="high-fidelity">
+      <div class="letter">2</div>
+      <div class="content">
+        <h3>Alta Fidelidad (Recomendado)</h3>
+        <p>Refactorizar componentes para incluir "rabillos" en burbujas, estados de entrega (Checks) y el header de WhatsApp Business.</p>
+      </div>
+    </div>
+  </div>
+</div>

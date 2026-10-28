@@ -1,0 +1,14 @@
+[
+  {
+    "id": "prod-001",
+    "name": "Combo Pachi Familiar",
+    "price": 25.0,
+    "description": "Combo completo para toda la familia."
+  },
+  {
+    "id": "prod-002",
+    "name": "Pachi Dog Clásico",
+    "price": 5.0,
+    "description": "El original de la casa."
+  }
+]

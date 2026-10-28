@@ -1,0 +1,179 @@
+# ==============================================================================
+# YURI-BOT / REPLY BOT PACHI - REPOSITORY GITIGNORE
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Dependencias de Paquetes
+# ------------------------------------------------------------------------------
+node_modules/
+jspm_packages/
+web_modules/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+
+# ------------------------------------------------------------------------------
+# 2. Secretos, Credenciales y Variables de Entorno
+# ------------------------------------------------------------------------------
+# Bloquear todos los archivos de entorno
+.env
+.env.*
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.staging
+*.env
+
+# Preservar explícitamente plantillas de entorno
+!.env.example
+!.env.template
+
+# Llaves privadas, certificados y credenciales de servicios
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+*.keystore
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+credentials.json
+client_secret*.json
+service-account*.json
+firebase-adminsdk*.json
+
+# ------------------------------------------------------------------------------
+# 3. Bases de Datos Locales, Dumps, Mocks y Backups
+# ------------------------------------------------------------------------------
+# Base de datos JSON temporal de tests/mocks locales (services/dbLocal.js)
+temp_db.json
+temp_db*.json
+
+# SQLite, Redis y bases de datos embebidas
+*.sqlite
+*.sqlite3
+*.db
+*.db3
+dump.rdb
+*.dump
+*.sql
+*.sql.gz
+
+# Directorios y archivos de copias de seguridad
+backups/
+*.bak
+*.backup
+*.old
+
+# ------------------------------------------------------------------------------
+# 4. Logs y Archivos de Diagnóstico en Ejecución
+# ------------------------------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Diagnósticos y reportes de crash de Node.js
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Procesos, PIDs y candados
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# ------------------------------------------------------------------------------
+# 5. Cobertura de Pruebas y Reportes de Calidad
+# ------------------------------------------------------------------------------
+coverage/
+.nyc_output/
+reports/
+*.lcov
+
+# ------------------------------------------------------------------------------
+# 6. Artefactos de Compilación, Caché y Salidas de Build
+# ------------------------------------------------------------------------------
+dist/
+build/
+out/
+.cache/
+.parcel-cache/
+.eslintcache
+*.tsbuildinfo
+
+# ------------------------------------------------------------------------------
+# 7. Almacenamiento Local, Archivos Temporales y Cargas (Uploads)
+# ------------------------------------------------------------------------------
+uploads/
+public/uploads/
+storage/
+temp/
+tmp/
+
+# ------------------------------------------------------------------------------
+# 8. Archivos del Sistema Operativo
+# ------------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# ------------------------------------------------------------------------------
+# 9. IDEs, Editores y Herramientas de Desarrollo
+# ------------------------------------------------------------------------------
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+*.code-workspace
+.fleet/
+.antigravity-ide/
+
+# ------------------------------------------------------------------------------
+# 10. Notas y Archivos Ad-hoc Específicos del Proyecto
+# ------------------------------------------------------------------------------
+mejoras.txt
+.agent_tmp/

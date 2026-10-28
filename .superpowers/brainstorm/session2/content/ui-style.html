@@ -1,0 +1,23 @@
+<h2>Estilo de Interfaz</h2>
+<p class="subtitle">¿Cómo te gustaría navegar entre los pedidos?</p>
+
+<div class="options">
+  <div class="option" data-choice="classic" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Botones Clásicos</h3>
+      <p>Botones de "Anterior" y "Siguiente" con números de página. Es lo más común en sistemas contables para saltar a fechas específicas.</p>
+      <div class="mock-nav" style="margin-top:10px; padding:5px; background:#f0f0f0; border-radius:5px; text-align:center;">
+        &lt; [1] 2 3 ... 10 &gt;
+      </div>
+    </div>
+  </div>
+  <div class="option" data-choice="load-more" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Botón "Cargar Más"</h3>
+      <p>Al llegar al final de los 20, aparece un botón para cargar los siguientes 20 abajo. Mantiene la vista actual sin cambiar de página.</p>
+      <button class="mock-button" style="margin-top:10px; width:100%;">Cargar más pedidos</button>
+    </div>
+  </div>
+</div>

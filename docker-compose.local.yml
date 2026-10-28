@@ -1,0 +1,14 @@
+# MongoDB local para probar el panel en esta máquina. Nunca se usa en producción.
+# Uso: docker compose -f docker-compose.local.yml up -d   (apagar: ... down; borrar datos: ... down -v)
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: ventimax-mongo-local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017" # solo accesible desde esta máquina
+    volumes:
+      - ventimax_mongo_local:/data/db
+
+volumes:
+  ventimax_mongo_local:

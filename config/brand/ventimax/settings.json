@@ -1,0 +1,105 @@
+{
+  "brandName": "VentiMax",
+  "botIdentity": "Yuri-Bot",
+  "whatsappPhone": "",
+  "businessDescription": "Venta de ventiladores de alta calidad marca Fortunne. Delivery en Caracas y envíos a nivel nacional.",
+  "productBrand": "Fortunne",
+  "contact": {
+    "email": "",
+    "website": "",
+    "instagram": ""
+  },
+  "legal": {
+    "razonSocial": "",
+    "rif": "",
+    "direccion": "",
+    "fechaActualizacion": ""
+  },
+  "sales": {
+    "unitSingular": "unidad",
+    "unitPlural": "unidades"
+  },
+  "brandEmoji": "🌀",
+  "categoryEmoji": "🌀",
+  "theme": {
+    "primaryColor": "#1E8C88",
+    "secondaryColor": "#5CC0BB",
+    "logoUrl": "/assets/favicon.svg",
+    "productBrandLogoUrl": "/assets/brand/ventimax/fortunne-logo.png"
+  },
+  "features": {
+    "showBcvRate": true,
+    "allowManualStepOverride": true
+  },
+  "watchdog": {
+    "disabledDays": [
+      0,
+      6
+    ],
+    "startHour": "10:00",
+    "endHour": "17:00"
+  },
+  "horarioAtencion": {
+    "zonaHoraria": "America/Caracas",
+    "dias": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "apertura": "09:00",
+    "cierre": "17:00"
+  },
+  "flujoNoLaborable": {
+    "activo": true,
+    "entregaDiferida": {
+      "activo": true,
+      "texto": "Entrega en día hábil"
+    },
+    "retiroEnPunto": {
+      "activo": false,
+      "nombre": "",
+      "direccion": "",
+      "horario": ""
+    }
+  },
+  "messages": {
+    "welcome": "*{{brandName}}*\n{{saludo}} Elige una opción de la lista, o *escríbeme tu duda* directamente:",
+    "productsCatalog": "🌀 *Catálogo de Ventiladores*\nSelecciona una categoría:",
+    "cartTitle": "🛒 *Tu Carrito*",
+    "cartEmpty": "🛒 Carrito vacío. Usa 'Productos' en el menú.",
+    "editPanel": "🛠️ *Panel de Edición*",
+    "promptPersonalData": "📝 Por favor, indícanos tu *Nombre, Apellido y Cédula* para registrar tu pedido (máx. 40 caracteres para el nombre):\n\n_Ejemplo: Juan Pérez 12345678_\n\n💡 _Si deseas empezar de nuevo en cualquier momento, escribe *CANCELAR*._",
+    "promptAddress": "📍 Ahora envíame tu *dirección* o comparte tu *ubicación*.",
+    "promptPayment": "💳 ¿Cómo deseas pagar?\n\n💡 _Si deseas empezar de nuevo, escribe *CANCELAR*._",
+    "confirmPurchase": "✅ *Confirma compra*",
+    "paymentInstructionsHeader": "💳 *Instrucciones ({{metodo}})*",
+    "paymentSuccess": "✅ ¡Pago Confirmado! Tu pedido está en preparación.",
+    "receiptReceived": "✅ ¡Gracias! Recibimos tu comprobante. Nuestro equipo lo verificará a la brevedad.",
+    "receiptPending": "⚠️ Aún no hemos recibido tu comprobante. Por favor, envía una foto del pago.",
+    "reminderVerification": "⏳ Tu comprobante está en cola de verificación. Te avisaremos pronto.",
+    "orderNotificationAdmin": "🛍️ *NUEVA COMPRA*\n📞 {{telefono}}\n📦 {{items}}\n👤 {{nombre}} (ID: {{cedula}})\n💰 Total: ${{totalUSD}}",
+    "botStarted": "🚀 *{{botIdentity}} Online (ID: {{pid}})*",
+    "botStopped": "🔌 *{{botIdentity}} Offline (ID: {{pid}})*",
+    "botError": "⚠️ *ERROR*\n❌ {{error}}",
+    "welcomeDetailed": "{{saludo}}\nBienvenido a *{{brandName}}* (asistente *{{botIdentity}}*).\n\n{{businessDescription}}\n\nSi en algún momento el bot no responde, puedes escribir *Cancelar* para reiniciar la conversación.",
+    "menuFooter": "{{brandName}}",
+    "menuTitle": "🌀 Catálogo {{brandName}}",
+    "promptQuantity": "¿Cuántas *{{unitPlural}}* deseas agregar? 📦\n\n(Escribe solo el número):",
+    "promptQuantityDirect": "¿Cuántas *{{unitPlural}}* deseas agregar? 📦\n\n(Escribe solo el número):",
+    "orderDispatched": "🛵 ¡Tu pedido está en camino!\n\nEl repartidor ya lleva tu Pedido {{id}} hacia la dirección indicada: {{direccion}}.\n\n¡Prepárate para recibir tu compra! ✨",
+    "orderDelivered": "🏁 ¡Pedido Entregado!\n\n¡Gracias por tu compra! Esperamos que disfrutes tu compra. Si deseas volver a ordenar en el futuro, solo escribe 'Menú' y estaré encantado de ayudarte de nuevo. ✨",
+    "manualOrderRequest": "¡Hola! Para agilizar tu atención y tomar tu pedido de inmediato de forma manual, por favor envíanos los siguientes datos en un solo mensaje:\n\n👤 Nombre:\n🪪 Cédula de identidad:\n📦 Tu pedido (modelos y cantidad):\n📍 Dirección exacta de entrega o Ubicacion GPS:\n🛵 Nota para la entrega (opcional):\n\nEn cuanto nos envíes esta información, procesamos tu pedido al instante. ¡Muchas gracias! ✨",
+    "weekendGreeting": "{{greetingPrefix}} Bienvenido a *{{brandName}}* ✨\n\nHoy no estamos despachando (horario habitual: *{{horarioTexto}}*).\n\n¿Cómo deseas continuar?",
+    "weekendDeliveryConfirm": "🎉 ¡Excelente! Tu pedido será registrado con *{{textoModalidad}}* para el día *{{proximoDiaHabil}}* a partir de las {{horaApertura}} 📦",
+    "weekendButtonPedir": "📦 Pedir {{proximoDiaHabil}}",
+    "weekendButtonPuntoAliado": "🏪 Punto de Retiro",
+    "puntoAliadoInfo": "🏪 *{{nombrePunto}}*\n\n¡Puedes comprar y retirar hoy mismo en nuestro punto de retiro!\n\n📍 *Ubicación:* {{direccionPunto}}\n🕒 *Horario:* {{horarioPunto}}\n\n💡 _Si prefieres registrar tu pedido para el {{proximoDiaHabil}}, escribe *pedir* o *menu*._",
+    "reactivationNotice": "¡Hola! 😊 Si deseas ver de nuevo nuestro catálogo de productos, escribe \"menú\" en cualquier momento. ¡Estamos a tu orden! 🌀",
+    "stockEmpty": "En este momento no hay productos disponibles.",
+    "stockHeader": "🌀 *Modelos Disponibles para hoy:*",
+    "faqFallbackMenu": "1. Modelos y catálogo disponible\n2. Métodos de pago y envíos\n3. Horarios de atención y delivery",
+    "igCatalogHeader": "{{brandEmoji}} *Catálogo y Productos Disponibles:*"
+  }
+}

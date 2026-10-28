@@ -1,0 +1,24 @@
+<h2>Exportación de Reportes Completos</h2>
+<p class="subtitle">¿Cómo quieres manejar la descarga de datos masivos?</p>
+
+<div class="options">
+  <div class="option" data-choice="fetch-all" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Carga Rápida para PDF</h3>
+      <p>Al dar clic en "Exportar PDF", el navegador pide al servidor <b>todos</b> los registros del filtro actual (sin límite de 20) solo para generar el reporte. Mantiene el diseño exacto que ya tienes.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="backend-pdf" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Generación en Servidor</h3>
+      <p>El servidor genera el PDF y te lo envía listo. Es más robusto si tienes miles de pedidos, pero requiere rediseñar la plantilla del reporte en el backend.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px; padding:15px; background:#fffbeb; border-left:4px solid #f59e0b; font-size:13px;">
+  <strong>💡 Mi recomendación: Opción A.</strong> <br>
+  Es la más rápida de implementar y conserva tu diseño actual "fiel al estilo SaaS" sin tener que reescribir código en el servidor.
+</div>

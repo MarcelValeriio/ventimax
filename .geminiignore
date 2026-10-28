@@ -1,0 +1,8 @@
+# Bloquear archivos de entorno reales
+.env
+.env.local
+.env.production
+.env.development
+
+# Permitir explícitamente el archivo de ejemplo
+!.env.example

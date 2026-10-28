@@ -1,0 +1,74 @@
+# Blueprint de Render para desplegar una marca de la plantilla (guía: docs/nuevo-cliente.md, sección 4).
+# Render → New → Blueprint → elegir este repositorio. Render pide al crear cada variable marcada `sync: false`.
+# Para otro cliente: cambiar `name` y el valor de BRAND_NAME (carpeta en config/brand/).
+services:
+  - type: web
+    name: ventimax
+    runtime: node
+    # starter (de pago) no se duerme. El plan free se apaga tras 15 min sin tráfico: los mensajes de WhatsApp
+    # llegarían con retraso y el Watchdog y los trabajos programados se detendrían.
+    plan: starter
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # ── Fijas ─────────────────────────────────────────────────────
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: BRAND_NAME
+        value: ventimax
+      - key: FORCE_CLEAN_SEED
+        value: "false"
+      # ── Generada por Render (256 bits aleatorios) ─────────────────
+      - key: JWT_SECRET
+        generateValue: true
+      # ── Base de datos y primer administrador ──────────────────────
+      - key: MONGODB_URI
+        sync: false
+      - key: ADMIN_USER
+        sync: false
+      - key: ADMIN_PASS # mínimo 12 caracteres; solo actúa si la base no tiene usuarios
+        sync: false
+      # ── WhatsApp (Meta) ───────────────────────────────────────────
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_BUSINESS_ACCOUNT_ID
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: VERIFY_TOKEN
+        sync: false
+      - key: META_APP_ID
+        sync: false
+      # ── Alertas al administrador (formato 58412...) ───────────────
+      - key: ADMIN_PHONE_NUMBER
+        sync: false
+      - key: ADMIN_PHONE_NUMBER_2
+        sync: false
+      - key: DELIVERY_PHONE_NUMBER
+        sync: false
+      # ── IA ────────────────────────────────────────────────────────
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      # ── Imágenes (comprobantes y fotos de producto) ───────────────
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      # ── Notificaciones push (npx web-push generate-vapid-keys) ────
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_EMAIL # mailto:correo@dominio
+        sync: false
+      # Opcionales (Instagram, Messenger, anuncios, audio): se añaden a mano en Render cuando se activen.
+      # Lista completa y comentada en .env.example.

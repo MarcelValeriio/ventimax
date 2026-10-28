@@ -1,0 +1,57 @@
+[
+  {
+    "id": "fortunne-n21",
+    "name": "Fortunne Mini Jumbo 6\"",
+    "price": 25.0,
+    "description": "6\" (15,24 cm), 3 aspas aerodinámicas, 3 velocidades",
+    "categorias": [
+      "Mesa"
+    ]
+  },
+  {
+    "id": "fortunne-n22",
+    "name": "Fortunne High Velocity Fan 8\"",
+    "price": 35.0,
+    "description": "8\" (20,32 cm), 3 aspas aerodinámicas, 3 velocidades",
+    "categorias": [
+      "Mesa"
+    ]
+  },
+  {
+    "id": "fortunne-n04",
+    "name": "Fortunne Turbo Fan 10\"",
+    "price": 40.0,
+    "description": "10\" (25,4 cm), 2 en 1 mesa/pared, 3 velocidades",
+    "categorias": [
+      "Mesa",
+      "Pared"
+    ]
+  },
+  {
+    "id": "fortunne-n20",
+    "name": "Fortunne Turbo Fan 12\"",
+    "price": 46.0,
+    "description": "12\" (30,48 cm), 3 aspas aerodinámicas, 3 velocidades",
+    "categorias": [
+      "Mesa"
+    ]
+  },
+  {
+    "id": "fortunne-n24",
+    "name": "Fortunne Turbo Fan 20\"",
+    "price": 75.0,
+    "description": "20\" (50,80 cm), 5 aspas aerodinámicas, 3 velocidades",
+    "categorias": [
+      "Mesa"
+    ]
+  },
+  {
+    "id": "fortunne-n37",
+    "name": "Fortunne Ventilador de Pedestal 18\"",
+    "price": 25.0,
+    "description": "18\" (45,72 cm), 180 W, 3 aspas, altura ajustable",
+    "categorias": [
+      "Pedestal"
+    ]
+  }
+]
