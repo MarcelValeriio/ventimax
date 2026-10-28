@@ -72,3 +72,27 @@ services:
         sync: false
       # Opcionales (Instagram, Messenger, anuncios, audio): se añaden a mano en Render cuando se activen.
       # Lista completa y comentada en .env.example.
+
+  # ── Catálogo Web Estático (F2-3) ──────────────────────────────────
+  - type: static
+    name: ventimax-tienda
+    buildCommand: node catalogo/build.js
+    staticPublishPath: catalogo
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        # Nota: https://ventimax.onrender.com (<API_URL>) se cambia por la URL del servidor de cada cliente
+        value: "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://res.cloudinary.com https://ventimax.onrender.com; connect-src 'self' https://ventimax.onrender.com; object-src 'none'; frame-ancestors 'none'; base-uri 'self'"
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains; preload
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+    envVars:
+      - key: API_URL
+        value: https://ventimax.onrender.com # Cambiar por la URL del servidor del cliente
+

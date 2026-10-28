@@ -187,3 +187,6 @@ $RECYCLE.BIN/
 # ------------------------------------------------------------------------------
 mejoras.txt
 .agent_tmp/
+
+# Configuración generada del catálogo estático (F2-3)
+catalogo/config.js

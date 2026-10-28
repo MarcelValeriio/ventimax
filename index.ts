@@ -62,7 +62,16 @@ app.get("/login.html", (req, res) => res.redirect("/login"));
 
 // Obligamos a Express a servir la carpeta de scripts de forma independiente
 app.use("/src", express.static(SRC_DIR));
-app.use("/assets", express.static(path.join(PUBLIC_DIR, "assets")));
+// Los logos de /assets los muestra también el catálogo web (otro origen, F2-3): solo aquí se permite
+// cargarlos desde otro sitio. El resto del servidor (panel, API) mantiene la política same-origin de helmet.
+app.use(
+  "/assets",
+  (req, res, next) => {
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    next();
+  },
+  express.static(path.join(PUBLIC_DIR, "assets")),
+);
 app.use(express.static(PUBLIC_DIR, { index: false }));
 
 // 2b. API PÚBLICA (F2-1: Catálogo y Carrito Web)

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catálogo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" id="favicon-link" href="data:,">
+  <script src="config.js"></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="catalog-header">
+    <div class="header-inner">
+      <a href="#/" class="brand-link" id="brand-link" aria-label="Ir al inicio">
+        <img id="brand-logo" alt="Logo" class="brand-logo hidden">
+        <span id="brand-title" class="brand-title"></span>
+      </a>
+      <a href="#/carrito" class="cart-btn" id="cart-btn" aria-label="Ver carrito">
+        <span class="cart-icon">🛒</span>
+        <span class="cart-badge" id="cart-badge">0</span>
+      </a>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <main id="app-root"></main>
+  </div>
+
+  <footer class="catalog-footer">
+    <p id="footer-text">Catálogo en línea</p>
+  </footer>
+
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+</body>
+</html>

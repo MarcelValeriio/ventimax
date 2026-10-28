@@ -116,7 +116,7 @@ Firmas en el historial: `— Ejecutado por **Antigravity**`, `— Ejecutado por 
 |---|---|---|
 | **F0** | Plantilla multimarca: marca `ventimax`, código sin textos de Mr. Pachi, horario, fin de semana y métodos de envío editables desde el panel, arranque seguro, imágenes de producto, guía para nuevos clientes. Las 14 tareas cerradas el 2026-10-28 | **Cerrada** |
 | F1 | Producto ampliado: SKU, marca fabricante, códigos OEM, atributos, compatibilidad por vehículo (marca, modelo, años, motor, versión), grupos de equivalencia; importación desde Excel; bot por vehículo. **Diseño: `docs/f1-producto-ampliado.md`** | Diseñada (espera cierre de F0) |
-| F2 | Catálogo web público con carrito y pedido a WhatsApp con código no adivinable. **Diseño: `docs/f2-catalogo-web.md`.** Requisitos de seguridad obligatorios: `docs/auditoria-seguridad-2026-10.md` (sección F2) | **En curso** (F2-1 y F2-2 aprobadas; sigue F2-3) |
+| F2 | Catálogo web público con carrito y pedido a WhatsApp con código no adivinable. **Diseño: `docs/f2-catalogo-web.md`.** Requisitos de seguridad obligatorios: `docs/auditoria-seguridad-2026-10.md` (sección F2) | **En curso** (F2-1, F2-2 y F2-3 aprobadas; sigue F2-4, la última) |
 | F3 | Búsqueda con IA sobre la BD (texto y notas de voz), registro de búsquedas sin resultado, pase a asesor | Pendiente |
 | F4 | Formularios nativos (WhatsApp Flows), lectura de fotos de piezas, equivalencias entre marcas | Pendiente |
 | F5 | **Canal TikTok** (Business Messaging API): mensajes directos de la cuenta de empresa en el Inbox, como cuarto canal con el mismo esquema que Instagram (preguntas frecuentes por el bot; para comprar, enlace a WhatsApp). Beta abierta en Latinoamérica; requiere cuenta TikTok Business y app aprobada (revisión de seguridad y privacidad de TikTok). Investigación previa (2026-10-28, subagente): la documentación oficial de TikTok no se pudo leer sin navegador, así que lo técnico (endpoints, JSON del webhook, firma) está **sin verificar**. Según integradores: ventana de 48 h desde el último mensaje del cliente, unos 10 mensajes por ventana, solo texto e imagen (sin botones confirmados), tokens de ~24 h que se renuevan, y Latinoamérica disponible (Venezuela sin confirmar). Antes del diseño hay que leer la documentación oficial con sesión iniciada. Se diseña después de F0, junto a F2. **Decisión del dueño (2026-10-28): sin botones.** El bot de TikTok responde solo con texto: respuestas por intención (precios, envíos, horario, pagos, catálogo) armadas con variables de la marca y del panel (`{{brandName}}`, horario, métodos de envío y pago vigentes, etc.), y **enlaces** para llevar al cliente a comprar: `{{waLink}}` (chat de WhatsApp con texto prellenado y la etiqueta de origen TikTok) y `{{catalogoUrl}}` (catálogo web de F2; mientras F2 no exista, solo WhatsApp). Los textos van en `messages` de la marca, nunca en el código | Pendiente (requisitos del dueño) |
@@ -2051,7 +2051,7 @@ Verificado por Claude con `./scripts/ci.sh`: build, 28 suites (`test-pedido-web-
 2. **Un código ya convertido en pedido se podía volver a cargar.** Si el mismo teléfono reenviaba el código después de crear el pedido, el carrito se cargaba de nuevo y podía terminar en un segundo pedido. Ahora, con `pedidoId`, responde que el código ya se usó. Caso 5b añadido a la suite.
 3. **El aviso de stock decía el número exacto** ("disponible: 3"). Ahora dice que no alcanza para la cantidad pedida, sin cifra (R4).
 
-### F2-3 · Páginas de la tienda (sitio estático) — Frontend · `Pendiente` (siguiente de Antigravity)
+### F2-3 · Páginas de la tienda (sitio estático) — Frontend · `Aprobada`
 
 Diseño: `docs/f2-catalogo-web.md` §1 y §5. Requisitos R1, R7, R11, R13.
 
@@ -2068,6 +2068,97 @@ Diseño: `docs/f2-catalogo-web.md` §1 y §5. Requisitos R1, R7, R11, R13.
 6. **Entorno local:** `scripts/catalogo-local.sh` sirve `catalogo/` en `http://localhost:5173` (servidor estático de Node, sin dependencias nuevas) e indica arrancar el servidor con `CATALOGO_ORIGEN=http://localhost:5173 ./scripts/dev-local.sh` (no modificar `dev-local.sh`).
 
 **Cierre:** suite nueva `scripts/test-catalogo-web.ts` (en `SUITES`): lógica del carrito (límites, sumar el mismo producto, cuerpo del `POST` sin precios ni otros campos); los HTML sin `<script>` en línea ni `on*=`; ningún `innerHTML` en `catalogo/js/`; ninguna URL externa salvo Cloudinary; ningún texto de marca (`VentiMax`, `Fortunne`, `Pachi`). Añadir `catalogo/js/*.js` al bucle de `esbuild --bundle` de `ci.sh`. Recorrido en el navegador en local (inicio, categoría, producto, carrito, pedido y apertura de WhatsApp) con la consola abierta: **0 errores de CSP**, listado en la entrega. `./scripts/ci.sh` en verde.
+
+#### Entrega y verificación (Antigravity)
+- **Archivos tocados / creados:**
+  - `catalogo/index.html`: Shell estático sin scripts en línea, sin manejadores `on*=` y sin CDNs.
+  - `catalogo/css/style.css`: Estilos móviles primero con variables CSS para colores de marca, grilla responsiva, galería de producto, carrito y confirmación.
+  - `catalogo/build.js`: Generador de `catalogo/config.js` a partir de `API_URL` (sin dependencias).
+  - `catalogo/js/dom.js`: Utilidades DOM seguras con `document.createElement` y `textContent` (0 `innerHTML`).
+  - `catalogo/js/api.js`: Cliente de la API pública (`/api/public`) con mensajes amables para 429, 503, 400 y red.
+  - `catalogo/js/carrito.js`: Motor puro del carrito sin acceso al DOM (límites 1-50 por línea, máx 20 líneas, `armarCuerpoPedido` sin precios ni datos personales).
+  - `catalogo/js/app.js`: SPA con hash routing (`#/`, `#/categoria/:slug`, `#/producto/:id`, `#/carrito`, `#/confirmacion/:codigo`), hidratación de marca (`/api/public/marca`) y catálogo (`/api/public/catalogo`).
+  - `index.ts`: añadida directiva `crossOriginResourcePolicy: { policy: "cross-origin" }` en Helmet para permitir la carga cruzada de imágenes públicas de marca.
+  - `render.yaml`: servicio estático `ventimax-tienda` con cabeceras estrictas CSP, HSTS, X-Content-Type-Options y Referrer-Policy.
+  - `scripts/catalogo-local.sh`: servidor local estático en `http://localhost:5173` con cabeceras de seguridad.
+  - `scripts/test-catalogo-web.ts`: suite automatizada con 8 pruebas de lógica, seguridad estática y configuración.
+  - `scripts/ci.sh`: incorporada `test-catalogo-web.ts` en `SUITES` y añadido `catalogo/js/*.js` al bucle de `esbuild --bundle`.
+  - `.gitignore`: añadida exclusión de `catalogo/config.js`.
+
+- **Recorrido en navegador local con Chrome Headless + CDP (0 errores de CSP):**
+  1. **Inicio (`http://localhost:5173/#/`):** Título dinámico "VentiMax", 6 tarjetas de producto renderizadas con fotos, precios en $ y Bs, 0 errores de CSP.
+  2. **Categoría (`http://localhost:5173/#/categoria/mesa`):** Píldora "Mesa" activa, 5 productos filtrados, 0 errores de CSP.
+  3. **Producto (`http://localhost:5173/#/producto/fortunne-n21`):** Título "Fortunne Mini Jumbo 6\"", galería de fotos, descripción, selector de cantidad y botón Agregar, 0 errores de CSP.
+  4. **Carrito (`http://localhost:5173/#/carrito`):** Línea con foto y controles `[-]` `[+]` `🗑`, subtotal, referencia en Bs a la tasa del día, campo trampa `website` oculto, 0 errores de CSP.
+  5. **Envío de pedido:** Clic en "Pedir por WhatsApp" emite `POST /api/public/pedidos`, genera código `VM-GZFWR`, 0 errores de CSP.
+  6. **Confirmación (`http://localhost:5173/#/confirmacion/VM-GZFWR`):** Tarjeta de confirmación con código en caja destacada, botón de copia, botón "Abrir WhatsApp", 0 errores de CSP.
+  - **Total violaciones de CSP detectadas:** **0**.
+
+- **Evidencia de verificación de la suite F2-3:**
+  ```text
+  $ NODE_ENV=test npx tsx scripts/test-catalogo-web.ts
+  ================================================================================
+  🌐 SUITE DE PRUEBAS: PÁGINAS DEL CATÁLOGO WEB ESTÁTICO (F2-3)
+  ================================================================================
+  ▶ Test 1: Lógica del carrito (agregar, actualizar, eliminar, límites)...
+    ✅ Test 1 superado (Lógica del carrito y límites 1-50 / 20 líneas)
+  ▶ Test 2: armarCuerpoPedido genera payload estricto sin precios...
+    ✅ Test 2 superado (armarCuerpoPedido genera payload limpio de precios)
+  ▶ Test 3: Serialización, deserialización y mock storage...
+    ✅ Test 3 superado (Persistencia sanitizada en storage)
+  ▶ Test 4: Integridad HTML (sin scripts en línea ni eventos on*=)...
+    ✅ Test 4 superado (HTML limpio de scripts y eventos en línea)
+  ▶ Test 5: Auditoría de código en catalogo/js/ (0 innerHTML, URLs, marcas)...
+    ✅ Test 5 superado (0 innerHTML, sin URLs externas no autorizadas y 0 marcas escritas)
+  ▶ Test 6: Generador catalogo/build.js...
+    ✅ Test 6 superado (catalogo/build.js genera config.js correctamente)
+  ▶ Test 7: Cabeceras de seguridad del sitio estático en render.yaml...
+    ✅ Test 7 superado (render.yaml contiene directivas de seguridad CSP/HSTS)
+  ▶ Test 8: Script scripts/catalogo-local.sh...
+    ✅ Test 8 superado (scripts/catalogo-local.sh configurado)
+  ================================================================================
+  🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (8/8)
+  ================================================================================
+  ```
+
+- **Evidencia de verificación completa (`./scripts/ci.sh`):**
+  ```text
+  $ ./scripts/ci.sh
+  ▶ Build
+  > ventimax@1.0.0 build
+  > tsc && node -e "const fs = require('fs'); if (fs.existsSync('config')) fs.cpSync('config', 'dist/config', { recursive: true });"
+  ▶ 29 suites (incluyendo test-catalogo-web.ts)
+  ▶ Imports del panel y catálogo (esbuild --bundle sobre 57 archivos)
+  ✅ Build, 29 suites e imports del panel en verde.
+  ```
+- **Desviaciones:** Ninguna. Listo para revisión de Claude.
+
+#### Revisión de Claude (2026-10-29) — `Aprobada` (con ajustes hechos por Claude)
+Verificado por Claude con `./scripts/ci.sh`: build, 29 suites (`test-catalogo-web.ts` 9/9 con el caso añadido) e imports del panel y del catálogo en verde. Bien resuelto: sin frameworks, CDN ni scripts en línea; ningún `innerHTML` (todo con `textContent`/`el()`); carrito en `localStorage` con solo `{ productoId, cantidad }` y lógica sin DOM probada con Node; `POST` sin precios y con el campo trampa; marca desde `/api/public/marca`; cabeceras del sitio estático en `render.yaml`; recorrido en Chrome de las 6 vistas con 0 errores de CSP.
+
+**Ajustes hechos por Claude:**
+1. **Protección relajada en todo el servidor.** Para que la tienda muestre el logo, se puso `crossOriginResourcePolicy: "cross-origin"` en el `helmet` global, lo que también abría el panel y la API de administración. Ahora solo `/assets` envía `Cross-Origin-Resource-Policy: cross-origin`; el resto sigue `same-origin`. Prueba 9 añadida.
+2. **El enlace de WhatsApp no se validaba.** La tienda abría cualquier `enlaceWhatsApp` que devolviera la API. Ahora solo abre `https://wa.me/…` y con `noopener`.
+
+**Antes de publicar la tienda** (no es tarea de código): en `render.yaml`, la URL `https://ventimax.onrender.com` de `API_URL` y de la CSP del sitio estático tiene que coincidir con la dirección real del servicio que asigne Render; en el servicio del servidor hay que poner `CATALOGO_ORIGEN` con la dirección del sitio estático. Claude lo ajusta cuando el servidor esté desplegado. Hasta entonces **no se sube** el cambio de `render.yaml`: el Blueprint crearía el sitio estático con una dirección equivocada.
+
+
+### F2-4 · El panel muestra y configura el catálogo web — Backend + Frontend · `Pendiente` (siguiente de Antigravity)
+
+Diseño: `docs/f2-catalogo-web.md` §4. Requisito R14. Es la última tarea de F2.
+
+1. **Configuración → Catálogo web** (sección nueva, solo `config:manage`), con el mismo patrón que Datos del negocio (F0-14): `Setting` con `key: "catalogo"` y servicio con caché que se carga al arrancar (`init()` en `index.ts`), con la configuración de la marca como respaldo.
+   - Campos: **activo** (interruptor), **prefijo del código** (2 a 4 letras mayúsculas, sin las letras que confunden I, L, O) y **texto del mensaje de WhatsApp** (≤ 200, debe contener `{{codigo}}`).
+   - `publicController` y la detección del bot en `chatFlowService` leen de ese servicio, no de `configManager` directamente.
+   - Al cambiar el prefijo, aviso en el panel: "Los pedidos web creados con el prefijo anterior se dejan de reconocer" (vencen solos a los 3 días).
+   - `GET`/`PUT /api/admin/config/catalogo` con validador en `configValidators.ts` y auditoría.
+2. **Inbox:** si la conversación tiene un pedido web (`carrito.codigoWeb` en el estado o un pedido con `origenWeb.codigo`), etiqueta "🛒 Pedido web <código>" en la cabecera del hilo. Si el bot está en modo manual y el cliente mandó un código, el asesor lo ve resaltado (el bot no lo cargó, F2-2).
+3. **Kanban y comanda:** insignia **WEB** en la tarjeta de los pedidos con `origenWeb.codigo` (como la de anuncios) y el código en la comanda (escapado con `esc()`).
+4. **Ventas:** métrica "Pedidos web: carritos creados / confirmados por WhatsApp / convertidos en pedido" en el período elegido (`CarritoWeb` creados, `estado: "vinculado"`, con `pedidoId`). Ojo: el TTL borra los carritos no reclamados a los 3 días, así que "creados" se cuenta con un contador diario (punto 5), no contando `CarritoWeb`.
+5. **Registro de abuso [R14]:** colección pequeña de contadores diarios (`{ fecha, tipo, cantidad }` con `$inc`; tipos: `creado`, `limite`, `honeypot`, `validacion`, `producto`). `publicController` y el limitador suman ahí, además del log `⚠️ [Catálogo]`. En el panel, tabla de los últimos 14 días. Sin IP ni datos personales.
+6. Textos del panel en español neutro; nada de la marca escrito en el código.
+
+**Cierre:** suite nueva `scripts/test-catalogo-panel.ts` (en `SUITES`): validador (prefijo con I/L/O o de 5 letras rechazado, mensaje sin `{{codigo}}` rechazado), `PUT` con auditoría y permiso, catálogo apagado desde el panel → 503 en la API pública y códigos ignorados por el bot, prefijo nuevo reconocido por el bot, contadores que suben con cada rechazo, métrica de Ventas con datos de prueba. `esbuild --bundle` en los archivos del panel tocados y recorrido en el entorno local (Inbox, Kanban, Ventas, Configuración) con 0 errores de CSP. `./scripts/ci.sh` en verde.
 
 ---
 
@@ -2172,6 +2263,8 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-10-29 | 01:00 | Revisión F2-3 (aprobada con 2 ajustes de Claude: `Cross-Origin-Resource-Policy` relajado en todo el servidor → solo `/assets`; enlace de WhatsApp de la tienda validado). Tarea nueva F2-4 (panel del catálogo web: configuración, insignias, métrica y registro de abuso) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+| 2026-10-28 | — | F2-3: Páginas de la tienda como sitio estático `catalogo/` (SPA sin frameworks ni innerHTML, carrito puro, build.js, cabeceras CSP en render.yaml, servidor local y 0 errores CSP en navegador); suite `test-catalogo-web.ts` en CI — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
 | 2026-10-29 | 00:15 | Revisión F2-2 (aprobada con 3 ajustes de Claude: respaldos con la marca, código ya convertido en pedido que se podía recargar, stock exacto en el aviso). F2-3 pasa a ser la siguiente de Antigravity — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-28 | — | F2-2: el bot reconoce el código del pedido web (reclamo atómico, 6 casos, `origenWeb`); suite `test-pedido-web-bot.ts` — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |
 | 2026-10-28 | — | F2-2: El bot reconoce el código del pedido web (reclamo atómico, revalidación BD, confirmación compartida, Pedido.origenWeb, CarritoWeb.pedidoId, 7 mensajes en ambas marcas con enviarYRegistrar); suite `test-pedido-web-bot.ts` en CI — Ejecutado por **Antigravity** | Antigravity (TPM) | Completado |

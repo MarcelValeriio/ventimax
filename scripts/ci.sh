@@ -27,6 +27,7 @@ SUITES=(
   test-api-publica.ts
   test-registro-envios.ts
   test-pedido-web-bot.ts
+  test-catalogo-web.ts
   test-e2e-saas.js
   test-full-flow.js
   test-cash-logic.js
@@ -48,11 +49,11 @@ for s in "${SUITES[@]}"; do
   fi
 done
 
-echo "▶ Imports del panel (esbuild --bundle)"
+echo "▶ Imports del panel y catálogo (esbuild --bundle)"
 while IFS= read -r archivo; do
   npx --yes esbuild@0.23.0 "$archivo" --bundle --external:'https://*' --outfile=/dev/null --log-level=error \
     || fallos+=("esbuild $archivo")
-done < <(find public/src -name "*.js" -not -path "*/node_modules/*" | sort)
+done < <(find public/src catalogo/js -name "*.js" -not -path "*/node_modules/*" | sort)
 
 if [ ${#fallos[@]} -gt 0 ]; then
   echo ""
