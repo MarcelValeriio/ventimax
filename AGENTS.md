@@ -2401,6 +2401,8 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 ## Pendientes del dueño
 
+- **Render → Blueprints → ventimax → Manual Sync** después del push del 2026-10-29 16:25, para que la tienda tome la cabecera `Cache-Control: no-cache` (evita que tras un despliegue se mezclen archivos nuevos y viejos).
+
 - **URGENTE: cambiar la contraseña del usuario de base de datos de Atlas.** La `MONGODB_URI` real (usuario y contraseña de producción) se subió a GitHub dentro de `.env.example` en el commit `3391fa5` (2026-10-28). Claude devolvió la plantilla a `MONGODB_URI=` vacío el 2026-10-29. Pasos: Atlas → Database Access → usuario → Edit → Edit Password → Autogenerate → Update User; después actualizar `MONGODB_URI` en Render (Environment) con la contraseña nueva. Con la contraseña cambiada, la vieja que quedó en el historial ya no sirve.
 
 - **Render → Blueprints → ventimax → Manual Sync** para crear la tienda (`ventimax-tienda`) y aplicar `CATALOGO_ORIGEN` en el servidor; el push no lo hizo solo (2026-10-29).
@@ -2423,6 +2425,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-10-29 | 16:25 | Tienda: tras el despliegue de F2e la CDN de Render sirvió durante ~8 min el JavaScript nuevo con el CSS viejo (empresas sin formato). `render.yaml`: `Cache-Control: no-cache` en todos los archivos del sitio estático (se revalidan con 304). Requiere Manual Sync del Blueprint — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 16:00 | F2e: empresas de envío (el cliente elige una en la tienda y en el chat) y cobro a destino configurable por método; tienda confirma siempre los métodos de envío con el servidor (la caché de 5 min ocultaba las opciones tras el despliegue de F2c) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 15:00 | F2c: el cliente elige la entrega en el carrito (retiro, delivery con GPS del teléfono o dirección, envío nacional); el servidor la valida contra la base, viaja en el mensaje de WhatsApp con el enlace del mapa y el bot no la vuelve a preguntar. Política de privacidad actualizada. F2d (mapa con buscador) anotada — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 13:00 | F2b: rediseño de la tienda con Impeccable (estilo estándar elegido por el dueño, referencia Mercado Libre), preguntas frecuentes editables y `/api/public/info` (subagente Haiku), íconos de Lucide en la tienda; revisión final `ship` y `DESIGN.md`. M-4: panel sin Font Awesome, solo Lucide (subagente Haiku), revisado en Chrome — Ejecutado por **Claude** + subagentes | Claude (Cerebro) | Completado |

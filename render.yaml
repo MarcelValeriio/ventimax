@@ -100,6 +100,11 @@ services:
       - path: /*
         name: Referrer-Policy
         value: strict-origin-when-cross-origin
+      # Cada archivo se confirma con el origen en cada visita (responde 304 si no cambió). Sin esto la CDN guarda
+      # cada archivo por separado unos minutos y, tras un despliegue, mezcla el JavaScript nuevo con el CSS viejo
+      - path: /*
+        name: Cache-Control
+        value: no-cache
     envVars:
       - key: API_URL
         value: https://ventimax.onrender.com # Cambiar por la URL del servidor del cliente
