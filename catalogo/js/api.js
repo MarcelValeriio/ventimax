@@ -63,8 +63,11 @@ export async function obtenerCatalogo() {
  */
 export async function obtenerInfo() {
   const base = obtenerBaseUrl();
+  // Siempre se confirma con el servidor (una respuesta 304 cuesta poco): los métodos de envío cambian desde el
+  // panel y una copia vieja en caché dejaría al carrito sin las opciones de entrega
   const res = await fetch(`${base}/api/public/info`, {
     headers: { Accept: "application/json" },
+    cache: "no-cache",
   });
   if (!res.ok) {
     throw new Error(`Error HTTP ${res.status} al consultar información`);
