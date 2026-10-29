@@ -35,7 +35,17 @@ export function usaGps(metodo) {
  */
 /** Empresas de envío entre las que elige el cliente (envío nacional); vacía si el método no las tiene. */
 export function empresasDe(metodo) {
-  return metodo && metodo.tipo !== "retiro" && Array.isArray(metodo.empresas) ? metodo.empresas.filter(Boolean) : [];
+  if (!metodo || metodo.tipo === "retiro" || !Array.isArray(metodo.empresas)) return [];
+  // Versión vieja: strings. Versión nueva: { nombre, logoUrl }. Aquí solo interesan los nombres.
+  return metodo.empresas.map((e) => (typeof e === "string" ? e : e && e.nombre)).filter(Boolean);
+}
+
+/** Logo de una empresa (URL de Cloudinary) o "" si no tiene o la URL no es de confianza. */
+export function logoEmpresa(metodo, nombre) {
+  if (!metodo || !Array.isArray(metodo.empresas)) return "";
+  const empresa = metodo.empresas.find((e) => e && typeof e === "object" && e.nombre === nombre);
+  const url = empresa && typeof empresa.logoUrl === "string" ? empresa.logoUrl : "";
+  return url.startsWith("https://res.cloudinary.com/") ? url : "";
 }
 
 export function entregaCompleta(seleccion) {

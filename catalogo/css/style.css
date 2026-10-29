@@ -1684,40 +1684,104 @@ select {
   margin: 0;
 }
 
-.entrega-chips {
-  display: flex;
-  flex-wrap: wrap;
+/* Empresas de envío (F2f): tarjetas con logo; una sola elegida, con pulso suave */
+.entrega-empresas-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: 8px;
   margin-top: 6px;
 }
 
-.entrega-chip {
+@media (min-width: 640px) {
+  .entrega-empresas-lista {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}
+
+.entrega-empresa {
   position: relative;
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  min-height: 44px;
-  padding: 0 18px;
-  border: 1px solid var(--linea-fuerte);
-  border-radius: 999px;
-  font-weight: 600;
+  justify-content: center;
+  gap: 8px;
+  min-height: 88px;
+  padding: 12px 8px;
+  border: 2px solid var(--linea-fuerte);
+  border-radius: var(--radio);
+  background: var(--superficie);
+  text-align: center;
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.entrega-chip:hover {
+.entrega-empresa:hover {
   border-color: var(--tinta-3);
 }
 
-.entrega-chip.activa {
+.entrega-empresa.activa {
   border-color: var(--accion);
   background: var(--accion-suave);
-  color: var(--accion);
-  box-shadow: inset 0 0 0 1px var(--accion);
 }
 
-.entrega-chip:has(.entrega-radio:focus-visible) {
+/* Pulso: un anillo que se expande y se desvanece en bucle lento, en el color de acción */
+.entrega-empresa.activa::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--accion);
+  border-radius: inherit;
+  pointer-events: none;
+  animation: entrega-pulso 1.6s ease-out infinite;
+}
+
+@keyframes entrega-pulso {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.12);
+    opacity: 0;
+  }
+}
+
+.entrega-empresa:has(.entrega-radio:focus-visible) {
   outline: 3px solid var(--accion);
   outline-offset: 2px;
+}
+
+.entrega-empresa-logo {
+  display: block;
+  width: 100%;
+  height: 48px;
+  object-fit: contain;
+}
+
+.entrega-empresa-nombre {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--tinta-2);
+  overflow-wrap: anywhere;
+}
+
+/* Sin logo (o logo que no carga): el nombre en grande */
+.entrega-empresa.sin-logo .entrega-empresa-nombre {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--tinta);
+}
+
+.entrega-empresa.activa .entrega-empresa-nombre {
+  color: var(--tinta);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entrega-empresa.activa::after {
+    animation: none;
+    display: none;
+  }
 }
 
 /* Aviso de cobro a destino: tono ámbar de advertencia, texto oscuro para el contraste */

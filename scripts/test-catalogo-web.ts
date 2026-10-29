@@ -29,6 +29,7 @@ import {
 } from "../catalogo/js/carrito.js";
 import { debeMostrarAyuda, textoAyuda, armarEnlaceAyuda } from "../catalogo/js/ayuda.js";
 import { ajustarIndice, indiceDesdeScroll } from "../catalogo/js/galeria.js";
+import { empresasDe, logoEmpresa } from "../catalogo/js/entrega.js";
 
 async function runTests() {
   console.log("================================================================================");
@@ -424,8 +425,28 @@ async function runTests() {
   assert.ok(!/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(textoTienda), "sin emojis como íconos en la tienda");
   console.log("  ✅ Test 13 superado (íconos de Lucide, sin emojis)");
 
+  // Test 14: empresas de envío con logo (F2f): nombres desde strings u objetos, logo solo de Cloudinary
+  console.log("\n▶ Test 14: Empresas de envío con logo...");
+  const metodoMixto = {
+    id: "m1",
+    tipo: "envio_nacional",
+    empresas: ["MRW", { nombre: "Zoom", logoUrl: "https://res.cloudinary.com/demo/image/upload/zoom.png", logoPublicId: "x" }, { nombre: "Otra", logoUrl: "https://ejemplo.com/logo.png" }],
+  };
+  assert.deepStrictEqual(empresasDe(metodoMixto), ["MRW", "Zoom", "Otra"], "empresasDe devuelve nombres (strings y objetos)");
+  assert.deepStrictEqual(empresasDe({ tipo: "retiro", empresas: ["MRW"] }), [], "retiro no tiene empresas");
+  assert.deepStrictEqual(empresasDe({ tipo: "envio_nacional", empresas: [{ nombre: "" }, null] }), [], "empresas sin nombre se descartan");
+  assert.strictEqual(logoEmpresa(metodoMixto, "Zoom"), "https://res.cloudinary.com/demo/image/upload/zoom.png", "logo de Cloudinary se usa");
+  assert.strictEqual(logoEmpresa(metodoMixto, "Otra"), "", "URL que no es de Cloudinary → sin logo");
+  assert.strictEqual(logoEmpresa(metodoMixto, "MRW"), "", "empresa como string → sin logo");
+  assert.strictEqual(logoEmpresa(metodoMixto, "Inexistente"), "", "empresa desconocida → sin logo");
+  assert.strictEqual(logoEmpresa(null, "Zoom"), "", "sin método → sin logo");
+  const appSrcEmpresas = fs.readFileSync(path.join(__dirname, "..", "catalogo", "js", "app.js"), "utf8");
+  assert.ok(appSrcEmpresas.includes("logoEmpresa") && appSrcEmpresas.includes('name: "empresa-envio"'), "app.js pinta tarjetas con logo y una sola selección");
+  assert.ok(!fs.readFileSync(path.join(__dirname, "..", "catalogo", "css", "style.css"), "utf8").includes("entrega-chip"), "estilos de chips retirados");
+  console.log("  ✅ Test 14 superado (empresas de envío: nombres desde strings u objetos, logo solo de Cloudinary)");
+
   console.log("\n================================================================================");
-  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (13/13)");
+  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (14/14)");
   console.log("================================================================================\n");
 }
 

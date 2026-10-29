@@ -6,10 +6,11 @@ import { Icono } from "../../../components/Icono.js";
 import React, { useEffect, useState } from "https://cdn.skypack.dev/react";
 import apiClient from "../../../services/apiClient.js";
 import ConfirmModal from "./ConfirmModal.js";
+import ShippingNacionalModal, { LogoEmpresa, normalizarEmpresa } from "./ShippingNacionalModal.js";
 
 const e = React.createElement;
 
-// Tipos en los que el cliente elige la empresa de envío (MRW, Zoom…)
+// Tipos con empresas de envío (MRW, Zoom…): se editan en ShippingNacionalModal, cada empresa con su logo
 const TIPOS_CON_EMPRESAS = ["envio_nacional", "otro"];
 
 const TIPOS_ENVIO = [
@@ -24,6 +25,8 @@ const ShippingTab = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState(null);
+  const [nacionalAbierto, setNacionalAbierto] = useState(false);
+  const [editingNacional, setEditingNacional] = useState(null);
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: "", message: "", onConfirm: () => {} });
 
   const [formData, setFormData] = useState({
@@ -35,8 +38,6 @@ const ShippingTab = () => {
     pideDatos: "",
     direccion: "",
     horario: "",
-    empresas: [],
-    cobroADestino: false,
     activo: true,
     orden: 0,
   });
@@ -60,6 +61,7 @@ const ShippingTab = () => {
     fetchMethods();
   }, []);
 
+  // Delivery y retiro: modal de siempre
   const handleOpenModal = (method = null) => {
     if (method) {
       setEditingMethod(method);
@@ -72,8 +74,6 @@ const ShippingTab = () => {
         pideDatos: method.pideDatos || "",
         direccion: method.direccion || "",
         horario: method.horario || "",
-        empresas: Array.isArray(method.empresas) ? [...method.empresas] : [],
-        cobroADestino: method.cobroADestino === true,
         activo: method.activo !== false,
         orden: Number(method.orden) || 0,
       });
@@ -88,13 +88,26 @@ const ShippingTab = () => {
         pideDatos: "",
         direccion: "",
         horario: "",
-        empresas: [],
-        cobroADestino: false,
         activo: true,
         orden: 0,
       });
     }
     setIsModalOpen(true);
+  };
+
+  // Envío nacional y especiales: modal con empresas y logos
+  const handleOpenNacional = (method = null) => {
+    setEditingNacional(method);
+    setNacionalAbierto(true);
+  };
+
+  // Al editar, el tipo decide qué modal se abre
+  const handleEditar = (method) => {
+    if (TIPOS_CON_EMPRESAS.includes(method.tipo)) {
+      handleOpenNacional(method);
+    } else {
+      handleOpenModal(method);
+    }
   };
 
   const handleCloseModal = () => {
@@ -122,7 +135,6 @@ const ShippingTab = () => {
     }
 
     const isRetiro = formData.tipo === "retiro";
-    const conEmpresas = TIPOS_CON_EMPRESAS.includes(formData.tipo);
     if (isRetiro) {
       if (!formData.direccion || !formData.direccion.trim()) {
         window.showToast?.("La dirección es obligatoria para el método de retiro", "error");
@@ -143,8 +155,6 @@ const ShippingTab = () => {
         pideDatos: isRetiro ? "" : (formData.pideDatos ? formData.pideDatos.trim() : ""),
         direccion: isRetiro ? formData.direccion.trim() : (formData.direccion || "").trim(),
         horario: isRetiro ? (formData.horario || "").trim() : (formData.horario || "").trim(),
-        empresas: conEmpresas ? (formData.empresas || []).map((x) => x.trim()).filter(Boolean) : [],
-        cobroADestino: !isRetiro && formData.cobroADestino === true,
         orden: Number(formData.orden) || 0,
       };
 
@@ -223,14 +233,30 @@ const ShippingTab = () => {
         ),
       ),
       e(
-        "button",
-        {
-          onClick: () => handleOpenModal(),
-          className:
-            "bg-emerald-600 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition flex items-center gap-2 text-sm font-bold active:scale-95 cursor-pointer",
-        },
-        e(Icono, { nombre: "plus" }),
-        "Añadir Método",
+        "div",
+        { className: "flex flex-wrap justify-end gap-2" },
+        e(
+          "button",
+          {
+            onClick: () => handleOpenModal(),
+            "aria-label": "Crear un delivery o retiro",
+            className:
+              "bg-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition flex items-center gap-2 text-sm font-bold active:scale-95 cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none",
+          },
+          e(Icono, { nombre: "plus" }),
+          "Nuevo delivery o retiro",
+        ),
+        e(
+          "button",
+          {
+            onClick: () => handleOpenNacional(),
+            "aria-label": "Crear un envío nacional con empresas",
+            className:
+              "bg-white dark:bg-gray-800 text-emerald-700 dark:text-emerald-400 border border-emerald-600 px-4 py-2.5 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition flex items-center gap-2 text-sm font-bold active:scale-95 cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none",
+          },
+          e(Icono, { nombre: "truck" }),
+          "Nuevo envío nacional",
+        ),
       ),
     ),
 
@@ -242,12 +268,24 @@ const ShippingTab = () => {
           e(Icono, { nombre: "truck", className: "text-4xl text-gray-300 dark:text-gray-600 mb-3" }),
           e("p", { className: "text-gray-500 font-medium" }, "No hay métodos de envío configurados."),
           e(
-            "button",
-            {
-              onClick: () => handleOpenModal(),
-              className: "mt-4 text-emerald-600 hover:text-emerald-700 text-sm font-bold underline cursor-pointer",
-            },
-            "Crear el primer método de envío",
+            "div",
+            { className: "mt-4 flex flex-wrap justify-center gap-4" },
+            e(
+              "button",
+              {
+                onClick: () => handleOpenModal(),
+                className: "text-emerald-600 hover:text-emerald-700 text-sm font-bold underline cursor-pointer",
+              },
+              "Crear un delivery o retiro",
+            ),
+            e(
+              "button",
+              {
+                onClick: () => handleOpenNacional(),
+                className: "text-emerald-600 hover:text-emerald-700 text-sm font-bold underline cursor-pointer",
+              },
+              "Crear un envío nacional",
+            ),
           ),
         )
       : e(
@@ -369,12 +407,19 @@ const ShippingTab = () => {
                             m.pideDatos && m.pideDatos.trim() ? m.pideDatos : "Dirección habitual",
                           ),
                         ),
-                        Array.isArray(m.empresas) && m.empresas.length
+                        TIPOS_CON_EMPRESAS.includes(m.tipo) && Array.isArray(m.empresas) && m.empresas.map(normalizarEmpresa).some((x) => x.nombre)
                           ? e(
                               "div",
                               { key: "empresas-del", className: "flex justify-between gap-3 text-xs items-start" },
                               e("span", { className: "text-gray-400 font-medium shrink-0" }, "Empresas:"),
-                              e("span", { className: "text-gray-700 dark:text-gray-300 font-semibold text-right" }, m.empresas.join(", ")),
+                              e(
+                                "div",
+                                { className: "flex flex-wrap justify-end gap-1.5" },
+                                m.empresas
+                                  .map(normalizarEmpresa)
+                                  .filter((x) => x.nombre)
+                                  .map((empresa, i) => e(LogoEmpresa, { key: `${empresa.nombre}-${i}`, empresa })),
+                              ),
                             )
                           : null,
                         m.cobroADestino
@@ -404,7 +449,7 @@ const ShippingTab = () => {
                 e(
                   "button",
                   {
-                    onClick: () => handleOpenModal(m),
+                    onClick: () => handleEditar(m),
                     className:
                       "flex-1 py-2 bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-xs font-bold hover:bg-gray-100 dark:hover:bg-gray-600 transition cursor-pointer",
                   },
@@ -503,7 +548,10 @@ const ShippingTab = () => {
                   className:
                     "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm",
                 },
-                TIPOS_ENVIO.map((t) => e("option", { key: t.value, value: t.value }, t.label)),
+                // Al crear, envío nacional y especiales se eligen con su propio botón (modal con empresas)
+                TIPOS_ENVIO.filter((t) => !TIPOS_CON_EMPRESAS.includes(t.value)).map((t) =>
+                  e("option", { key: t.value, value: t.value }, t.label),
+                ),
               ),
             ),
 
@@ -660,89 +708,6 @@ const ShippingTab = () => {
                     ),
                   ),
 
-                  // Empresas de envío (el cliente elige una) y cobro a destino
-                  TIPOS_CON_EMPRESAS.includes(formData.tipo)
-                    ? e(
-                        "div",
-                        { key: "input-empresas" },
-                        e(
-                          "label",
-                          { className: "text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1" },
-                          "Empresas de envío (el cliente elige una)",
-                        ),
-                        e(
-                          "div",
-                          { className: "space-y-2" },
-                          (formData.empresas || []).map((empresa, idx) =>
-                            e(
-                              "div",
-                              { key: `empresa-${idx}`, className: "flex gap-2" },
-                              e("input", {
-                                type: "text",
-                                maxLength: 40,
-                                value: empresa,
-                                "aria-label": `Empresa de envío ${idx + 1}`,
-                                onChange: (ev) => {
-                                  const lista = [...formData.empresas];
-                                  lista[idx] = ev.target.value;
-                                  setFormData({ ...formData, empresas: lista });
-                                },
-                                className:
-                                  "flex-1 p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm",
-                                placeholder: "ej: MRW",
-                              }),
-                              e(
-                                "button",
-                                {
-                                  type: "button",
-                                  title: "Quitar empresa",
-                                  "aria-label": `Quitar ${empresa || "empresa"}`,
-                                  onClick: () =>
-                                    setFormData({ ...formData, empresas: formData.empresas.filter((_, i) => i !== idx) }),
-                                  className:
-                                    "w-10 h-10 shrink-0 flex items-center justify-center rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all",
-                                },
-                                e(Icono, { nombre: "x" }),
-                              ),
-                            ),
-                          ),
-                          (formData.empresas || []).length < 10
-                            ? e(
-                                "button",
-                                {
-                                  type: "button",
-                                  onClick: () => setFormData({ ...formData, empresas: [...(formData.empresas || []), ""] }),
-                                  className:
-                                    "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all",
-                                },
-                                e(Icono, { nombre: "plus" }),
-                                (formData.empresas || []).length ? "Agregar otra" : "Agregar empresa",
-                              )
-                            : null,
-                        ),
-                        e(
-                          "p",
-                          { className: "text-[11px] text-gray-400 mt-1" },
-                          "Si agregas empresas, la tienda y el bot le piden al cliente que elija una.",
-                        ),
-                        e(
-                          "label",
-                          { className: "flex items-start gap-2 mt-3 cursor-pointer" },
-                          e("input", {
-                            type: "checkbox",
-                            checked: formData.cobroADestino === true,
-                            onChange: (ev) => setFormData({ ...formData, cobroADestino: ev.target.checked }),
-                            className: "mt-0.5 w-4 h-4 accent-emerald-600",
-                          }),
-                          e(
-                            "span",
-                            { className: "text-sm text-gray-700 dark:text-gray-300" },
-                            e("strong", null, "Cobro a destino"),
-                            " — el cliente paga el envío al recibirlo o retirarlo en la agencia. Se le avisa en la tienda y en el bot.",
-                          ),
-                        ),
-                      )
-                    : null,
                 ],
 
             // Orden y Activo
@@ -805,6 +770,17 @@ const ShippingTab = () => {
           ),
         ),
       ),
+
+    // Modal de envío nacional y especiales (empresas con logo)
+    e(ShippingNacionalModal, {
+      isOpen: nacionalAbierto,
+      method: editingNacional,
+      onClose: () => setNacionalAbierto(false),
+      onSaved: () => {
+        setNacionalAbierto(false);
+        fetchMethods();
+      },
+    }),
 
     // Modal de Confirmación
     e(ConfirmModal, {

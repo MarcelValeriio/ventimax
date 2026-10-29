@@ -85,6 +85,51 @@ const subirImagenProducto = async (buffer) => {
 };
 
 /**
+ * Sube el logo de una empresa de envío (F2f) a la carpeta <BRAND_NAME>/envios.
+ * @param {Buffer} buffer - Buffer de la imagen (JPG, PNG o WebP; la ruta ya lo valida)
+ * @returns {Promise<{ url: string, publicId: string }>}
+ */
+const subirLogoEnvio = async (buffer) => {
+  // Solo para las pruebas: simula una instalación sin credenciales
+  if (process.env.NODE_ENV === "test" && process.env.FORZAR_CLOUDINARY_DESCONFIGURADO === "true") {
+    throw new Error("Cloudinary no está configurado");
+  }
+
+  if (process.env.NODE_ENV === "test") {
+    const brand = process.env.BRAND_NAME || "default";
+    const publicId = `${brand}/envios/mock_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    return {
+      url: `https://res.cloudinary.com/test-cloud/image/upload/v12345/${publicId}.png`,
+      publicId,
+    };
+  }
+
+  if (!estanCredencialesConfiguradas()) {
+    throw new Error("Cloudinary no está configurado");
+  }
+
+  const brand = process.env.BRAND_NAME || "default";
+  const folder = `${brand}/envios`;
+
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: "image" },
+      (error, result) => {
+        if (result) {
+          resolve({
+            url: result.secure_url,
+            publicId: result.public_id,
+          });
+        } else {
+          reject(error);
+        }
+      }
+    );
+    stream.end(buffer);
+  });
+};
+
+/**
  * Elimina una imagen de Cloudinary por su publicId
  * @param {string} publicId - ID público de la imagen
  * @returns {Promise<any>}
@@ -115,6 +160,7 @@ module.exports = {
   cloudinary,
   uploadFromBuffer,
   subirImagenProducto,
+  subirLogoEnvio,
   borrarImagen,
   estanCredencialesConfiguradas,
 };

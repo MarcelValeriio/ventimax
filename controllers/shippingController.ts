@@ -4,6 +4,8 @@ if (process.env.NODE_ENV === "test") {
   MetodoEnvio = dbLocal.getMetodoEnvioModel();
 }
 const { registrarAuditoria } = require("../services/auditService");
+const empresaService = require("../services/empresasEnvio");
+const cloudinaryService = require("../services/cloudinaryService");
 
 const TIPOS_VALIDOS = ["delivery_local", "envio_nacional", "retiro", "otro"];
 // Tipos que trabajan con empresas de envío (el cliente elige una)
@@ -11,14 +13,20 @@ const TIPOS_CON_EMPRESAS = ["envio_nacional", "otro"];
 const MAX_EMPRESAS = 10;
 const MAX_LARGO_EMPRESA = 40;
 
-/** Lista de empresas de envío: texto recortado, sin vacías ni repetidas (sin distinguir mayúsculas), con tope. */
-function sanearEmpresas(empresas: any): { ok: true; value: string[] } | { ok: false; error: string } {
+/**
+ * Lista de empresas de envío (F2f): acepta strings u objetos { nombre, logoUrl, logoPublicId }.
+ * Recorta el nombre, descarta vacías, quita repetidas (sin distinguir mayúsculas), y el logo que no sea de
+ * Cloudinary se guarda vacío. Nombre de más de 40 caracteres o más de 10 empresas → error (400).
+ */
+function sanearEmpresas(empresas: any): { ok: true; value: any[] } | { ok: false; error: string } {
   if (empresas === undefined || empresas === null) return { ok: true, value: [] };
   if (!Array.isArray(empresas)) return { ok: false, error: "Las empresas de envío deben ser una lista" };
   const vistas = new Set<string>();
-  const lista: string[] = [];
+  const lista: any[] = [];
   for (const e of empresas) {
-    const nombre = typeof e === "string" ? e.trim() : "";
+    const esObjeto = e !== null && typeof e === "object";
+    const crudo = typeof e === "string" ? e : esObjeto && typeof e.nombre === "string" ? e.nombre : "";
+    const nombre = crudo.trim();
     if (!nombre) continue;
     if (nombre.length > MAX_LARGO_EMPRESA) {
       return { ok: false, error: `El nombre de una empresa no puede exceder ${MAX_LARGO_EMPRESA} caracteres` };
@@ -26,10 +34,28 @@ function sanearEmpresas(empresas: any): { ok: true; value: string[] } | { ok: fa
     const clave = nombre.toLowerCase();
     if (vistas.has(clave)) continue;
     vistas.add(clave);
-    lista.push(nombre);
+    lista.push(esObjeto ? { nombre, logoUrl: e.logoUrl, logoPublicId: e.logoPublicId } : { nombre });
   }
   if (lista.length > MAX_EMPRESAS) return { ok: false, error: `Máximo ${MAX_EMPRESAS} empresas de envío` };
-  return { ok: true, value: lista };
+  return { ok: true, value: empresaService.normalizarEmpresas(lista) };
+}
+
+/**
+ * Borra de Cloudinary los logos que estaban en el método y ya no están (empresa quitada o logo reemplazado).
+ * Es de mejor esfuerzo: si Cloudinary falla, queda un aviso en el log y la edición sigue.
+ */
+async function borrarLogosQuitados(anteriores: any, nuevas: any[]) {
+  const enUso = new Set(
+    empresaService.normalizarEmpresas(nuevas).map((e: any) => e.logoPublicId).filter(Boolean)
+  );
+  for (const e of empresaService.normalizarEmpresas(anteriores)) {
+    if (!e.logoPublicId || enUso.has(e.logoPublicId)) continue;
+    try {
+      await cloudinaryService.borrarImagen(e.logoPublicId);
+    } catch (err: any) {
+      console.warn(`⚠️ No se pudo borrar el logo de la empresa ${e.nombre} (${e.logoPublicId}):`, err?.message || err);
+    }
+  }
 }
 const COSTO_TIPOS_VALIDOS = ["fijo", "a_convenir"];
 
@@ -57,7 +83,13 @@ const getShippingMethods = async (req: any, res: any) => {
       query.activo = req.query.activo === "true" || req.query.activo === true;
     }
     const methods = await MetodoEnvio.find(query).sort({ orden: 1, createdAt: 1 });
-    res.json({ success: true, data: methods });
+    // Las empresas salen siempre como objetos, también las filas viejas con strings (F2f)
+    const data = (methods || []).map((m: any) => {
+      const plano = typeof m.toObject === "function" ? m.toObject() : { ...m };
+      plano.empresas = empresaService.normalizarEmpresas(m.empresas);
+      return plano;
+    });
+    res.json({ success: true, data });
   } catch (error: any) {
     console.error("❌ Error en getShippingMethods:", error);
     res.status(500).json({ success: false, error: "Error al obtener métodos de envío" });
@@ -244,6 +276,10 @@ const updateShippingMethod = async (req: any, res: any) => {
       return res.status(404).json({ success: false, error: "Método de envío no encontrado" });
     }
 
+    if ("empresas" in updateData) {
+      await borrarLogosQuitados(oldMethod.empresas, updateData.empresas);
+    }
+
     await registrarAuditoria(req, {
       recursoId: shipping._id,
       tipoRecurso: "metodo_envio",
@@ -281,9 +317,27 @@ const deleteShippingMethod = async (req: any, res: any) => {
   }
 };
 
+/** Sube el logo de una empresa de envío (F2f). El formato y el tamaño los valida la ruta (multer). */
+const uploadShippingLogo = async (req: any, res: any) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ success: false, error: "No se proporcionó ningún archivo de logo" });
+    }
+    const resultado = await cloudinaryService.subirLogoEnvio(req.file.buffer);
+    return res.status(200).json({ success: true, data: { url: resultado.url, publicId: resultado.publicId } });
+  } catch (error: any) {
+    if (error?.message === "Cloudinary no está configurado") {
+      return res.status(400).json({ success: false, error: "Cloudinary no está configurado" });
+    }
+    console.error("❌ Error en uploadShippingLogo:", error?.message || error);
+    return res.status(500).json({ success: false, error: "Error al subir el logo a Cloudinary" });
+  }
+};
+
 module.exports = {
   getShippingMethods,
   createShippingMethod,
   updateShippingMethod,
   deleteShippingMethod,
+  uploadShippingLogo,
 };

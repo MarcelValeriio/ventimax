@@ -46,6 +46,46 @@ const handleUploadProductoImagen = (req: any, res: any, next: any) => {
   });
 };
 
+// Logo de empresa de envío (F2f): JPG, PNG o WebP, hasta 2 MB
+const uploadLogoEnvio = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req: any, file: any, cb: any) => {
+    const allowedMimes = ["image/jpeg", "image/png", "image/webp"];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      const err: any = new Error("Solo se permiten logos en formato JPG, PNG o WebP");
+      err.code = "INVALID_FILE_TYPE";
+      cb(err, false);
+    }
+  },
+});
+
+const handleUploadLogoEnvio = (req: any, res: any, next: any) => {
+  uploadLogoEnvio.single("logo")(req, res, (err: any) => {
+    if (err) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          success: false,
+          error: "El logo no puede exceder 2 MB",
+        });
+      }
+      if (err.code === "INVALID_FILE_TYPE") {
+        return res.status(400).json({
+          success: false,
+          error: err.message,
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        error: err.message || "Error al procesar el logo",
+      });
+    }
+    next();
+  });
+};
+
 module.exports = function (io) {
   const express = require("express");
   const router = express.Router();
@@ -278,6 +318,14 @@ module.exports = function (io) {
     isAuthenticated,
     authorize(["shipping_method:create"]),
     shippingController.createShippingMethod,
+  );
+  // Logo de una empresa de envío (F2f). Va antes de /shipping/:id por claridad de rutas.
+  router.post(
+    "/shipping/logo",
+    isAuthenticated,
+    authorize(["shipping_method:edit"]),
+    handleUploadLogoEnvio,
+    shippingController.uploadShippingLogo,
   );
   router.put(
     "/shipping/:id",

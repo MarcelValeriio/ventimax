@@ -65,6 +65,7 @@ const {
 const pushService = require("./pushService");
 const { filtroPorCategoria } = require("./catalogQuery");
 const { getFlujoNoLaborableSync } = require("./flujoNoLaborableService");
+const { nombresEmpresas } = require("./empresasEnvio");
 const {
   getProximoDiaHabil,
   getHoraAperturaFormateada,
@@ -145,8 +146,8 @@ function getDebounceMs() {
  */
 /** Empresas de envío de un método (envío nacional); vacía si no tiene o es retiro. */
 function empresasDeEnvio(metodo: any): string[] {
-  if (!metodo || metodo.tipo === "retiro" || !Array.isArray(metodo.empresas)) return [];
-  return metodo.empresas.map((e: any) => String(e).trim()).filter(Boolean);
+  if (!metodo || metodo.tipo === "retiro") return [];
+  return nombresEmpresas(metodo.empresas);
 }
 
 class ChatFlowService {

@@ -8,6 +8,7 @@ const { obtenerCategoriasDeProducto } = require("../services/catalogQuery");
 const { pedidoPublicoSchema } = require("../validators");
 const { getPreguntasFrecuentesSync } = require("../services/preguntasFrecuentesService");
 const { formatearHorarioAtencion } = require("../services/horarioService");
+const { normalizarEmpresas, nombresEmpresas } = require("../services/empresasEnvio");
 
 let Producto = require("../models/Producto");
 let Categoria = require("../models/Categoria");
@@ -232,7 +233,7 @@ async function resolverEntrega(entrega: any): Promise<{ ok: true; value: any } |
   const costo = esRetiro || aConvenir || cobroADestino ? 0 : Number(metodo.costo) || 0;
 
   // Con empresas configuradas, el cliente elige una de la lista (se guarda el nombre tal como está en el panel)
-  const empresas: string[] = esRetiro || !Array.isArray(metodo.empresas) ? [] : metodo.empresas.map((e: any) => String(e));
+  const empresas: string[] = esRetiro ? [] : nombresEmpresas(metodo.empresas);
   let empresa = "";
   if (empresas.length) {
     const pedida = String(entrega.empresa || "").trim().toLowerCase();
@@ -293,7 +294,8 @@ export async function getInfo(req: any, res: any) {
           tipo: String(m.tipo || ""),
           pideDatos: esRetiro ? null : String(m.pideDatos || "") || null,
           // Envío nacional: empresas entre las que elige el cliente y si el envío se paga al recibirlo
-          empresas: esRetiro || !Array.isArray(m.empresas) ? [] : m.empresas.map((e: any) => String(e)),
+          // Cada empresa con su logo (F2f); el logo viene solo si es de Cloudinary, sin publicId
+          empresas: esRetiro ? [] : normalizarEmpresas(m.empresas).map((e: any) => ({ nombre: e.nombre, logoUrl: e.logoUrl })),
           cobroADestino: !esRetiro && m.cobroADestino === true,
           descripcion: String(m.descripcion || ""),
           costo: aConvenir ? null : Number(m.costo) || 0,

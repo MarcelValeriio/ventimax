@@ -34,7 +34,7 @@ import { debeMostrarAyuda, textoAyuda, armarEnlaceAyuda } from "./ayuda.js";
 
 import { ajustarIndice, indiceDesdeScroll } from "./galeria.js";
 
-import { entregaCompleta, armarEntrega, costoEntrega, enlaceMapa, usaGps, empresasDe, MAX_DIRECCION } from "./entrega.js";
+import { entregaCompleta, armarEntrega, costoEntrega, enlaceMapa, usaGps, empresasDe, logoEmpresa, MAX_DIRECCION } from "./entrega.js";
 
 /** Solo se abre un enlace de WhatsApp (wa.me); cualquier otra cosa que llegara de la API se ignora. */
 function esEnlaceWhatsApp(url) {
@@ -1363,6 +1363,49 @@ function seccionEntrega(metodos, alCambiar) {
     );
   }
 
+  /**
+   * Tarjeta de una empresa: radio oculto (accesible) + logo + nombre. Sin logo, o si la imagen no carga, el nombre
+   * queda en grande. Una sola selección (name="empresa-envio").
+   */
+  function tarjetaEmpresa(metodo, nombre) {
+    const url = logoEmpresa(metodo, nombre);
+    const elegida = state.entrega.empresa === nombre;
+    const tarjeta = el(
+      "label",
+      { className: `entrega-empresa ${elegida ? "activa" : ""} ${url ? "" : "sin-logo"}`.trim() },
+      el("input", {
+        type: "radio",
+        name: "empresa-envio",
+        value: nombre,
+        className: "entrega-radio",
+        checked: elegida,
+        onchange: (ev) => {
+          state.entrega.empresa = nombre;
+          [...ev.target.closest(".entrega-empresas-lista").querySelectorAll(".entrega-empresa")].forEach((c) =>
+            c.classList.toggle("activa", c.contains(ev.target))
+          );
+          alCambiar();
+        },
+      }),
+      url
+        ? el("img", {
+            className: "entrega-empresa-logo",
+            src: url,
+            alt: nombre,
+            loading: "lazy",
+            decoding: "async",
+            // Si el logo no carga, la tarjeta queda solo con el nombre
+            onerror: (ev) => {
+              ev.currentTarget.remove();
+              tarjeta.classList.add("sin-logo");
+            },
+          })
+        : null,
+      el("span", { className: "entrega-empresa-nombre" }, nombre)
+    );
+    return tarjeta;
+  }
+
   function pintarDetalle() {
     limpiarElemento(detalle);
     const m = state.entrega.metodo;
@@ -1381,7 +1424,7 @@ function seccionEntrega(metodos, alCambiar) {
       );
       return;
     }
-    // Envío nacional: una sola empresa, elegida de las que configuró el negocio
+    // Envío nacional: una sola empresa, elegida de las que configuró el negocio (tarjeta con su logo)
     const empresas = empresasDe(m);
     if (empresas.length) {
       if (!empresas.includes(state.entrega.empresa)) state.entrega.empresa = "";
@@ -1392,28 +1435,8 @@ function seccionEntrega(metodos, alCambiar) {
           el("legend", { className: "entrega-etiqueta" }, "Empresa de envío"),
           el(
             "div",
-            { className: "entrega-chips" },
-            empresas.map((nombre) =>
-              el(
-                "label",
-                { className: `entrega-chip ${state.entrega.empresa === nombre ? "activa" : ""}`.trim() },
-                el("input", {
-                  type: "radio",
-                  name: "empresa-envio",
-                  value: nombre,
-                  className: "entrega-radio",
-                  checked: state.entrega.empresa === nombre,
-                  onchange: (ev) => {
-                    state.entrega.empresa = nombre;
-                    [...ev.target.closest(".entrega-chips").querySelectorAll(".entrega-chip")].forEach((c) =>
-                      c.classList.toggle("activa", c.contains(ev.target))
-                    );
-                    alCambiar();
-                  },
-                }),
-                nombre
-              )
-            )
+            { className: "entrega-empresas-lista" },
+            empresas.map((nombre) => tarjetaEmpresa(m, nombre))
           )
         )
       );

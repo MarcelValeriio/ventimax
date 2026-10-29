@@ -27,6 +27,8 @@ const ID_RETIRO = "65f0000000000000000000d2";
 const ID_NACIONAL = "65f0000000000000000000d3";
 const ID_INACTIVO = "65f0000000000000000000d4";
 const ID_FIJO = "65f0000000000000000000d5";
+const ID_VIEJO = "65f0000000000000000000d6";
+const LOGO_MRW = "https://res.cloudinary.com/test-cloud/image/upload/v1/ventimax/envios/mrw.png";
 
 let ok = 0;
 async function prueba(nombre: string, fn: () => Promise<void> | void) {
@@ -47,9 +49,11 @@ function sembrar() {
   data.metodosEnvio = [
     { _id: ID_DELIVERY, nombre: "Delivery Caracas", tipo: "delivery_local", costoTipo: "a_convenir", costo: 0, activo: true, orden: 1 },
     { _id: ID_RETIRO, nombre: "Retiro en tienda", tipo: "retiro", costoTipo: "fijo", costo: 0, direccion: "Av. de prueba 123", horario: "", activo: true, orden: 2 },
-    { _id: ID_NACIONAL, nombre: "Envío nacional", tipo: "envio_nacional", costoTipo: "a_convenir", costo: 0, pideDatos: "estado, ciudad y agencia", empresas: ["MRW", "Zoom", "Tealca"], cobroADestino: true, activo: true, orden: 3 },
+    { _id: ID_NACIONAL, nombre: "Envío nacional", tipo: "envio_nacional", costoTipo: "a_convenir", costo: 0, pideDatos: "estado, ciudad y agencia", empresas: [{ nombre: "MRW", logoUrl: LOGO_MRW, logoPublicId: "ventimax/envios/mrw" }, { nombre: "Zoom", logoUrl: "", logoPublicId: "" }, { nombre: "Tealca", logoUrl: "", logoPublicId: "" }], cobroADestino: true, activo: true, orden: 3 },
     { _id: ID_INACTIVO, nombre: "Moto exprés", tipo: "delivery_local", costoTipo: "fijo", costo: 3, activo: false, orden: 4 },
     { _id: ID_FIJO, nombre: "Delivery zona centro", tipo: "delivery_local", costoTipo: "fijo", costo: 5, activo: true, orden: 5 },
+    // Formato anterior a F2f: empresas como strings (producción ya tiene métodos así)
+    { _id: ID_VIEJO, nombre: "Envío nacional (antiguo)", tipo: "envio_nacional", costoTipo: "a_convenir", costo: 0, pideDatos: "estado y ciudad", empresas: ["DHL", "Liberty"], cobroADestino: false, activo: true, orden: 6 },
   ];
   dbLocal.write(data);
 }
@@ -129,10 +133,26 @@ async function run() {
       assert.strictEqual(delivery.id, ID_DELIVERY);
       const nacional = info.envios.find((e: any) => e.tipo === "envio_nacional");
       assert.strictEqual(nacional.pideDatos, "estado, ciudad y agencia");
-      assert.deepStrictEqual(nacional.empresas, ["MRW", "Zoom", "Tealca"]);
+      assert.deepStrictEqual(nacional.empresas, [
+        { nombre: "MRW", logoUrl: LOGO_MRW },
+        { nombre: "Zoom", logoUrl: "" },
+        { nombre: "Tealca", logoUrl: "" },
+      ], "cada empresa con su logo; sin logoPublicId");
       assert.strictEqual(nacional.cobroADestino, true);
       assert.deepStrictEqual(delivery.empresas, [], "el delivery no tiene empresas");
       assert.ok(!info.envios.some((e: any) => e.nombre === "Moto exprés"), "los inactivos no salen");
+    });
+
+    await prueba("API: un método con empresas en formato anterior (strings) se normaliza y el pedido funciona", async () => {
+      const info = await (await fetch(`${base}/api/public/info`)).json();
+      const viejo = info.envios.find((e: any) => e.nombre === "Envío nacional (antiguo)");
+      assert.deepStrictEqual(viejo.empresas, [{ nombre: "DHL", logoUrl: "" }, { nombre: "Liberty", logoUrl: "" }]);
+      const r = await pedir(base, { items, entrega: { metodoId: ID_VIEJO, empresa: "liberty", direccion: "Carabobo, Valencia" } }, "10.1.0.15");
+      assert.strictEqual(r.status, 200, JSON.stringify(r.json));
+      const texto = decodeURIComponent(r.json.enlaceWhatsApp.split("text=")[1]);
+      assert.ok(texto.includes("Empresa de envío: Liberty"), texto);
+      const sinEmpresa = await pedir(base, { items, entrega: { metodoId: ID_VIEJO, direccion: "Carabobo, Valencia" } }, "10.1.0.16");
+      assert.strictEqual(sinEmpresa.status, 400, "la empresa es obligatoria con empresas configuradas");
     });
 
     await prueba("API: delivery con GPS → guardado, enlace de mapa en WhatsApp", async () => {
@@ -200,29 +220,133 @@ async function run() {
     });
   });
 
+  const shipping = require("../controllers/shippingController");
+  const cloudinaryService = require("../services/cloudinaryService");
+  const respuesta = () => {
+    const r: any = { statusCode: 200, body: null };
+    r.status = (c: number) => ((r.statusCode = c), r);
+    r.json = (b: any) => ((r.body = b), r);
+    return r;
+  };
+  const req = (body: any, extra: any = {}) => ({ body, params: {}, user: { _id: "u1", username: "admin", role: "admin" }, ip: "127.0.0.1", headers: {}, ...extra });
+
   await prueba("Panel: lista de empresas saneada (vacías, repetidas, tope de 10, largo) y solo en envío nacional", async () => {
-    const shipping = require("../controllers/shippingController");
-    const respuesta = () => {
-      const r: any = { statusCode: 200, body: null };
-      r.status = (c: number) => ((r.statusCode = c), r);
-      r.json = (b: any) => ((r.body = b), r);
-      return r;
-    };
-    const req = (body: any) => ({ body, params: {}, user: { _id: "u1", username: "admin", role: "admin" }, ip: "127.0.0.1", headers: {} });
     let res = respuesta();
     await shipping.createShippingMethod(req({ nombre: "Nacional prueba", tipo: "envio_nacional", costoTipo: "a_convenir", empresas: [" MRW ", "mrw", "", "Zoom"], cobroADestino: true }), res);
     assert.strictEqual(res.statusCode, 201, JSON.stringify(res.body));
-    assert.deepStrictEqual([...res.body.data.empresas], ["MRW", "Zoom"]);
+    assert.deepStrictEqual(res.body.data.empresas.map((e: any) => e.nombre), ["MRW", "Zoom"]);
     assert.strictEqual(res.body.data.cobroADestino, true);
     res = respuesta();
     await shipping.createShippingMethod(req({ nombre: "Delivery prueba", tipo: "delivery_local", costoTipo: "a_convenir", empresas: ["MRW"] }), res);
-    assert.deepStrictEqual([...res.body.data.empresas], [], "el delivery no guarda empresas");
+    assert.deepStrictEqual(res.body.data.empresas, [], "el delivery no guarda empresas");
     res = respuesta();
     await shipping.createShippingMethod(req({ nombre: "X", tipo: "envio_nacional", costoTipo: "a_convenir", empresas: Array.from({ length: 11 }, (_, i) => `E${i}`) }), res);
     assert.strictEqual(res.statusCode, 400, "más de 10 empresas");
     res = respuesta();
     await shipping.createShippingMethod(req({ nombre: "X", tipo: "envio_nacional", costoTipo: "a_convenir", empresas: ["x".repeat(41)] }), res);
     assert.strictEqual(res.statusCode, 400, "nombre de empresa demasiado largo");
+  });
+
+  await prueba("Panel: saneo de empresas como objetos (logo ajeno vacío, dedup, tope y largo)", async () => {
+    let res = respuesta();
+    await shipping.createShippingMethod(req({
+      nombre: "Nacional objetos", tipo: "envio_nacional", costoTipo: "a_convenir", cobroADestino: true,
+      empresas: [
+        { nombre: "  Coordinadora ", logoUrl: "https://evil.example.com/x.png", logoPublicId: "ventimax/envios/coord" },
+        { nombre: "mrw", logoUrl: LOGO_MRW, logoPublicId: "ventimax/envios/mrw" },
+        { nombre: "COORDINADORA", logoUrl: "", logoPublicId: "" },
+        { nombre: "   ", logoUrl: LOGO_MRW },
+        { logoUrl: LOGO_MRW },
+        42,
+        "Zoom",
+      ],
+    }), res);
+    assert.strictEqual(res.statusCode, 201, JSON.stringify(res.body));
+    assert.deepStrictEqual(res.body.data.empresas, [
+      { nombre: "Coordinadora", logoUrl: "", logoPublicId: "ventimax/envios/coord" },
+      { nombre: "mrw", logoUrl: LOGO_MRW, logoPublicId: "ventimax/envios/mrw" },
+      { nombre: "Zoom", logoUrl: "", logoPublicId: "" },
+    ], "sin nombre, números ni repetidas; la URL ajena no se guarda");
+
+    res = respuesta();
+    await shipping.createShippingMethod(req({ nombre: "X", tipo: "envio_nacional", costoTipo: "a_convenir", empresas: Array.from({ length: 11 }, (_, i) => ({ nombre: `E${i}` })) }), res);
+    assert.strictEqual(res.statusCode, 400, "más de 10 empresas con objetos");
+    res = respuesta();
+    await shipping.createShippingMethod(req({ nombre: "X", tipo: "envio_nacional", costoTipo: "a_convenir", empresas: [{ nombre: "y".repeat(41), logoUrl: "" }] }), res);
+    assert.strictEqual(res.statusCode, 400, "nombre de más de 40 con objetos");
+    res = respuesta();
+    await shipping.createShippingMethod(req({ nombre: "X", tipo: "envio_nacional", costoTipo: "a_convenir", empresas: Array.from({ length: 10 }, (_, i) => ({ nombre: `F${i}` })) }), res);
+    assert.strictEqual(res.statusCode, 201, "exactamente 10 se aceptan");
+  });
+
+  await prueba("Panel: GET devuelve las empresas de filas viejas como objetos", async () => {
+    sembrar();
+    const res = respuesta();
+    await shipping.getShippingMethods(req({}, { query: {} }), res);
+    const viejo = res.body.data.find((m: any) => m._id === ID_VIEJO);
+    assert.deepStrictEqual(viejo.empresas, [
+      { nombre: "DHL", logoUrl: "", logoPublicId: "" },
+      { nombre: "Liberty", logoUrl: "", logoPublicId: "" },
+    ]);
+  });
+
+  await prueba("Panel: subir logo (formato válido, sin archivo, Cloudinary sin configurar)", async () => {
+    const ok = respuesta();
+    await shipping.uploadShippingLogo(req({}, { file: { buffer: Buffer.from("png-falso"), mimetype: "image/png" } }), ok);
+    assert.strictEqual(ok.statusCode, 200, JSON.stringify(ok.body));
+    assert.strictEqual(ok.body.success, true);
+    assert.ok(ok.body.data.url.startsWith("https://res.cloudinary.com/"), ok.body.data.url);
+    assert.ok(ok.body.data.publicId.startsWith("ventimax/envios/") || ok.body.data.publicId.startsWith("default/envios/"), ok.body.data.publicId);
+
+    const sinArchivo = respuesta();
+    await shipping.uploadShippingLogo(req({}, {}), sinArchivo);
+    assert.strictEqual(sinArchivo.statusCode, 400);
+
+    process.env.FORZAR_CLOUDINARY_DESCONFIGURADO = "true";
+    try {
+      const sinCloud = respuesta();
+      await shipping.uploadShippingLogo(req({}, { file: { buffer: Buffer.from("x") } }), sinCloud);
+      assert.strictEqual(sinCloud.statusCode, 400);
+      assert.strictEqual(sinCloud.body.error, "Cloudinary no está configurado");
+    } finally {
+      delete process.env.FORZAR_CLOUDINARY_DESCONFIGURADO;
+    }
+  });
+
+  await prueba("Panel: al quitar o reemplazar un logo, se borra de Cloudinary (y un fallo no corta la edición)", async () => {
+    sembrar();
+    const borrados: string[] = [];
+    const original = cloudinaryService.borrarImagen;
+    cloudinaryService.borrarImagen = async (publicId: string) => {
+      borrados.push(publicId);
+      return { result: "ok" };
+    };
+    try {
+      // MRW (con logo) sale de la lista: su logo se borra. Zoom y Tealca no tienen logo.
+      let res = respuesta();
+      await shipping.updateShippingMethod(req({ empresas: ["Zoom", "Tealca"] }, { params: { id: ID_NACIONAL } }), res);
+      assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
+      assert.deepStrictEqual(borrados, ["ventimax/envios/mrw"]);
+
+      // Reemplazo de logo: el publicId anterior se borra, el nuevo se conserva
+      sembrar();
+      borrados.length = 0;
+      res = respuesta();
+      await shipping.updateShippingMethod(req({ empresas: [{ nombre: "MRW", logoUrl: LOGO_MRW.replace("mrw", "mrw2"), logoPublicId: "ventimax/envios/mrw2" }, "Zoom"] }, { params: { id: ID_NACIONAL } }), res);
+      assert.strictEqual(res.statusCode, 200);
+      assert.deepStrictEqual(borrados, ["ventimax/envios/mrw"], "solo el logo reemplazado");
+
+      // Si Cloudinary falla, la edición sigue
+      sembrar();
+      cloudinaryService.borrarImagen = async () => {
+        throw new Error("red caída");
+      };
+      res = respuesta();
+      await shipping.updateShippingMethod(req({ empresas: ["Zoom"] }, { params: { id: ID_NACIONAL } }), res);
+      assert.strictEqual(res.statusCode, 200, "el fallo de Cloudinary no bloquea la edición");
+    } finally {
+      cloudinaryService.borrarImagen = original;
+    }
   });
 
   await prueba("Bot (WhatsApp): envío nacional con empresas → pregunta la empresa y luego los datos", async () => {
@@ -240,6 +364,16 @@ async function run() {
     estado = await orderService.getEstado(tel);
     assert.strictEqual(estado.carrito.envio.empresa, "Zoom");
     assert.strictEqual(estado.paso, "esperando_ubicacion", "después pide estado, ciudad y agencia");
+  });
+
+  await prueba("Servidor: solo se aceptan logos de la carpeta de envíos (nunca se borra una imagen ajena)", () => {
+    const { normalizarEmpresas } = require("../services/empresasEnvio");
+    const [ajena, propia] = normalizarEmpresas([
+      { nombre: "A", logoUrl: LOGO_MRW, logoPublicId: "ventimax/productos/foto-de-producto" },
+      { nombre: "B", logoUrl: LOGO_MRW, logoPublicId: "ventimax/envios/b" },
+    ]);
+    assert.strictEqual(ajena.logoPublicId, "", "un identificador de otra carpeta se descarta");
+    assert.strictEqual(propia.logoPublicId, "ventimax/envios/b");
   });
 
   await prueba("Bot: carga envío y ubicación del código y no los vuelve a preguntar", async () => {

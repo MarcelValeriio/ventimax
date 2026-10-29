@@ -2351,6 +2351,20 @@ Pedido por el dueño el 2026-10-29, con una conversación real del Instagram de 
 
 ---
 
+### F2f · Empresas de envío con logo — **Claude** orquesta, 3 subagentes Haiku 5.5 (medium) · `Aprobada`
+
+Pedido por el dueño el 2026-10-29: logos clicables en la tienda y un formulario aparte para envío nacional, con una tarjeta por empresa (nombre y logo que se sube por separado). Contrato común escrito por Claude; servidor, panel y tienda en paralelo sobre archivos distintos.
+
+- **Servidor (Haiku):** `MetodoEnvio.empresas` pasa a `[{ nombre, logoUrl, logoPublicId }]` (tipo Mixed). Lee igual los métodos guardados con strings (`services/empresasEnvio.ts`). `POST /api/admin/shipping/logo` (JPG/PNG/WebP, 2 MB, carpeta `<marca>/envios` en Cloudinary). Al quitar o reemplazar un logo se borra de Cloudinary. `/api/public/info` da `[{ nombre, logoUrl }]`. El bot de WhatsApp sigue con la lista de nombres.
+- **Panel (Haiku):** dos botones de creación ("Nuevo delivery o retiro" y "Nuevo envío nacional"). `ShippingNacionalModal.js` muestra las empresas como tarjetas con vista previa del logo, nombre, "Subir/Cambiar logo" (subida inmediata), "Quitar logo", eliminar y "+ Agregar empresa" (hasta 10). Muestra el error del servidor en la tarjeta. El listado enseña las miniaturas de los logos.
+- **Tienda (Haiku):** las empresas son tarjetas con logo y nombre; sin logo, o si no carga, se muestra el nombre. Una sola selección; la elegida lleva borde y pulso suave, que se apaga con `prefers-reduced-motion`.
+- **Revisión de Claude:**
+  - Corregido: el servidor aceptaba cualquier `logoPublicId` y, al quitar una empresa, podía borrar de Cloudinary una imagen ajena (por ejemplo la foto de un producto). Ahora solo acepta identificadores de `<marca>/envios/`; hay prueba.
+  - Corregido: el formulario de delivery ya no ofrece "Envío nacional" ni "Otro" tampoco al editar, porque un método quedaba nacional sin empresas.
+  - Verificación: `./scripts/ci.sh` en verde (34 suites, `test-entrega-web.ts` con 20 pruebas). Recorrido en Chrome con los logos reales de Zoom, MRW y Tealca: tienda a 390 px y formulario del panel, incluido el error de subida sin Cloudinary; 0 errores.
+
+---
+
 ### F2e · Empresa de envío y cobro a destino — **Claude** · `Completada`
 
 Pedido por el dueño el 2026-10-29: en envío nacional, el cliente elige la empresa (una sola) entre las que configura el negocio, con aviso de que el envío es cobro a destino.
@@ -2425,6 +2439,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-10-29 | 17:00 | F2f: empresas de envío con logo (tarjetas clicables en la tienda, formulario de envío nacional con una tarjeta por empresa y subida de logo a Cloudinary). Primera tarea con el esquema "Opus orquesta, 3 subagentes Haiku 5.5 medium en paralelo"; Claude corrigió el borrado de imágenes ajenas en Cloudinary y el selector de tipo — Ejecutado por **Claude** + subagentes | Claude (Cerebro) | Completado |
 | 2026-10-29 | 16:25 | Tienda: tras el despliegue de F2e la CDN de Render sirvió durante ~8 min el JavaScript nuevo con el CSS viejo (empresas sin formato). `render.yaml`: `Cache-Control: no-cache` en todos los archivos del sitio estático (se revalidan con 304). Requiere Manual Sync del Blueprint — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 16:00 | F2e: empresas de envío (el cliente elige una en la tienda y en el chat) y cobro a destino configurable por método; tienda confirma siempre los métodos de envío con el servidor (la caché de 5 min ocultaba las opciones tras el despliegue de F2c) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 15:00 | F2c: el cliente elige la entrega en el carrito (retiro, delivery con GPS del teléfono o dirección, envío nacional); el servidor la valida contra la base, viaja en el mensaje de WhatsApp con el enlace del mapa y el bot no la vuelve a preguntar. Política de privacidad actualizada. F2d (mapa con buscador) anotada — Ejecutado por **Claude** | Claude (Cerebro) | Completado |

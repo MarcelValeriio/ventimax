@@ -271,6 +271,13 @@ export type TipoMetodoEnvio =
 
 export type CostoTipoEnvio = "fijo" | "a_convenir";
 
+/** Empresa de envío de un método nacional (F2f). Los strings son el formato anterior. */
+export interface EmpresaEnvio {
+  nombre: string;
+  logoUrl?: string;
+  logoPublicId?: string;
+}
+
 export interface IMetodoEnvio {
   _id?: string;
   nombre: string;
@@ -285,7 +292,7 @@ export interface IMetodoEnvio {
   orden?: number;
   createdAt?: Date;
   updatedAt?: Date;
-  empresas?: string[];
+  empresas?: (EmpresaEnvio | string)[];
   cobroADestino?: boolean;
 }
 
