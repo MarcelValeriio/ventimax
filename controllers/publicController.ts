@@ -226,8 +226,19 @@ async function resolverEntrega(entrega: any): Promise<{ ok: true; value: any } |
     return { ok: false, error: "El método de entrega elegido no está disponible. Elige otro." };
   }
   const esRetiro = metodo.tipo === "retiro";
-  const aConvenir = !esRetiro && metodo.costoTipo === "a_convenir";
-  const costo = esRetiro || aConvenir ? 0 : Number(metodo.costo) || 0;
+  // Cobro a destino: el cliente le paga el envío a la empresa al recibirlo; no suma al total
+  const cobroADestino = !esRetiro && metodo.cobroADestino === true;
+  const aConvenir = !esRetiro && !cobroADestino && metodo.costoTipo === "a_convenir";
+  const costo = esRetiro || aConvenir || cobroADestino ? 0 : Number(metodo.costo) || 0;
+
+  // Con empresas configuradas, el cliente elige una de la lista (se guarda el nombre tal como está en el panel)
+  const empresas: string[] = esRetiro || !Array.isArray(metodo.empresas) ? [] : metodo.empresas.map((e: any) => String(e));
+  let empresa = "";
+  if (empresas.length) {
+    const pedida = String(entrega.empresa || "").trim().toLowerCase();
+    empresa = empresas.find((e) => e.toLowerCase() === pedida) || "";
+    if (!empresa) return { ok: false, error: "Elige la empresa de envío." };
+  }
   // La ubicación del teléfono solo vale para el delivery en la ciudad; un envío nacional necesita los datos escritos
   const tieneGps =
     metodo.tipo === "delivery_local" && typeof entrega.latitud === "number" && typeof entrega.longitud === "number";
@@ -245,6 +256,8 @@ async function resolverEntrega(entrega: any): Promise<{ ok: true; value: any } |
       tipo: String(metodo.tipo || ""),
       costo,
       aConvenir,
+      empresa,
+      cobroADestino,
       latitud: esRetiro || !tieneGps ? null : entrega.latitud,
       longitud: esRetiro || !tieneGps ? null : entrega.longitud,
       direccion: esRetiro ? "" : direccion,
@@ -279,6 +292,9 @@ export async function getInfo(req: any, res: any) {
           nombre: String(m.nombre || ""),
           tipo: String(m.tipo || ""),
           pideDatos: esRetiro ? null : String(m.pideDatos || "") || null,
+          // Envío nacional: empresas entre las que elige el cliente y si el envío se paga al recibirlo
+          empresas: esRetiro || !Array.isArray(m.empresas) ? [] : m.empresas.map((e: any) => String(e)),
+          cobroADestino: !esRetiro && m.cobroADestino === true,
           descripcion: String(m.descripcion || ""),
           costo: aConvenir ? null : Number(m.costo) || 0,
           aConvenir,
@@ -454,7 +470,10 @@ export async function postPedidoWeb(req: any, res: any) {
     if (entregaGuardar) {
       const linea = (clave: string, valor: string) =>
         String(configManager.get(`settings.messages.${clave}`) || "").replace(/\{\{valor\}\}/g, valor);
-      lineasPrefill.push(linea("webOrderPrefillEntrega", entregaGuardar.nombre));
+      lineasPrefill.push(
+        linea("webOrderPrefillEntrega", entregaGuardar.cobroADestino ? `${entregaGuardar.nombre} (cobro a destino)` : entregaGuardar.nombre)
+      );
+      if (entregaGuardar.empresa) lineasPrefill.push(linea("webOrderPrefillEmpresa", entregaGuardar.empresa));
       if (entregaGuardar.latitud !== null) {
         lineasPrefill.push(linea("webOrderPrefillUbicacion", enlaceMapa(entregaGuardar.latitud, entregaGuardar.longitud)));
       }

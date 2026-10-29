@@ -1678,6 +1678,65 @@ select {
   height: 16px;
 }
 
+.entrega-empresas {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.entrega-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.entrega-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--linea-fuerte);
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.entrega-chip:hover {
+  border-color: var(--tinta-3);
+}
+
+.entrega-chip.activa {
+  border-color: var(--accion);
+  background: var(--accion-suave);
+  color: var(--accion);
+  box-shadow: inset 0 0 0 1px var(--accion);
+}
+
+.entrega-chip:has(.entrega-radio:focus-visible) {
+  outline: 3px solid var(--accion);
+  outline-offset: 2px;
+}
+
+/* Aviso de cobro a destino: tono ámbar de advertencia, texto oscuro para el contraste */
+.entrega-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radio);
+  background: #fff7e6;
+  color: #6b4200;
+  font-size: 0.875rem;
+}
+
+.entrega-aviso .icono {
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
 .entrega-retiro {
   display: grid;
   gap: 4px;

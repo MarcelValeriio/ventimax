@@ -6,6 +6,31 @@ if (process.env.NODE_ENV === "test") {
 const { registrarAuditoria } = require("../services/auditService");
 
 const TIPOS_VALIDOS = ["delivery_local", "envio_nacional", "retiro", "otro"];
+// Tipos que trabajan con empresas de envío (el cliente elige una)
+const TIPOS_CON_EMPRESAS = ["envio_nacional", "otro"];
+const MAX_EMPRESAS = 10;
+const MAX_LARGO_EMPRESA = 40;
+
+/** Lista de empresas de envío: texto recortado, sin vacías ni repetidas (sin distinguir mayúsculas), con tope. */
+function sanearEmpresas(empresas: any): { ok: true; value: string[] } | { ok: false; error: string } {
+  if (empresas === undefined || empresas === null) return { ok: true, value: [] };
+  if (!Array.isArray(empresas)) return { ok: false, error: "Las empresas de envío deben ser una lista" };
+  const vistas = new Set<string>();
+  const lista: string[] = [];
+  for (const e of empresas) {
+    const nombre = typeof e === "string" ? e.trim() : "";
+    if (!nombre) continue;
+    if (nombre.length > MAX_LARGO_EMPRESA) {
+      return { ok: false, error: `El nombre de una empresa no puede exceder ${MAX_LARGO_EMPRESA} caracteres` };
+    }
+    const clave = nombre.toLowerCase();
+    if (vistas.has(clave)) continue;
+    vistas.add(clave);
+    lista.push(nombre);
+  }
+  if (lista.length > MAX_EMPRESAS) return { ok: false, error: `Máximo ${MAX_EMPRESAS} empresas de envío` };
+  return { ok: true, value: lista };
+}
 const COSTO_TIPOS_VALIDOS = ["fijo", "a_convenir"];
 
 /**
@@ -41,10 +66,15 @@ const getShippingMethods = async (req: any, res: any) => {
 
 const createShippingMethod = async (req: any, res: any) => {
   try {
-    const { nombre, tipo, descripcion, costoTipo, costo, pideDatos, direccion, horario, activo, orden } = req.body || {};
+    const { nombre, tipo, descripcion, costoTipo, costo, pideDatos, direccion, horario, activo, orden, empresas, cobroADestino } =
+      req.body || {};
 
     if (!nombre || typeof nombre !== "string" || !nombre.trim()) {
       return res.status(400).json({ success: false, error: "El nombre es obligatorio" });
+    }
+    const empresasSaneadas = sanearEmpresas(empresas);
+    if (empresasSaneadas.ok === false) {
+      return res.status(400).json({ success: false, error: empresasSaneadas.error });
     }
     if (!tipo || !TIPOS_VALIDOS.includes(tipo)) {
       return res.status(400).json({ success: false, error: "Tipo de envío inválido" });
@@ -99,6 +129,8 @@ const createShippingMethod = async (req: any, res: any) => {
       pideDatos: tipo === "retiro" ? "" : (pideDatos ? String(pideDatos).trim() : ""),
       direccion: direccion ? String(direccion).trim() : "",
       horario: horario ? String(horario).trim() : "",
+      empresas: TIPOS_CON_EMPRESAS.includes(tipo) ? empresasSaneadas.value : [],
+      cobroADestino: tipo !== "retiro" && cobroADestino === true,
       activo: activo !== false,
       orden: Number(orden) || 0,
     };
@@ -127,7 +159,13 @@ const updateShippingMethod = async (req: any, res: any) => {
       return res.status(404).json({ success: false, error: "Método de envío no encontrado" });
     }
 
-    const { nombre, tipo, descripcion, costoTipo, costo, pideDatos, direccion, horario, activo, orden } = req.body || {};
+    const { nombre, tipo, descripcion, costoTipo, costo, pideDatos, direccion, horario, activo, orden, empresas, cobroADestino } =
+      req.body || {};
+
+    const empresasSaneadas = sanearEmpresas(empresas);
+    if (empresasSaneadas.ok === false) {
+      return res.status(400).json({ success: false, error: empresasSaneadas.error });
+    }
 
     if (nombre !== undefined && (!nombre || typeof nombre !== "string" || !nombre.trim())) {
       return res.status(400).json({ success: false, error: "El nombre no puede estar vacío" });
@@ -192,6 +230,10 @@ const updateShippingMethod = async (req: any, res: any) => {
 
     if (direccion !== undefined) updateData.direccion = String(direccion).trim();
     if (horario !== undefined) updateData.horario = String(horario).trim();
+    if (!TIPOS_CON_EMPRESAS.includes(finalTipo)) updateData.empresas = [];
+    else if (empresas !== undefined) updateData.empresas = empresasSaneadas.value;
+    if (finalTipo === "retiro") updateData.cobroADestino = false;
+    else if (cobroADestino !== undefined) updateData.cobroADestino = cobroADestino === true;
     if (activo !== undefined) updateData.activo = Boolean(activo);
     if (orden !== undefined) updateData.orden = Number(orden);
 

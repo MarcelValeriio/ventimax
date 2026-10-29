@@ -33,9 +33,17 @@ export function usaGps(metodo) {
  * escrita, y los demás (envío nacional) los datos escritos.
  * @param {{ metodo?: { id: string, tipo: string }, gps?: { latitud: number, longitud: number } | null, direccion?: string }} seleccion
  */
+/** Empresas de envío entre las que elige el cliente (envío nacional); vacía si el método no las tiene. */
+export function empresasDe(metodo) {
+  return metodo && metodo.tipo !== "retiro" && Array.isArray(metodo.empresas) ? metodo.empresas.filter(Boolean) : [];
+}
+
 export function entregaCompleta(seleccion) {
   if (!seleccion || !seleccion.metodo || !seleccion.metodo.id) return false;
   if (seleccion.metodo.tipo === "retiro") return true;
+  // Con empresas configuradas hay que elegir una (y que sea de la lista)
+  const empresas = empresasDe(seleccion.metodo);
+  if (empresas.length && !empresas.includes(seleccion.empresa)) return false;
   if (usaGps(seleccion.metodo) && coordenadasValidas(seleccion.gps)) return true;
   return String(seleccion.direccion || "").trim().length >= MIN_DIRECCION;
 }
@@ -54,12 +62,14 @@ export function armarEntrega(seleccion) {
   }
   const direccion = String(seleccion.direccion || "").trim().slice(0, MAX_DIRECCION);
   if (direccion) entrega.direccion = direccion;
+  if (empresasDe(seleccion.metodo).includes(seleccion.empresa)) entrega.empresa = seleccion.empresa;
   return entrega;
 }
 
 /** Costo del método para el resumen: fijo (número), a convenir o sin costo. */
 export function costoEntrega(metodo) {
   if (!metodo) return { tipo: "pendiente", monto: 0 };
+  if (metodo.cobroADestino) return { tipo: "cobro_destino", monto: 0 };
   if (metodo.aConvenir || metodo.costo === null) return { tipo: "a_convenir", monto: 0 };
   const monto = Number(metodo.costo) || 0;
   return monto > 0 ? { tipo: "fijo", monto } : { tipo: "gratis", monto: 0 };

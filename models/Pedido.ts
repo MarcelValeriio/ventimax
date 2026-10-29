@@ -30,6 +30,9 @@ const PedidoSchema = new Schema<IPedido>({
     direccion: { type: String, default: "" },
     horario: { type: String, default: "" },
     cambioTrasCotizar: { type: Boolean, default: false },
+    // Envío nacional: empresa que eligió el cliente y si el envío se paga al recibirlo
+    empresa: { type: String, default: "" },
+    cobroADestino: { type: Boolean, default: false },
   },
   notas: { type: String, default: null },
   origenWeb: {

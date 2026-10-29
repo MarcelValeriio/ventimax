@@ -25,6 +25,8 @@ const CarritoWebSchema = new Schema<ICarritoWeb>(
           tipo: { type: String },
           costo: { type: Number, default: 0 },
           aConvenir: { type: Boolean, default: false },
+          empresa: { type: String, default: "" },
+          cobroADestino: { type: Boolean, default: false },
           latitud: { type: Number, default: null },
           longitud: { type: Number, default: null },
           direccion: { type: String, default: "" },

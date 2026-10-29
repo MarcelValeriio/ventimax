@@ -143,6 +143,12 @@ function getDebounceMs() {
  * Modalidad: Delivery Exclusivo
  * Refactored using Strategy Pattern for better maintainability.
  */
+/** Empresas de envío de un método (envío nacional); vacía si no tiene o es retiro. */
+function empresasDeEnvio(metodo: any): string[] {
+  if (!metodo || metodo.tipo === "retiro" || !Array.isArray(metodo.empresas)) return [];
+  return metodo.empresas.map((e: any) => String(e).trim()).filter(Boolean);
+}
+
 class ChatFlowService {
   handlers: Record<string, Function>;
   userQueues: Map<string, any>;
@@ -159,6 +165,7 @@ class ChatFlowService {
       esperando_datos_cliente: this.handleEsperandoDatosCliente.bind(this),
       esperando_cedula: this.handleEsperandoCedula.bind(this),
       esperando_metodo_envio: this.handleEsperandoMetodoEnvio.bind(this),
+      esperando_empresa_envio: this.handleEsperandoEmpresaEnvio.bind(this),
       esperando_ubicacion: this.handleEsperandoUbicacion.bind(this),
       esperando_notas: this.handleEsperandoNotas.bind(this),
       esperando_confirmacion_datos:
@@ -966,6 +973,8 @@ class ChatFlowService {
         return "Para continuar, escribe tu *Cédula o RIF* (ej: 12345678, E-12345678 o J-123456789) o *CANCELAR* para reiniciar.";
       case "esperando_metodo_envio":
         return "Para continuar, selecciona tu *método de entrega* de la lista o escribe tu opción (o escribe *CANCELAR* para reiniciar).";
+      case "esperando_empresa_envio":
+        return "Para continuar, elige la *empresa de envío* de la lista o escribe su nombre (o escribe *CANCELAR* para reiniciar).";
       case "esperando_ubicacion":
         return "Para continuar, escribe tu *dirección* o envía tu ubicación (o escribe *CANCELAR* para reiniciar).";
       case "esperando_notas":
@@ -1703,6 +1712,9 @@ class ChatFlowService {
         costo: esRetiro ? 0 : (m.costoTipo === "fijo" ? (Number(m.costo) || 0) : 0),
         costoTipo: esRetiro ? "fijo" : m.costoTipo,
         aConvenir: esRetiro ? false : (m.costoTipo === "a_convenir"),
+        // Cobro a destino: el cliente le paga el envío a la empresa al recibirlo (no suma al total)
+        ...(!esRetiro && m.cobroADestino === true ? { cobroADestino: true, aConvenir: false, costo: 0 } : {}),
+        empresa: "",
         direccion: m.direccion || "",
         horario: m.horario || "",
       };
@@ -1721,6 +1733,12 @@ class ChatFlowService {
           io,
         );
         await chatFlow.solicitarConfirmacionDatos(from, carrito, io);
+        return;
+      }
+
+      // Envío nacional con empresas configuradas: el cliente elige una antes de los datos de entrega
+      if (empresasDeEnvio(m).length) {
+        await this.pedirEmpresaEnvio(from, carrito, m, io);
         return;
       }
 
@@ -1752,6 +1770,78 @@ class ChatFlowService {
       );
       await chatFlow.solicitarMetodoEnvio(from, metodos, io);
     }
+  }
+
+  /** Pide al cliente la empresa de envío (lista de WhatsApp) y avisa si el envío es cobro a destino. */
+  async pedirEmpresaEnvio(from, carrito, metodo, io) {
+    await orderService.setEstado(from, { paso: "esperando_empresa_envio", carrito }, io);
+    const empresas = empresasDeEnvio(metodo);
+    const aviso = metodo.cobroADestino
+      ? "\n\n💡 Todos los envíos son *cobro a destino*: el costo del envío lo pagas al recibirlo o retirarlo en la agencia."
+      : "";
+    await this.enviarYRegistrar(
+      from,
+      {
+        tipo: "lista",
+        texto: `📦 *Empresa de envío*\n\n¿Con qué empresa prefieres que te lo enviemos?${aviso}`,
+        textoGuardar: "Empresas de envío enviadas",
+        buttonText: "Ver empresas",
+        sections: [
+          {
+            title: "Empresas",
+            rows: empresas.map((nombre, i) => ({ id: `empresa_${i}`, title: nombre.substring(0, 24) })),
+          },
+        ],
+      },
+      io
+    );
+  }
+
+  /** Paso esperando_empresa_envio: guarda la empresa elegida (de la lista o escrita) y sigue con los datos de entrega. */
+  async handleEsperandoEmpresaEnvio({ from, text, listReplyId, io, estado }) {
+    const carrito = estado.carrito || { items: [] };
+    if (!carrito.items) carrito.items = [];
+    let metodo = null;
+    try {
+      metodo = carrito.envio?.metodoId ? await MetodoEnvio.findById(carrito.envio.metodoId) : null;
+    } catch (err) {
+      console.warn("⚠️ [Envío] No se pudo consultar el método de envío:", err.message);
+    }
+    const empresas = empresasDeEnvio(metodo);
+    // El método cambió o ya no tiene empresas: seguir sin preguntar
+    if (!metodo || metodo.activo === false || empresas.length === 0) {
+      return this.solicitarPasoTrasDatosPersonales(from, { ...carrito, envio: undefined }, io);
+    }
+
+    let elegida = "";
+    if (listReplyId && /^empresa_\d+$/.test(listReplyId)) {
+      elegida = empresas[Number(listReplyId.replace("empresa_", ""))] || "";
+    }
+    if (!elegida && text) {
+      const norm = text.trim().toLowerCase();
+      elegida = empresas.find((e) => e.toLowerCase() === norm) || empresas.find((e) => norm.includes(e.toLowerCase())) || "";
+    }
+    if (!elegida) {
+      await this._sendYGuardar(from, "⚠️ Por favor, elige una empresa de la lista.\n\n💡 _Si deseas cancelar o empezar desde cero, escribe *CANCELAR*._", io);
+      return this.pedirEmpresaEnvio(from, carrito, metodo, io);
+    }
+
+    carrito.envio = { ...carrito.envio, empresa: elegida };
+    await orderService.actualizarPedido(from, { envio: carrito.envio });
+
+    if (carrito.ubicacion || carrito.direccion_manual) {
+      await orderService.setEstado(from, { paso: "esperando_confirmacion_datos", carrito }, io);
+      return chatFlow.solicitarConfirmacionDatos(from, carrito, io);
+    }
+    await orderService.setEstado(from, { paso: "esperando_ubicacion", carrito }, io);
+    if (metodo.pideDatos && metodo.pideDatos.trim()) {
+      return this._sendYGuardar(
+        from,
+        `📍 Por favor indícanos: *${metodo.pideDatos.trim()}*\n\n💡 _Si deseas empezar de nuevo en cualquier momento, escribe *CANCELAR*._`,
+        io
+      );
+    }
+    return chatFlow.solicitarUbicacion(from, io);
   }
 
   async handleEsperandoCedula({ from, text, io, estado }) {
@@ -1929,6 +2019,9 @@ class ChatFlowService {
             : 0,
         costoTipo: esRetiro ? "fijo" : seleccionado.costoTipo,
         aConvenir: esRetiro ? false : seleccionado.costoTipo === "a_convenir",
+        // Cobro a destino: el cliente le paga el envío a la empresa al recibirlo (no suma al total)
+        ...(!esRetiro && seleccionado.cobroADestino === true ? { cobroADestino: true, aConvenir: false, costo: 0 } : {}),
+        empresa: "",
         direccion: seleccionado.direccion || "",
         horario: seleccionado.horario || "",
         cambioTrasCotizar,
@@ -1949,6 +2042,12 @@ class ChatFlowService {
           io,
         );
         await chatFlow.solicitarConfirmacionDatos(from, carrito, io);
+        return;
+      }
+
+      // Envío nacional con empresas configuradas: el cliente elige una antes de los datos de entrega
+      if (empresasDeEnvio(seleccionado).length) {
+        await this.pedirEmpresaEnvio(from, carrito, seleccionado, io);
         return;
       }
 
@@ -2753,19 +2852,27 @@ class ChatFlowService {
 
     const esRetiro = metodo.tipo === "retiro";
     const aConvenir = !esRetiro && metodo.costoTipo === "a_convenir";
+    const cobroADestino = !esRetiro && metodo.cobroADestino === true;
+    // La empresa elegida en la tienda vale si sigue en la lista del método; si no, el bot la pregunta
+    const empresas = empresasDeEnvio(metodo);
+    const empresa = empresas.find((e) => e.toLowerCase() === String(entrega.empresa || "").toLowerCase()) || "";
     carrito.envio = {
       metodoId: String(metodo._id),
       nombre: metodo.nombre,
       tipo: metodo.tipo,
-      costo: esRetiro || aConvenir ? 0 : Number(metodo.costo) || 0,
+      costo: esRetiro || aConvenir || cobroADestino ? 0 : Number(metodo.costo) || 0,
       costoTipo: esRetiro ? "fijo" : metodo.costoTipo,
-      aConvenir,
+      aConvenir: aConvenir && !cobroADestino,
+      cobroADestino,
+      empresa,
       direccion: metodo.direccion || "",
       horario: metodo.horario || "",
-      desdeWeb: true,
+      // Sin la empresa (si el método la pide), el bot no salta los pasos de entrega
+      desdeWeb: empresas.length === 0 || Boolean(empresa),
     };
 
-    const lineas = [`🚚 *Entrega:* ${metodo.nombre}`];
+    const lineas = [`🚚 *Entrega:* ${metodo.nombre}${cobroADestino ? " (cobro a destino)" : ""}`];
+    if (empresa) lineas.push(`📦 *Empresa de envío:* ${empresa}`);
     if (esRetiro) {
       const horario = metodo.horario && metodo.horario.trim() ? metodo.horario.trim() : formatearHorarioAtencion();
       lineas.push(`📍 *Punto de retiro:* ${metodo.direccion || "Dirección de retiro"}`, `⏰ *Horario:* ${horario}`);

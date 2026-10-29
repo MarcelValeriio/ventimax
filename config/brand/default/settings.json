@@ -108,6 +108,7 @@
     "advisorHandoff": "👨‍💼 Un asesor se comunicará contigo a la brevedad. Por favor déjanos tu consulta.",
     "webOrderPrefill": "Hola, quiero confirmar mi pedido web {{codigo}}",
     "webOrderPrefillEntrega": "Entrega: {{valor}}",
+    "webOrderPrefillEmpresa": "Empresa de envío: {{valor}}",
     "webOrderPrefillUbicacion": "Ubicación: {{valor}}",
     "webOrderPrefillDireccion": "Dirección: {{valor}}",
     "webHelpPrefill": "Hola, tengo una pregunta sobre sus productos",

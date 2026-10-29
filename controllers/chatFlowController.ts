@@ -28,6 +28,7 @@ if (process.env.NODE_ENV === "test") {
 }
 
 const configManager = require("../services/configManager");
+const { nombreEnvio, detalleCostoEnvio } = require("../services/envioTexto");
 const orderService = require("../services/orderService");
 const whatsappService = require("../services/whatsapp");
 const { obtenerTasaUSD } = require("../services/bcv");
@@ -519,14 +520,16 @@ class ChatFlowController {
       if (envio && envio.nombre) {
         if (esRetiro) {
           envioTexto = `\n🏪 *Modalidad:* ${envio.nombre} (Sin costo)`;
+        } else if (envio.cobroADestino) {
+          envioTexto = `\n🚚 *Envío:* ${nombreEnvio(envio)} (cobro a destino: lo pagas al recibirlo)`;
         } else if (envio.costoAcordado) {
           const costoEnvio = Number(envio.costo) || 0;
-          envioTexto = `\n🚚 *Envío:* ${envio.nombre} ($${formatUsd(costoEnvio)}, acordado con el asesor)`;
+          envioTexto = `\n🚚 *Envío:* ${nombreEnvio(envio)} ($${formatUsd(costoEnvio)}, acordado con el asesor)`;
         } else if (envio.aConvenir) {
-          envioTexto = `\n🚚 *Envío:* ${envio.nombre} (a convenir con el asesor)`;
+          envioTexto = `\n🚚 *Envío:* ${nombreEnvio(envio)} (a convenir con el asesor)`;
         } else {
           const costoEnvio = Number(envio.costo) || 0;
-          envioTexto = `\n🚚 *Envío:* ${envio.nombre} ($${formatUsd(costoEnvio)})`;
+          envioTexto = `\n🚚 *Envío:* ${nombreEnvio(envio)} ($${formatUsd(costoEnvio)})`;
         }
       }
 

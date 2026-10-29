@@ -366,7 +366,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
         ${clienteCedula ? `<p style="margin: 0 0 4px 0;"><strong>Cédula:</strong> ${esc(clienteCedula)}</p>` : ""}
         ${clienteTelefono ? `<p style="margin: 0 0 4px 0;"><strong>Teléfono:</strong> ${esc(clienteTelefono)}</p>` : ""}
         ${direccion ? `<p style="margin: 0 0 4px 0;"><strong>Dirección:</strong> ${esc(direccion)}</p>` : ""}
-        ${order.envio && order.envio.nombre ? `<p style="margin: 0 0 4px 0;"><strong>Envío:</strong> ${esc(order.envio.nombre)}${order.envio.costoAcordado ? ` ($${Number(order.envio.costo).toFixed(2)}, acordado con el asesor)` : (order.envio.aConvenir ? " (A convenir)" : (order.envio.costo ? ` ($${Number(order.envio.costo).toFixed(2)})` : ""))}</p>` : ""}
+        ${order.envio && order.envio.nombre ? `<p style="margin: 0 0 4px 0;"><strong>Envío:</strong> ${esc(order.envio.nombre)}${order.envio.empresa ? ` · ${esc(order.envio.empresa)}` : ""}${order.envio.cobroADestino ? " (cobro a destino)" : order.envio.costoAcordado ? ` ($${Number(order.envio.costo).toFixed(2)}, acordado con el asesor)` : (order.envio.aConvenir ? " (A convenir)" : (order.envio.costo ? ` ($${Number(order.envio.costo).toFixed(2)})` : ""))}</p>` : ""}
       </div>
 
       <div style="margin-bottom: 14px; border-bottom: 1px dashed #000; padding-bottom: 10px;">
@@ -404,8 +404,8 @@ const KanbanBoard = ({ socket, userRole, health }) => {
           order.envio && order.envio.nombre
             ? `
           <div style="display: flex; justify-content: space-between; font-size: 14px; color: #444; margin-bottom: 6px;">
-            <span>Envío (${esc(order.envio.nombre)}):</span>
-            <span>${order.envio.costoAcordado ? `$${Number(order.envio.costo || 0).toFixed(2)} (Acordado)` : (order.envio.aConvenir ? "A convenir" : `$${Number(order.envio.costo || 0).toFixed(2)}`)}</span>
+            <span>Envío (${esc(order.envio.nombre)}${order.envio.empresa ? ` · ${esc(order.envio.empresa)}` : ""}):</span>
+            <span>${order.envio.cobroADestino ? "Cobro a destino" : order.envio.costoAcordado ? `$${Number(order.envio.costo || 0).toFixed(2)} (Acordado)` : (order.envio.aConvenir ? "A convenir" : `$${Number(order.envio.costo || 0).toFixed(2)}`)}</span>
           </div>
         `
             : ""
@@ -782,7 +782,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
                           "text-[10px] font-medium text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1",
                       },
                       e(Icono, { nombre: "truck", className: "text-[9px]" }),
-                      `${order.envio.nombre}${order.envio.costoAcordado ? ` ($${Number(order.envio.costo).toFixed(2)}, acordado con el asesor)` : (order.envio.aConvenir ? " (A convenir)" : (order.envio.costo ? ` ($${Number(order.envio.costo).toFixed(2)})` : ""))}`,
+                      `${order.envio.nombre}${order.envio.empresa ? ` · ${order.envio.empresa}` : ""}${order.envio.cobroADestino ? " (cobro a destino)" : order.envio.costoAcordado ? ` ($${Number(order.envio.costo).toFixed(2)}, acordado con el asesor)` : (order.envio.aConvenir ? " (A convenir)" : (order.envio.costo ? ` ($${Number(order.envio.costo).toFixed(2)})` : ""))}`,
                     ),
                   order.notas &&
                     e(

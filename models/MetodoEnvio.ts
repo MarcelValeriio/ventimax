@@ -20,6 +20,9 @@ const MetodoEnvioSchema = new Schema<IMetodoEnvio>(
     pideDatos: { type: String, default: "" },
     direccion: { type: String, default: "", trim: true, maxlength: 200 },
     horario: { type: String, default: "", trim: true, maxlength: 100 },
+    // Envío nacional: empresas entre las que elige el cliente (MRW, Zoom…) y si el envío se paga al recibirlo
+    empresas: { type: [String], default: [] },
+    cobroADestino: { type: Boolean, default: false },
     activo: { type: Boolean, default: true },
     orden: { type: Number, default: 0 },
   },

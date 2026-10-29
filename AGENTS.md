@@ -2351,6 +2351,18 @@ Pedido por el dueño el 2026-10-29, con una conversación real del Instagram de 
 
 ---
 
+### F2e · Empresa de envío y cobro a destino — **Claude** · `Completada`
+
+Pedido por el dueño el 2026-10-29: en envío nacional, el cliente elige la empresa (una sola) entre las que configura el negocio, con aviso de que el envío es cobro a destino.
+
+- **Panel (Inventario → Envíos):** en los métodos de envío nacional u "otro", lista de empresas con "+ Agregar otra" (hasta 10, sin repetidas, 40 caracteres) y casilla "Cobro a destino". La tarjeta del método las muestra.
+- **Tienda:** al elegir envío nacional aparecen las empresas como opciones de una sola selección, el aviso ámbar de cobro a destino y el campo de `pideDatos` con un ejemplo de estado, ciudad y agencia. "Pedir por WhatsApp" exige la empresa. El resumen dice "Cobro a destino" y no suma el envío.
+- **Servidor:** `entrega.empresa` validada contra la lista del método (se guarda con el nombre del panel); el mensaje de WhatsApp agrega "Empresa de envío" y "(cobro a destino)". `/api/public/info` expone `empresas` y `cobroADestino`.
+- **Bot:** con el código web carga la empresa; en el chat, al elegir envío nacional con empresas, pregunta cuál (lista de WhatsApp o escrita) antes de los datos de entrega (paso nuevo `esperando_empresa_envio`). La empresa y el cobro a destino aparecen en el resumen, la notificación al administrador, la comanda, la tarjeta del Kanban y el detalle del pedido (`services/envioTexto.ts`).
+- **Verificación:** `test-entrega-web.ts` (15 pruebas) y `./scripts/ci.sh` en verde (34 suites); tienda y formulario del panel revisados en Chrome con datos de prueba (borrados).
+
+---
+
 ### F2c · El cliente elige la entrega en la tienda — **Claude** · `Completada`
 
 Idea del dueño (2026-10-29), paso 1 de 2 (el mapa con buscador es F2d).
@@ -2411,6 +2423,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-10-29 | 16:00 | F2e: empresas de envío (el cliente elige una en la tienda y en el chat) y cobro a destino configurable por método; tienda confirma siempre los métodos de envío con el servidor (la caché de 5 min ocultaba las opciones tras el despliegue de F2c) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 15:00 | F2c: el cliente elige la entrega en el carrito (retiro, delivery con GPS del teléfono o dirección, envío nacional); el servidor la valida contra la base, viaja en el mensaje de WhatsApp con el enlace del mapa y el bot no la vuelve a preguntar. Política de privacidad actualizada. F2d (mapa con buscador) anotada — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 13:00 | F2b: rediseño de la tienda con Impeccable (estilo estándar elegido por el dueño, referencia Mercado Libre), preguntas frecuentes editables y `/api/public/info` (subagente Haiku), íconos de Lucide en la tienda; revisión final `ship` y `DESIGN.md`. M-4: panel sin Font Awesome, solo Lucide (subagente Haiku), revisado en Chrome — Ejecutado por **Claude** + subagentes | Claude (Cerebro) | Completado |
 | 2026-10-29 | 09:30 | `PRODUCT.md` creado por el dueño con la herramienta de diseño Impeccable (contexto del producto para F2b) y revisado por Claude: correcto. Para cumplir su regla de 44 px, botones de cantidad y flechas del carrusel de la tienda subidos de 36 a 44 px. Guía de cliente nuevo: `PRODUCT.md` se reescribe por marca — Ejecutado por **Claude** | Claude (Cerebro) | Completado |

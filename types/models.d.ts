@@ -75,6 +75,8 @@ export interface IEnvioPedido {
   direccion?: string;
   horario?: string;
   cambioTrasCotizar?: boolean;
+  empresa?: string;
+  cobroADestino?: boolean;
 }
 
 // ==========================================
@@ -283,6 +285,8 @@ export interface IMetodoEnvio {
   orden?: number;
   createdAt?: Date;
   updatedAt?: Date;
+  empresas?: string[];
+  cobroADestino?: boolean;
 }
 
 // ==========================================
@@ -496,6 +500,8 @@ export interface IEntregaCarritoWeb {
   tipo: string;
   costo: number;
   aConvenir: boolean;
+  empresa?: string;
+  cobroADestino?: boolean;
   latitud: number | null;
   longitud: number | null;
   direccion: string;

@@ -51,6 +51,7 @@ if (process.env.NODE_ENV === "test") {
   }
 }
 const configManager = require("../services/configManager");
+const { nombreEnvio, detalleCostoEnvio } = require("../services/envioTexto");
 const orderService = require("../services/orderService");
 const bcv = require("../services/bcv");
 const { obtenerTotalCreados, fechaCaracas } = require("../services/catalogoAbusoService");
@@ -3685,15 +3686,7 @@ const postManualSale = async (req, res, io) => {
         }
 
         if (pedido.envio && pedido.envio.nombre) {
-          let detalleCosto = "";
-          if (pedido.envio.costoAcordado) {
-            detalleCosto = ` ($${Number(pedido.envio.costo).toFixed(2)}, acordado con el asesor)`;
-          } else if (pedido.envio.aConvenir) {
-            detalleCosto = " (A convenir)";
-          } else if (pedido.envio.costo) {
-            detalleCosto = ` ($${Number(pedido.envio.costo).toFixed(2)})`;
-          }
-          adminMsg += `\n🚚 Envío: ${pedido.envio.nombre}${detalleCosto}`;
+          adminMsg += `\n🚚 Envío: ${nombreEnvio(pedido.envio)}${detalleCostoEnvio(pedido.envio)}`;
         }
 
         if (pedido.notas) {

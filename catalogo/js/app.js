@@ -34,7 +34,7 @@ import { debeMostrarAyuda, textoAyuda, armarEnlaceAyuda } from "./ayuda.js";
 
 import { ajustarIndice, indiceDesdeScroll } from "./galeria.js";
 
-import { entregaCompleta, armarEntrega, costoEntrega, enlaceMapa, usaGps, MAX_DIRECCION } from "./entrega.js";
+import { entregaCompleta, armarEntrega, costoEntrega, enlaceMapa, usaGps, empresasDe, MAX_DIRECCION } from "./entrega.js";
 
 /** Solo se abre un enlace de WhatsApp (wa.me); cualquier otra cosa que llegara de la API se ignora. */
 function esEnlaceWhatsApp(url) {
@@ -54,7 +54,7 @@ const state = {
   ultimoPedido: null,
   vista: "",
   // Entrega elegida en el carrito (F2c); se reinicia al crear el pedido
-  entrega: { metodo: null, gps: null, direccion: "", estadoGps: "inactivo" },
+  entrega: { metodo: null, gps: null, direccion: "", empresa: "", estadoGps: "inactivo" },
 };
 
 const appRoot = document.getElementById("app-root");
@@ -1104,7 +1104,7 @@ function renderizarCarrito() {
           };
           limpiarCarritoEnStorage();
           guardarPedido([]);
-          state.entrega = { metodo: null, gps: null, direccion: "", estadoGps: "inactivo" };
+          state.entrega = { metodo: null, gps: null, direccion: "", empresa: "", estadoGps: "inactivo" };
 
           // Redirigir a vista de confirmación
           window.location.hash = `#/confirmacion/${encodeURIComponent(res.data.codigo)}`;
@@ -1144,6 +1144,8 @@ function renderizarCarrito() {
         ? formatearUsd(costo.monto)
         : costo.tipo === "gratis"
           ? "Sin costo"
+          : costo.tipo === "cobro_destino"
+            ? "Cobro a destino"
           : costo.tipo === "a_convenir"
             ? "A convenir por WhatsApp"
             : pideEntrega
@@ -1155,7 +1157,18 @@ function renderizarCarrito() {
 
     const lista = !pideEntrega || entregaCompleta(state.entrega);
     submitBtn.disabled = hayAgotados || !lista || submitBtn.getAttribute("aria-busy") === "true";
-    const pista = !pideEntrega || lista ? "" : !state.entrega.metodo ? "Elige cómo quieres recibir tu pedido." : "Indica tu ubicación o escribe la dirección de entrega.";
+    const empresasMetodo = empresasDe(state.entrega.metodo);
+    const faltaEmpresa = empresasMetodo.length > 0 && !empresasMetodo.includes(state.entrega.empresa);
+    const pista =
+      !pideEntrega || lista
+        ? ""
+        : !state.entrega.metodo
+          ? "Elige cómo quieres recibir tu pedido."
+          : faltaEmpresa
+            ? "Elige la empresa de envío."
+            : usaGps(state.entrega.metodo)
+              ? "Indica tu ubicación o escribe la dirección de entrega."
+              : "Completa los datos para el envío.";
     pistaEntrega.textContent = pista;
     pistaEntrega.classList.toggle("hidden", !pista);
   }
@@ -1211,6 +1224,7 @@ function gpsDisponible() {
 
 function textoCostoMetodo(metodo) {
   const costo = costoEntrega(metodo);
+  if (costo.tipo === "cobro_destino") return "Cobro a destino";
   if (costo.tipo === "fijo") return formatearUsd(costo.monto);
   if (costo.tipo === "gratis") return "Sin costo";
   return "A convenir";
@@ -1266,7 +1280,11 @@ function seccionEntrega(metodos, alCambiar) {
       className: "entrega-campo",
       rows: "3",
       maxlength: String(MAX_DIRECCION),
-      placeholder: conGps ? "Ej.: edificio azul, piso 3, apto 3-B" : "Ej.: urbanización, calle, casa o edificio y un punto de referencia",
+      placeholder: conGps
+        ? "Ej.: edificio azul, piso 3, apto 3-B"
+        : usaGps(metodo)
+          ? "Ej.: urbanización, calle, casa o edificio y un punto de referencia"
+          : "Ej.: Carabobo, Valencia, oficina de la agencia más cercana",
       autocomplete: "street-address",
       oninput: (ev) => {
         state.entrega.direccion = ev.target.value;
@@ -1363,6 +1381,54 @@ function seccionEntrega(metodos, alCambiar) {
       );
       return;
     }
+    // Envío nacional: una sola empresa, elegida de las que configuró el negocio
+    const empresas = empresasDe(m);
+    if (empresas.length) {
+      if (!empresas.includes(state.entrega.empresa)) state.entrega.empresa = "";
+      detalle.appendChild(
+        el(
+          "fieldset",
+          { className: "entrega-grupo entrega-empresas" },
+          el("legend", { className: "entrega-etiqueta" }, "Empresa de envío"),
+          el(
+            "div",
+            { className: "entrega-chips" },
+            empresas.map((nombre) =>
+              el(
+                "label",
+                { className: `entrega-chip ${state.entrega.empresa === nombre ? "activa" : ""}`.trim() },
+                el("input", {
+                  type: "radio",
+                  name: "empresa-envio",
+                  value: nombre,
+                  className: "entrega-radio",
+                  checked: state.entrega.empresa === nombre,
+                  onchange: (ev) => {
+                    state.entrega.empresa = nombre;
+                    [...ev.target.closest(".entrega-chips").querySelectorAll(".entrega-chip")].forEach((c) =>
+                      c.classList.toggle("activa", c.contains(ev.target))
+                    );
+                    alCambiar();
+                  },
+                }),
+                nombre
+              )
+            )
+          )
+        )
+      );
+    }
+    if (m.cobroADestino) {
+      detalle.appendChild(
+        el(
+          "p",
+          { className: "entrega-aviso" },
+          icono("alerta"),
+          el("span", {}, el("strong", {}, "Cobro a destino: "), "el costo del envío lo pagas al recibirlo o retirarlo en la agencia.")
+        )
+      );
+    }
+
     // La ubicación del teléfono sirve para entregas en la ciudad; para envíos nacionales basta con los datos escritos
     if (usaGps(m)) {
       const gps = bloqueGps();
@@ -1391,6 +1457,7 @@ function notaEntregaConfirmacion(entrega) {
   if (!entrega) return "Total con los precios de hoy. El envío se acuerda por WhatsApp.";
   const costo = costoEntrega(entrega);
   if (entrega.tipo === "retiro") return `Total con los precios de hoy. Retiro en ${entrega.nombre}.`;
+  if (costo.tipo === "cobro_destino") return "Total con los precios de hoy. El envío es cobro a destino: lo pagas al recibirlo.";
   if (costo.tipo === "fijo") return `Total con los precios de hoy, con el envío (${entrega.nombre}) incluido.`;
   if (costo.tipo === "gratis") return `Total con los precios de hoy. ${entrega.nombre} sin costo.`;
   return `Total con los precios de hoy. El costo de ${entrega.nombre} se acuerda por WhatsApp.`;

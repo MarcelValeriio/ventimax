@@ -596,10 +596,12 @@ const OrderDetailsModal = ({
             order?.envio?.nombre
               ? e("div", { className: "space-y-1" }, [
                   e("p", { className: "font-bold flex items-center justify-between" }, [
-                    e("span", null, order.envio.nombre),
+                    e("span", null, order.envio.empresa ? `${order.envio.nombre} · ${order.envio.empresa}` : order.envio.nombre),
                     e("span", { className: "text-xs px-2 py-0.5 rounded font-black bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" },
                       order.envio.tipo === "retiro"
                         ? "Retiro (Gratis)"
+                        : order.envio.cobroADestino
+                        ? "Cobro a destino"
                         : (order.envio.costoAcordado
                             ? `$${Number(order.envio.costo).toFixed(2)} USD (Acordado con asesor)`
                             : (order.envio.aConvenir

@@ -9,6 +9,9 @@ import ConfirmModal from "./ConfirmModal.js";
 
 const e = React.createElement;
 
+// Tipos en los que el cliente elige la empresa de envío (MRW, Zoom…)
+const TIPOS_CON_EMPRESAS = ["envio_nacional", "otro"];
+
 const TIPOS_ENVIO = [
   { value: "delivery_local", label: "Delivery Local", icon: "motorbike" },
   { value: "envio_nacional", label: "Envío Nacional", icon: "truck" },
@@ -32,6 +35,8 @@ const ShippingTab = () => {
     pideDatos: "",
     direccion: "",
     horario: "",
+    empresas: [],
+    cobroADestino: false,
     activo: true,
     orden: 0,
   });
@@ -67,6 +72,8 @@ const ShippingTab = () => {
         pideDatos: method.pideDatos || "",
         direccion: method.direccion || "",
         horario: method.horario || "",
+        empresas: Array.isArray(method.empresas) ? [...method.empresas] : [],
+        cobroADestino: method.cobroADestino === true,
         activo: method.activo !== false,
         orden: Number(method.orden) || 0,
       });
@@ -81,6 +88,8 @@ const ShippingTab = () => {
         pideDatos: "",
         direccion: "",
         horario: "",
+        empresas: [],
+        cobroADestino: false,
         activo: true,
         orden: 0,
       });
@@ -113,6 +122,7 @@ const ShippingTab = () => {
     }
 
     const isRetiro = formData.tipo === "retiro";
+    const conEmpresas = TIPOS_CON_EMPRESAS.includes(formData.tipo);
     if (isRetiro) {
       if (!formData.direccion || !formData.direccion.trim()) {
         window.showToast?.("La dirección es obligatoria para el método de retiro", "error");
@@ -133,6 +143,8 @@ const ShippingTab = () => {
         pideDatos: isRetiro ? "" : (formData.pideDatos ? formData.pideDatos.trim() : ""),
         direccion: isRetiro ? formData.direccion.trim() : (formData.direccion || "").trim(),
         horario: isRetiro ? (formData.horario || "").trim() : (formData.horario || "").trim(),
+        empresas: conEmpresas ? (formData.empresas || []).map((x) => x.trim()).filter(Boolean) : [],
+        cobroADestino: !isRetiro && formData.cobroADestino === true,
         orden: Number(formData.orden) || 0,
       };
 
@@ -357,6 +369,22 @@ const ShippingTab = () => {
                             m.pideDatos && m.pideDatos.trim() ? m.pideDatos : "Dirección habitual",
                           ),
                         ),
+                        Array.isArray(m.empresas) && m.empresas.length
+                          ? e(
+                              "div",
+                              { key: "empresas-del", className: "flex justify-between gap-3 text-xs items-start" },
+                              e("span", { className: "text-gray-400 font-medium shrink-0" }, "Empresas:"),
+                              e("span", { className: "text-gray-700 dark:text-gray-300 font-semibold text-right" }, m.empresas.join(", ")),
+                            )
+                          : null,
+                        m.cobroADestino
+                          ? e(
+                              "div",
+                              { key: "cobro-del", className: "flex justify-between text-xs items-center" },
+                              e("span", { className: "text-gray-400 font-medium" }, "Pago del envío:"),
+                              e("span", { className: "text-amber-600 dark:text-amber-400 font-semibold" }, "Cobro a destino"),
+                            )
+                          : null,
                       ],
                   m.orden !== undefined && m.orden !== 0
                     ? e(
@@ -631,6 +659,90 @@ const ShippingTab = () => {
                       "Si lo dejas vacío, el bot pedirá la dirección de entrega habitual.",
                     ),
                   ),
+
+                  // Empresas de envío (el cliente elige una) y cobro a destino
+                  TIPOS_CON_EMPRESAS.includes(formData.tipo)
+                    ? e(
+                        "div",
+                        { key: "input-empresas" },
+                        e(
+                          "label",
+                          { className: "text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1" },
+                          "Empresas de envío (el cliente elige una)",
+                        ),
+                        e(
+                          "div",
+                          { className: "space-y-2" },
+                          (formData.empresas || []).map((empresa, idx) =>
+                            e(
+                              "div",
+                              { key: `empresa-${idx}`, className: "flex gap-2" },
+                              e("input", {
+                                type: "text",
+                                maxLength: 40,
+                                value: empresa,
+                                "aria-label": `Empresa de envío ${idx + 1}`,
+                                onChange: (ev) => {
+                                  const lista = [...formData.empresas];
+                                  lista[idx] = ev.target.value;
+                                  setFormData({ ...formData, empresas: lista });
+                                },
+                                className:
+                                  "flex-1 p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm",
+                                placeholder: "ej: MRW",
+                              }),
+                              e(
+                                "button",
+                                {
+                                  type: "button",
+                                  title: "Quitar empresa",
+                                  "aria-label": `Quitar ${empresa || "empresa"}`,
+                                  onClick: () =>
+                                    setFormData({ ...formData, empresas: formData.empresas.filter((_, i) => i !== idx) }),
+                                  className:
+                                    "w-10 h-10 shrink-0 flex items-center justify-center rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all",
+                                },
+                                e(Icono, { nombre: "x" }),
+                              ),
+                            ),
+                          ),
+                          (formData.empresas || []).length < 10
+                            ? e(
+                                "button",
+                                {
+                                  type: "button",
+                                  onClick: () => setFormData({ ...formData, empresas: [...(formData.empresas || []), ""] }),
+                                  className:
+                                    "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all",
+                                },
+                                e(Icono, { nombre: "plus" }),
+                                (formData.empresas || []).length ? "Agregar otra" : "Agregar empresa",
+                              )
+                            : null,
+                        ),
+                        e(
+                          "p",
+                          { className: "text-[11px] text-gray-400 mt-1" },
+                          "Si agregas empresas, la tienda y el bot le piden al cliente que elija una.",
+                        ),
+                        e(
+                          "label",
+                          { className: "flex items-start gap-2 mt-3 cursor-pointer" },
+                          e("input", {
+                            type: "checkbox",
+                            checked: formData.cobroADestino === true,
+                            onChange: (ev) => setFormData({ ...formData, cobroADestino: ev.target.checked }),
+                            className: "mt-0.5 w-4 h-4 accent-emerald-600",
+                          }),
+                          e(
+                            "span",
+                            { className: "text-sm text-gray-700 dark:text-gray-300" },
+                            e("strong", null, "Cobro a destino"),
+                            " — el cliente paga el envío al recibirlo o retirarlo en la agencia. Se le avisa en la tienda y en el bot.",
+                          ),
+                        ),
+                      )
+                    : null,
                 ],
 
             // Orden y Activo

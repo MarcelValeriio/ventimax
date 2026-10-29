@@ -64,6 +64,7 @@ const entregaPublicaSchema = z
     latitud: z.number().min(-90).max(90).optional(),
     longitud: z.number().min(-180).max(180).optional(),
     direccion: z.string().trim().max(300, "La dirección no puede exceder 300 caracteres").optional().default(""),
+    empresa: z.string().trim().max(60, "Empresa de envío inválida").optional(),
   })
   .strict()
   .refine((e) => (e.latitud === undefined) === (e.longitud === undefined), {
