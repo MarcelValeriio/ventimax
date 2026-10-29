@@ -545,13 +545,8 @@ body {
   border-radius: 999px;
 }
 
-/* En el celular se desliza con el dedo: flechas más chicas para no tapar la foto */
+/* En el celular se desliza con el dedo: flechas más pegadas al borde (el área táctil sigue en 44 px) */
 @media (max-width: 600px) {
-  .carrusel-flecha {
-    width: 36px;
-    height: 36px;
-    font-size: 1.6rem;
-  }
 
   .carrusel-flecha--anterior {
     left: 8px;
@@ -650,8 +645,8 @@ body {
 }
 
 .qty-btn {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   background: transparent;
   border: none;
   font-size: 1.1rem;
@@ -667,7 +662,7 @@ body {
 
 .qty-input {
   width: 44px;
-  height: 36px;
+  height: 44px;
   border: none;
   text-align: center;
   font-size: 1rem;

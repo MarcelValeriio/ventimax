@@ -50,6 +50,8 @@ mkdir -p public/assets/brand/<marca>
 
 `<marca>` en minúsculas, sin espacios ni acentos (ej. `repuestos-perez`). Es el valor de `BRAND_NAME`.
 
+`PRODUCT.md` (raíz del repo) describe el producto de VentiMax para el trabajo de diseño: compradores, posicionamiento, reglas de la tienda y accesibilidad. En la copia de un cliente nuevo se reescribe con los datos de ese negocio; las reglas técnicas (sin frameworks ni CDN, sin `innerHTML` con datos, totales del servidor, marca fuera del código, botones de 44 px) se mantienen.
+
 ### 1.1 `settings.json`
 
 | Clave | Qué poner |
