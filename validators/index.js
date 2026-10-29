@@ -57,12 +57,26 @@ const pedidoItemPublicoSchema = z
   })
   .strict();
 
+// Cómo recibe el pedido el cliente de la tienda (F2c): método de envío del panel y, si aplica, ubicación
+const entregaPublicaSchema = z
+  .object({
+    metodoId: z.string().regex(/^[a-f0-9]{24}$/i, "Método de entrega inválido"),
+    latitud: z.number().min(-90).max(90).optional(),
+    longitud: z.number().min(-180).max(180).optional(),
+    direccion: z.string().trim().max(300, "La dirección no puede exceder 300 caracteres").optional().default(""),
+  })
+  .strict()
+  .refine((e) => (e.latitud === undefined) === (e.longitud === undefined), {
+    message: "La ubicación debe traer latitud y longitud",
+  });
+
 const pedidoPublicoSchema = z
   .object({
     items: z
       .array(pedidoItemPublicoSchema)
       .min(1, "El carrito debe tener al menos 1 producto")
       .max(20, "El carrito no puede tener más de 20 productos"),
+    entrega: entregaPublicaSchema.optional(),
     website: z.string().optional().default(""),
   })
   .strict();
@@ -92,6 +106,7 @@ module.exports = {
   metodoPagoSchema,
   loginSchema,
   pedidoItemPublicoSchema,
+  entregaPublicaSchema,
   pedidoPublicoSchema,
   validate,
 };

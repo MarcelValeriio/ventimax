@@ -34,6 +34,8 @@ import { debeMostrarAyuda, textoAyuda, armarEnlaceAyuda } from "./ayuda.js";
 
 import { ajustarIndice, indiceDesdeScroll } from "./galeria.js";
 
+import { entregaCompleta, armarEntrega, costoEntrega, enlaceMapa, usaGps, MAX_DIRECCION } from "./entrega.js";
+
 /** Solo se abre un enlace de WhatsApp (wa.me); cualquier otra cosa que llegara de la API se ignora. */
 function esEnlaceWhatsApp(url) {
   return typeof url === "string" && url.startsWith("https://wa.me/");
@@ -51,6 +53,8 @@ const state = {
   orden: "relevancia",
   ultimoPedido: null,
   vista: "",
+  // Entrega elegida en el carrito (F2c); se reinicia al crear el pedido
+  entrega: { metodo: null, gps: null, direccion: "", estadoGps: "inactivo" },
 };
 
 const appRoot = document.getElementById("app-root");
@@ -1048,6 +1052,12 @@ function renderizarCarrito() {
   const subtotalUsd = totalOrientativo();
   const unidades = obtenerTotalUnidades(state.carrito);
   const hayAgotados = state.carrito.some((i) => productosDelCatalogo().find((p) => p.id === i.productoId)?.disponible === false);
+  // Formas de entrega configuradas en el panel (F2c). Sin ellas, la entrega se acuerda por WhatsApp como antes
+  const metodosEntrega = (state.info?.envios || []).filter((m) => m && m.id);
+  const pideEntrega = metodosEntrega.length > 0;
+  if (pideEntrega && state.entrega.metodo && !metodosEntrega.some((m) => m.id === state.entrega.metodo.id)) {
+    state.entrega.metodo = null;
+  }
 
   // Campo trampa (honeypot) estricto [R6][R9]: invisible para personas, presente para robots
   const honeypotInput = el("input", {
@@ -1063,6 +1073,7 @@ function renderizarCarrito() {
 
   // Caja de alertas para errores
   const alertBox = el("div", { className: "alerta hidden", role: "alert" });
+  const pistaEntrega = el("p", { className: "resumen-pista hidden", id: "pista-entrega" });
 
   // Botón "Pedir por WhatsApp"
   const textoBoton = "Pedir por WhatsApp";
@@ -1072,6 +1083,7 @@ function renderizarCarrito() {
       type: "button",
       className: "boton boton-whatsapp boton-grande boton-bloque",
       disabled: hayAgotados,
+      "aria-describedby": "pista-entrega",
       onclick: async () => {
         alertBox.classList.add("hidden");
         submitBtn.disabled = true;
@@ -1079,15 +1091,20 @@ function renderizarCarrito() {
         etiquetaBoton.textContent = "Preparando tu pedido…";
 
         const websiteVal = honeypotInput.value;
-        const payload = armarCuerpoPedido(state.carrito, websiteVal);
+        const payload = armarCuerpoPedido(state.carrito, websiteVal, pideEntrega ? armarEntrega(state.entrega) : null);
 
         const res = await enviarPedidoWeb(payload);
 
         if (res.ok && res.data) {
           // Las cifras del servidor (las que valen) más la cantidad de productos, para la confirmación
-          state.ultimoPedido = { ...res.data, unidades: obtenerTotalUnidades(state.carrito) };
+          state.ultimoPedido = {
+            ...res.data,
+            unidades: obtenerTotalUnidades(state.carrito),
+            entrega: pideEntrega && state.entrega.metodo ? { ...state.entrega.metodo } : null,
+          };
           limpiarCarritoEnStorage();
           guardarPedido([]);
+          state.entrega = { metodo: null, gps: null, direccion: "", estadoGps: "inactivo" };
 
           // Redirigir a vista de confirmación
           window.location.hash = `#/confirmacion/${encodeURIComponent(res.data.codigo)}`;
@@ -1103,11 +1120,11 @@ function renderizarCarrito() {
             }
           }
         } else {
-          submitBtn.disabled = false;
           submitBtn.removeAttribute("aria-busy");
           etiquetaBoton.textContent = textoBoton;
           alertBox.textContent = res.mensaje || "No pudimos preparar tu pedido. Inténtalo de nuevo.";
           alertBox.classList.remove("hidden");
+          refrescarResumen();
         }
       },
     },
@@ -1115,6 +1132,33 @@ function renderizarCarrito() {
   );
   const etiquetaBoton = el("span", {}, textoBoton);
   submitBtn.appendChild(etiquetaBoton);
+
+  // Filas del resumen que cambian con la entrega elegida
+  const valorEnvio = el("dd", {});
+  const valorTotal = el("dd", {});
+
+  function refrescarResumen() {
+    const costo = pideEntrega ? costoEntrega(state.entrega.metodo) : { tipo: "pendiente", monto: 0 };
+    valorEnvio.textContent =
+      costo.tipo === "fijo"
+        ? formatearUsd(costo.monto)
+        : costo.tipo === "gratis"
+          ? "Sin costo"
+          : costo.tipo === "a_convenir"
+            ? "A convenir por WhatsApp"
+            : pideEntrega
+              ? "Elige cómo recibirlo"
+              : "Se acuerda por WhatsApp";
+    const total = subtotalUsd + costo.monto;
+    limpiarElemento(valorTotal);
+    valorTotal.append(precioUsd(total, "precio-grande"), state.catalogo?.tasa ? lineaBs(Math.round(total * state.catalogo.tasa * 100) / 100) : null);
+
+    const lista = !pideEntrega || entregaCompleta(state.entrega);
+    submitBtn.disabled = hayAgotados || !lista || submitBtn.getAttribute("aria-busy") === "true";
+    const pista = !pideEntrega || lista ? "" : !state.entrega.metodo ? "Elige cómo quieres recibir tu pedido." : "Indica tu ubicación o escribe la dirección de entrega.";
+    pistaEntrega.textContent = pista;
+    pistaEntrega.classList.toggle("hidden", !pista);
+  }
 
   const resumen = el(
     "aside",
@@ -1124,24 +1168,21 @@ function renderizarCarrito() {
       "dl",
       { className: "resumen-filas" },
       el("div", { className: "resumen-fila" }, el("dt", {}, unidades === 1 ? "1 producto" : `${unidades} productos`), el("dd", {}, formatearUsd(subtotalUsd))),
-      el("div", { className: "resumen-fila" }, el("dt", {}, "Envío"), el("dd", {}, "Se acuerda por WhatsApp")),
-      el(
-        "div",
-        { className: "resumen-fila resumen-total" },
-        el("dt", {}, "Total"),
-        el("dd", {}, precioUsd(subtotalUsd, "precio-grande"), state.catalogo?.tasa ? lineaBs(Math.round(subtotalUsd * state.catalogo.tasa * 100) / 100) : null)
-      )
+      el("div", { className: "resumen-fila" }, el("dt", {}, "Envío"), valorEnvio),
+      el("div", { className: "resumen-fila resumen-total" }, el("dt", {}, "Total"), valorTotal)
     ),
     honeypotInput,
     alertBox,
     hayAgotados ? el("p", { className: "alerta" }, "Hay un producto agotado en tu pedido. Quítalo para poder pedir.") : null,
     submitBtn,
+    pistaEntrega,
     el(
       "p",
       { className: "resumen-nota" },
-      "Te daremos un código para enviar por WhatsApp. El asistente confirma el total con los precios del día y te ayuda con el envío y el pago."
+      "Te daremos un código para enviar por WhatsApp. El asistente confirma el total con los precios del día y te ayuda con el pago."
     )
   );
+  refrescarResumen();
 
   appRoot.appendChild(
     el(
@@ -1151,11 +1192,188 @@ function renderizarCarrito() {
         "div",
         { className: "pedido-principal" },
         el("div", { className: "pedido-cabecera" }, el("h1", { className: "listado-titulo" }, "Tu pedido"), el("a", { className: "enlace", href: "#/" }, "Seguir comprando")),
-        filas
+        filas,
+        pideEntrega ? seccionEntrega(metodosEntrega, refrescarResumen) : null
       ),
       resumen
     )
   );
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * Entrega en el carrito (F2c): retiro, delivery con la ubicación del teléfono o dirección escrita
+ * ---------------------------------------------------------------------------------------------- */
+
+/** La ubicación del teléfono solo funciona en HTTPS (o localhost) y si el navegador la ofrece. */
+function gpsDisponible() {
+  return Boolean(window.isSecureContext && navigator.geolocation);
+}
+
+function textoCostoMetodo(metodo) {
+  const costo = costoEntrega(metodo);
+  if (costo.tipo === "fijo") return formatearUsd(costo.monto);
+  if (costo.tipo === "gratis") return "Sin costo";
+  return "A convenir";
+}
+
+/**
+ * "¿Cómo quieres recibirlo?": una opción por método activo del panel. Al elegir delivery aparecen "Usar mi
+ * ubicación" y el campo de dirección; con retiro, la dirección y el horario del punto. `alCambiar` refresca
+ * el resumen sin repintar el carrito (para no perder lo que se está escribiendo).
+ */
+function seccionEntrega(metodos, alCambiar) {
+  const seccion = el("fieldset", { className: "entrega" }, el("legend", { className: "entrega-titulo" }, "¿Cómo quieres recibirlo?"));
+  const detalle = el("div", { className: "entrega-detalle" });
+
+  const opciones = metodos.map((m) => {
+    const elegido = state.entrega.metodo?.id === m.id;
+    const radio = el("input", {
+      type: "radio",
+      name: "entrega",
+      value: m.id,
+      className: "entrega-radio",
+      checked: elegido,
+      onchange: () => {
+        state.entrega.metodo = m;
+        [...seccion.querySelectorAll(".entrega-opcion")].forEach((o) => o.classList.toggle("activa", o.contains(radio)));
+        pintarDetalle();
+        alCambiar();
+      },
+    });
+    return el(
+      "label",
+      { className: `entrega-opcion ${elegido ? "activa" : ""}`.trim() },
+      radio,
+      el("span", { className: "entrega-icono" }, icono(m.tipo === "retiro" ? "tienda" : "camion")),
+      el(
+        "span",
+        { className: "entrega-texto" },
+        el("strong", {}, m.nombre),
+        m.descripcion ? el("span", { className: "entrega-descripcion" }, m.descripcion) : null
+      ),
+      el("span", { className: "entrega-costo" }, textoCostoMetodo(m))
+    );
+  });
+
+  function campoDireccion(metodo) {
+    const conGps = usaGps(metodo) && Boolean(state.entrega.gps);
+    const etiqueta = conGps
+      ? "Referencias para el repartidor (opcional)"
+      : metodo.pideDatos || "Dirección de entrega y referencias";
+    const id = "entrega-direccion";
+    const area = el("textarea", {
+      id,
+      className: "entrega-campo",
+      rows: "3",
+      maxlength: String(MAX_DIRECCION),
+      placeholder: conGps ? "Ej.: edificio azul, piso 3, apto 3-B" : "Ej.: urbanización, calle, casa o edificio y un punto de referencia",
+      autocomplete: "street-address",
+      oninput: (ev) => {
+        state.entrega.direccion = ev.target.value;
+        alCambiar();
+      },
+    });
+    area.value = state.entrega.direccion || "";
+    return el("div", { className: "entrega-grupo" }, el("label", { for: id, className: "entrega-etiqueta" }, etiqueta), area);
+  }
+
+  function bloqueGps() {
+    if (!gpsDisponible()) return null;
+    const { gps, estadoGps } = state.entrega;
+    if (gps) {
+      return el(
+        "div",
+        { className: "entrega-gps listo", role: "status" },
+        el("span", { className: "entrega-gps-icono" }, icono("ubicacion")),
+        el("span", { className: "entrega-gps-texto" }, el("strong", {}, "Ubicación lista"), el("span", {}, "La enviamos con tu pedido para el repartidor.")),
+        el("a", { className: "enlace entrega-gps-ver", href: enlaceMapa(gps), target: "_blank", rel: "noopener noreferrer" }, "Ver", icono("enlace")),
+        el(
+          "button",
+          {
+            type: "button",
+            className: "boton-icono",
+            "aria-label": "Quitar la ubicación",
+            onclick: () => {
+              state.entrega.gps = null;
+              state.entrega.estadoGps = "inactivo";
+              pintarDetalle();
+              alCambiar();
+            },
+          },
+          icono("cerrar")
+        )
+      );
+    }
+    const buscando = estadoGps === "buscando";
+    return el(
+      "div",
+      { className: "entrega-grupo" },
+      el(
+        "button",
+        {
+          type: "button",
+          className: "boton boton-secundario boton-bloque",
+          disabled: buscando,
+          "aria-busy": buscando ? "true" : null,
+          onclick: pedirUbicacion,
+        },
+        icono(buscando ? "cargando" : "gps", buscando ? "girando" : ""),
+        buscando ? "Buscando tu ubicación…" : "Usar mi ubicación"
+      ),
+      estadoGps === "error"
+        ? el("p", { className: "entrega-error", role: "alert" }, "No pudimos obtener tu ubicación. Revisa el permiso de ubicación del navegador o escribe la dirección.")
+        : el("p", { className: "entrega-ayuda" }, "Recomendado si estás en el lugar de entrega: es lo más preciso.")
+    );
+  }
+
+  function pedirUbicacion() {
+    state.entrega.estadoGps = "buscando";
+    pintarDetalle();
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        state.entrega.gps = { latitud: pos.coords.latitude, longitud: pos.coords.longitude };
+        state.entrega.estadoGps = "listo";
+        pintarDetalle();
+        alCambiar();
+      },
+      () => {
+        state.entrega.estadoGps = "error";
+        pintarDetalle();
+        alCambiar();
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    );
+  }
+
+  function pintarDetalle() {
+    limpiarElemento(detalle);
+    const m = state.entrega.metodo;
+    if (!m) return;
+    // Los datos de la opción elegida van justo debajo de ella, no al final de la lista
+    const activa = seccion.querySelector(".entrega-opcion.activa");
+    if (activa && activa.nextSibling !== detalle) activa.after(detalle);
+    if (m.tipo === "retiro") {
+      detalle.appendChild(
+        el(
+          "div",
+          { className: "entrega-retiro" },
+          m.direccion ? el("p", {}, el("strong", {}, "Dirección: "), m.direccion) : null,
+          m.horario ? el("p", {}, el("strong", {}, "Horario: "), m.horario) : null
+        )
+      );
+      return;
+    }
+    // La ubicación del teléfono sirve para entregas en la ciudad; para envíos nacionales basta con los datos escritos
+    if (usaGps(m)) {
+      const gps = bloqueGps();
+      if (gps) detalle.appendChild(gps);
+    }
+    detalle.appendChild(campoDireccion(m));
+  }
+
+  seccion.append(el("div", { className: "entrega-opciones" }, opciones, detalle));
+  pintarDetalle();
+  return seccion;
 }
 
 /* ------------------------------------------------------------------------------------------------
@@ -1166,6 +1384,16 @@ function formatearFechaExpira(iso) {
   const fecha = new Date(iso);
   if (Number.isNaN(fecha.getTime())) return null;
   return fecha.toLocaleDateString("es-VE", { weekday: "long", day: "numeric", month: "long" });
+}
+
+/** Qué incluye el total de la confirmación según la entrega elegida en el carrito. */
+function notaEntregaConfirmacion(entrega) {
+  if (!entrega) return "Total con los precios de hoy. El envío se acuerda por WhatsApp.";
+  const costo = costoEntrega(entrega);
+  if (entrega.tipo === "retiro") return `Total con los precios de hoy. Retiro en ${entrega.nombre}.`;
+  if (costo.tipo === "fijo") return `Total con los precios de hoy, con el envío (${entrega.nombre}) incluido.`;
+  if (costo.tipo === "gratis") return `Total con los precios de hoy. ${entrega.nombre} sin costo.`;
+  return `Total con los precios de hoy. El costo de ${entrega.nombre} se acuerda por WhatsApp.`;
 }
 
 /**
@@ -1227,7 +1455,7 @@ function renderizarConfirmacion(codigo) {
               el("dt", {}, orderData.unidades === 1 ? "1 producto" : `${orderData.unidades || ""} productos`.trim()),
               el("dd", {}, precioUsd(orderData.totalUsd), lineaBs(orderData.totalBs))
             ),
-            el("p", { className: "confirmacion-total-nota" }, "Total con los precios de hoy. El envío se acuerda por WhatsApp.")
+            el("p", { className: "confirmacion-total-nota" }, notaEntregaConfirmacion(orderData.entrega))
           )
         : null,
       vence ? el("p", { className: "confirmacion-vence" }, `Válido hasta el ${vence}.`) : null,
@@ -1309,6 +1537,8 @@ async function cargarDatos() {
       .then((info) => {
         state.info = info;
         pintarPreguntas();
+        // El carrito muestra las formas de entrega que llegan con esta información
+        if (state.vista === "carrito") renderizarCarrito();
       })
       .catch((err) => console.warn("[Catálogo] No se pudo cargar la información de la tienda:", err));
   }

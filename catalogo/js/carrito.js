@@ -104,10 +104,11 @@ export function obtenerTotalUnidades(items = []) {
 
 /**
  * Construye estrictamente el cuerpo para POST /api/public/pedidos.
- * Solo incluye { items: [{ productoId, cantidad }], website: "" }.
- * Prohibido enviar precios, nombres, subtotales ni datos del cliente.
+ * Incluye { items: [{ productoId, cantidad }], website: "" } y, si el cliente la eligió, la entrega
+ * ya armada por entrega.js (id del método, ubicación y dirección).
+ * Prohibido enviar precios, nombres, subtotales ni costos: los calcula el servidor.
  */
-export function armarCuerpoPedido(items = [], website = "") {
+export function armarCuerpoPedido(items = [], website = "", entrega = null) {
   const listaValida = (Array.isArray(items) ? items : [])
     .filter((i) => i && typeof i.productoId === "string" && i.productoId.trim() !== "")
     .map((i) => ({
@@ -115,10 +116,12 @@ export function armarCuerpoPedido(items = [], website = "") {
       cantidad: normalizarCantidad(i.cantidad),
     }));
 
-  return {
+  const cuerpo = {
     items: listaValida,
     website: typeof website === "string" ? website : "",
   };
+  if (entrega && typeof entrega.metodoId === "string") cuerpo.entrega = entrega;
+  return cuerpo;
 }
 
 /**

@@ -121,7 +121,8 @@ Firmas en el historial: `— Ejecutado por **Antigravity**`, `— Ejecutado por 
 | F3 | Búsqueda con IA sobre la BD (texto y notas de voz), registro de búsquedas sin resultado, pase a asesor | Pendiente |
 | F4 | Formularios nativos (WhatsApp Flows), lectura de fotos de piezas, equivalencias entre marcas | Pendiente |
 | F5 | **Canal TikTok** (Business Messaging API): mensajes directos de la cuenta de empresa en el Inbox, como cuarto canal con el mismo esquema que Instagram (preguntas frecuentes por el bot; para comprar, enlace a WhatsApp). Beta abierta en Latinoamérica; requiere cuenta TikTok Business y app aprobada (revisión de seguridad y privacidad de TikTok). Investigación previa (2026-10-28, subagente): la documentación oficial de TikTok no se pudo leer sin navegador, así que lo técnico (endpoints, JSON del webhook, firma) está **sin verificar**. Según integradores: ventana de 48 h desde el último mensaje del cliente, unos 10 mensajes por ventana, solo texto e imagen (sin botones confirmados), tokens de ~24 h que se renuevan, y Latinoamérica disponible (Venezuela sin confirmar). Antes del diseño hay que leer la documentación oficial con sesión iniciada. Se diseña después de F0, junto a F2. **Decisión del dueño (2026-10-28): sin botones.** El bot de TikTok responde solo con texto: respuestas por intención (precios, envíos, horario, pagos, catálogo) armadas con variables de la marca y del panel (`{{brandName}}`, horario, métodos de envío y pago vigentes, etc.), y **enlaces** para llevar al cliente a comprar: `{{waLink}}` (chat de WhatsApp con texto prellenado y la etiqueta de origen TikTok) y `{{catalogoUrl}}` (catálogo web de F2; mientras F2 no exista, solo WhatsApp). Los textos van en `messages` de la marca, nunca en el código | Pendiente (requisitos del dueño) |
-| — | Costo de envío por kilómetro | Pendiente (después de F0) |
+| — | Costo de envío por kilómetro (con la ubicación de la tienda, F2c, se puede calcular la distancia al punto de despacho) | Pendiente (después de F0) |
+| F2d | **Mapa con buscador en el carrito** (paso 2 de la idea del dueño, 2026-10-29): el cliente mueve un pin y busca su dirección. Empezar con OpenStreetMap (gratis, copiado al repo); Google Maps solo si el buscador se queda corto (requiere cuenta de Google Cloud con tarjeta y clave, la configura el dueño, y abrir la CSP de la tienda) | Pendiente |
 | F2b | **Rediseño de la tienda** (pedido del dueño, 2026-10-29): estilo de tienda en línea estándar con acabado tipo Mercado Libre, preguntas frecuentes editables desde el panel, íconos de Lucide. Sistema visual en `DESIGN.md`; contexto en `PRODUCT.md` | **Cerrada** (2026-10-29) |
 
 ---
@@ -2350,6 +2351,18 @@ Pedido por el dueño el 2026-10-29, con una conversación real del Instagram de 
 
 ---
 
+### F2c · El cliente elige la entrega en la tienda — **Claude** · `Completada`
+
+Idea del dueño (2026-10-29), paso 1 de 2 (el mapa con buscador es F2d).
+
+- **Tienda:** en el carrito, "¿Cómo quieres recibirlo?" con los métodos activos del panel (Inventario → Envíos). Retiro muestra dirección y horario; delivery ofrece "Usar mi ubicación" (GPS del teléfono, solo con permiso) y un campo de referencias o dirección; envío nacional pide los datos de `pideDatos`. El resumen muestra el costo (fijo, a convenir o sin costo) y "Pedir por WhatsApp" no se habilita hasta que la entrega está completa. Lógica sin DOM en `catalogo/js/entrega.js`.
+- **Servidor:** `POST /api/public/pedidos` acepta `entrega` (Zod estricto: id del método, coordenadas y dirección; nunca costo). El método se busca en la base y debe estar activo; el costo fijo sale de la base y se suma al total. El GPS solo vale para delivery en la ciudad. `CarritoWeb.entrega` guarda la elección (se borra con el carrito por TTL). El mensaje de WhatsApp lleva "Entrega", "Ubicación" (enlace de Google Maps, sin clave de API) y "Dirección" (textos en `messages` de ambas marcas). `/api/public/info` expone `id` y `pideDatos` de cada método.
+- **Bot:** al cargar el código toma el envío (revalidado) y la ubicación, los muestra en el resumen y no los vuelve a preguntar; el pedido inicial guarda esa ubicación. Si el método se desactivó entretanto, avisa y lo pide como siempre.
+- **Privacidad:** la política (`/privacidad`) explica que la tienda recibe la ubicación solo si el cliente la autoriza y que se borra a los días de vigencia del pedido web si no lo confirma.
+- **Verificación:** suite `test-entrega-web.ts` (11 pruebas: tienda, API y bot) en `ci.sh`; recorrido en Chrome a 390 px con GPS simulado (delivery, retiro, envío nacional, confirmación), 0 errores. Corregido en la revisión: el GPS tomado con delivery ya no cuenta si el cliente cambia a envío nacional (tienda y servidor).
+
+---
+
 ### F2b · Rediseño de la tienda — **Claude** + subagentes Haiku · `Completada`
 
 Pedido por el dueño el 2026-10-29. Hecho con la herramienta de diseño Impeccable (`PRODUCT.md`, contrato en `.impeccable/surfaces/catalogo-index-html.md`, sistema en `DESIGN.md`). El dueño eligió en la página de decisión "la tienda de siempre" con referencia de calidad Mercado Libre.
@@ -2398,6 +2411,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-10-29 | 15:00 | F2c: el cliente elige la entrega en el carrito (retiro, delivery con GPS del teléfono o dirección, envío nacional); el servidor la valida contra la base, viaja en el mensaje de WhatsApp con el enlace del mapa y el bot no la vuelve a preguntar. Política de privacidad actualizada. F2d (mapa con buscador) anotada — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 13:00 | F2b: rediseño de la tienda con Impeccable (estilo estándar elegido por el dueño, referencia Mercado Libre), preguntas frecuentes editables y `/api/public/info` (subagente Haiku), íconos de Lucide en la tienda; revisión final `ship` y `DESIGN.md`. M-4: panel sin Font Awesome, solo Lucide (subagente Haiku), revisado en Chrome — Ejecutado por **Claude** + subagentes | Claude (Cerebro) | Completado |
 | 2026-10-29 | 09:30 | `PRODUCT.md` creado por el dueño con la herramienta de diseño Impeccable (contexto del producto para F2b) y revisado por Claude: correcto. Para cumplir su regla de 44 px, botones de cantidad y flechas del carrusel de la tienda subidos de 36 a 44 px. Guía de cliente nuevo: `PRODUCT.md` se reescribe por marca — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 06:30 | Tienda: carrusel de fotos en la ficha del producto (pedido del dueño): deslizar con el dedo o el trackpad (scroll-snap), arrastrar con el mouse, flechas ‹ › que se apagan en los extremos, puntos abajo, miniaturas sincronizadas y flechas del teclado; con una sola foto no hay controles. Lógica en `catalogo/js/galeria.js`; prueba 12 en `test-catalogo-web.ts`. Comprobado en Chrome a 390 px y escritorio, 0 errores de CSP — Ejecutado por **Claude** | Claude (Cerebro) | Completado |

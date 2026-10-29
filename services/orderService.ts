@@ -154,11 +154,17 @@ class OrderService {
           montoVES: 0,
           tasa: 0,
         },
-        ubicacion: {
-          direccion: "Pendiente de definir",
-          latitud: null,
-          longitud: null,
-        },
+        // Ubicación ya conocida (p. ej. elegida en la tienda, F2c); si no, se define más adelante en el chat
+        ubicacion:
+          typeof carrito?.ubicacion?.latitude === "number"
+            ? {
+                direccion: carrito.ubicacion.direccion || carrito.ubicacion.address || "Ubicación GPS",
+                latitud: carrito.ubicacion.latitude,
+                longitud: carrito.ubicacion.longitude,
+              }
+            : carrito?.direccion_manual
+              ? { direccion: carrito.direccion_manual, latitud: null, longitud: null }
+              : { direccion: "Pendiente de definir", latitud: null, longitud: null },
         ...(carrito?.envio ? { envio: carrito.envio } : {}),
         ...(carrito?.origenWeb?.codigo
           ? { origenWeb: { codigo: carrito.origenWeb.codigo } }

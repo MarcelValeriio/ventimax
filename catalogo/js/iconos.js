@@ -27,6 +27,11 @@ const NOMBRES = {
   camion: "truck",
   alerta: "circle-alert",
   caja: "package",
+  ubicacion: "map-pin",
+  gps: "locate-fixed",
+  tienda: "store",
+  enlace: "external-link",
+  cargando: "loader-circle",
 };
 
 /**

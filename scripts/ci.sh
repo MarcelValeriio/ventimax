@@ -31,6 +31,7 @@ SUITES=(
   test-catalogo-panel.ts
   test-cortesia-social.ts
   test-iconos.ts
+  test-entrega-web.ts
   test-preguntas-frecuentes.ts
   test-e2e-saas.js
   test-full-flow.js

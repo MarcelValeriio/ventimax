@@ -44,6 +44,9 @@ export function generarPaginaPrivacidad(): string {
   const marca = escapar(configManager.get("settings.brandName"));
   const bot = escapar(configManager.get("settings.botIdentity") || "nuestro asistente virtual");
   const color = escapar(configManager.get("settings.theme.primaryColor") || "#333333");
+  // Vigencia del pedido web (TTL del carrito): el texto sigue a la configuración de la marca
+  const horasVigencia = Number(configManager.get("settings.catalogo.vigenciaHoras")) || 72;
+  const vigencia = horasVigencia % 24 === 0 ? `${horasVigencia / 24} días` : `${horasVigencia} horas`;
   const datos = getDatosNegocioSync();
   const razonSocial = escapar(datos.legal.razonSocial);
   const rif = escapar(datos.legal.rif);
@@ -90,6 +93,9 @@ escriben a ${bot}, el asistente virtual del negocio en WhatsApp, Instagram y Fac
   (Instagram y Messenger), y los mensajes, imágenes y documentos que envías en el chat.</li>
   <li><strong>Datos del pedido:</strong> nombre, cédula de identidad, dirección o ubicación de entrega, productos,
   notas y método de pago.</li>
+  <li><strong>Pedidos desde la tienda web:</strong> los productos, la forma de entrega que eliges y, si la indicas,
+  tu ubicación (solo cuando tocas «Usar mi ubicación» y lo autorizas en tu teléfono) o la dirección que escribes.
+  Si no confirmas el pedido por WhatsApp, estos datos se borran solos a los ${vigencia}.</li>
   <li><strong>Comprobantes de pago:</strong> las imágenes que envías para verificar un pago.</li>
   <li><strong>Origen publicitario:</strong> si llegaste desde un anuncio de Meta, el identificador del anuncio.</li>
 </ul>

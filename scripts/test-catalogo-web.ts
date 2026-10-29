@@ -243,13 +243,15 @@ async function runTests() {
       const esCloudinary = url.includes("res.cloudinary.com");
       // wa.me es el destino del enlace "Abrir WhatsApp" (validado en app.js), no un recurso que se carga
       const esEnlaceWhatsApp = url.startsWith("https://wa.me/");
+      // Enlace para ver la ubicación de entrega en el mapa (F2c): se abre en otra pestaña, no se carga en la página
+      const esEnlaceMapa = jsFile === "entrega.js" && url.startsWith("https://maps.google.com/?q=");
       const esLocal = url.includes("localhost") || url.includes("127.0.0.1");
       // El espacio de nombres SVG es un identificador de XML (createElementNS), no un recurso que se descarga
       const esEspacioSvg = url === "http://www.w3.org/2000/svg";
       // Aviso de licencia de Lucide en la cabecera del archivo generado (comentario, no se carga)
       const esLicenciaLucide = jsFile === "lucide.js" && url.startsWith("https://lucide.dev");
       assert.ok(
-        esCloudinary || esEnlaceWhatsApp || esLocal || esEspacioSvg || esLicenciaLucide,
+        esCloudinary || esEnlaceWhatsApp || esEnlaceMapa || esLocal || esEspacioSvg || esLicenciaLucide,
         `En catalogo/js/${jsFile}: URL externa no permitida: ${url}`
       );
     }

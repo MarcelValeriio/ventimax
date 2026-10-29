@@ -1517,7 +1517,7 @@ class ChatFlowService {
     if (
       carrito.nombre &&
       carrito.cedula &&
-      (carrito.ubicacion || carrito.direccion_manual)
+      (carrito.ubicacion || carrito.direccion_manual || carrito.envio?.tipo === "retiro")
     ) {
       await orderService.setEstado(
         from,
@@ -1663,6 +1663,13 @@ class ChatFlowService {
   }
 
   async solicitarPasoTrasDatosPersonales(from, carrito, io) {
+    // Entrega ya elegida en la tienda (F2c): directo a confirmar, sin volver a preguntarla
+    if (carrito.envio?.desdeWeb && (carrito.envio.tipo === "retiro" || carrito.ubicacion || carrito.direccion_manual)) {
+      await orderService.setEstado(from, { paso: "esperando_confirmacion_datos", carrito }, io);
+      await chatFlow.solicitarConfirmacionDatos(from, carrito, io);
+      return;
+    }
+
     let metodos = [];
     try {
       metodos = await MetodoEnvio.find({ activo: true }).sort({ orden: 1, createdAt: 1 });
@@ -2666,12 +2673,15 @@ class ChatFlowService {
     }
 
     // 8. Cargar líneas en carrito del estado y mostrar resumen
-    const nuevoCarrito = {
+    const nuevoCarrito: any = {
       ...(estado.carrito || {}),
       items: itemsCargados,
       codigoWeb: codigo,
       origenWeb: { codigo },
     };
+
+    // 8b. Entrega elegida en la tienda (F2c): si el método sigue activo, el bot no vuelve a preguntarla
+    const lineasEntrega = await this.aplicarEntregaWeb(nuevoCarrito, cwDoc.entrega, from, io);
 
     const totalUSD = orderService.calcularTotalCarrito(nuevoCarrito);
     const tasaRes = await obtenerTasaUSD();
@@ -2680,9 +2690,9 @@ class ChatFlowService {
     const totalVES = totalVESRaw > 0 ? formatBs(totalVESRaw) : "N/A";
 
     const brandName = configManager.get("settings.brandName");
-    const resumenItems = itemsCargados
-      .map((i) => `• ${i.producto} x${i.cantidad} — $${formatUsd(i.price * i.cantidad)}`)
-      .join("\n");
+    const resumenItems =
+      itemsCargados.map((i) => `• ${i.producto} x${i.cantidad} — $${formatUsd(i.price * i.cantidad)}`).join("\n") +
+      (lineasEntrega.length ? `\n\n${lineasEntrega.join("\n")}` : "");
 
     const msgLoaded =
       configManager.format("settings.messages.webOrderLoaded", {
@@ -2717,6 +2727,67 @@ class ChatFlowService {
       },
       io
     );
+  }
+
+  /**
+   * Pasa al carrito del chat la entrega que el cliente eligió en la tienda (F2c): el método (revalidado: debe
+   * seguir activo; el costo sale de la base) y la ubicación GPS o la dirección escrita. Devuelve las líneas
+   * para el resumen. Si el método ya no está activo, avisa y el bot lo pedirá como siempre.
+   */
+  async aplicarEntregaWeb(carrito: any, entrega: any, from: string, io: any): Promise<string[]> {
+    if (!entrega || !entrega.metodoId) return [];
+    let metodo: any = null;
+    try {
+      metodo = await MetodoEnvio.findById(entrega.metodoId);
+    } catch (err) {
+      console.warn("⚠️ [Pedido web] No se pudo consultar el método de entrega:", err.message);
+    }
+    if (!metodo || metodo.activo === false) {
+      await this.enviarYRegistrar(
+        from,
+        { tipo: "texto", texto: `ℹ️ La forma de entrega que elegiste (${entrega.nombre || "entrega"}) ya no está disponible. Te pediremos otra antes de confirmar.` },
+        io
+      );
+      return [];
+    }
+
+    const esRetiro = metodo.tipo === "retiro";
+    const aConvenir = !esRetiro && metodo.costoTipo === "a_convenir";
+    carrito.envio = {
+      metodoId: String(metodo._id),
+      nombre: metodo.nombre,
+      tipo: metodo.tipo,
+      costo: esRetiro || aConvenir ? 0 : Number(metodo.costo) || 0,
+      costoTipo: esRetiro ? "fijo" : metodo.costoTipo,
+      aConvenir,
+      direccion: metodo.direccion || "",
+      horario: metodo.horario || "",
+      desdeWeb: true,
+    };
+
+    const lineas = [`🚚 *Entrega:* ${metodo.nombre}`];
+    if (esRetiro) {
+      const horario = metodo.horario && metodo.horario.trim() ? metodo.horario.trim() : formatearHorarioAtencion();
+      lineas.push(`📍 *Punto de retiro:* ${metodo.direccion || "Dirección de retiro"}`, `⏰ *Horario:* ${horario}`);
+      return lineas;
+    }
+
+    // La ubicación de la tienda reemplaza la que hubiera quedado de una compra anterior
+    if (typeof entrega.latitud === "number" && typeof entrega.longitud === "number") {
+      delete carrito.direccion_manual;
+      carrito.ubicacion = {
+        latitude: entrega.latitud,
+        longitude: entrega.longitud,
+        direccion: entrega.direccion || "Ubicación GPS",
+      };
+      lineas.push(`📍 *Ubicación:* https://maps.google.com/?q=${entrega.latitud.toFixed(6)},${entrega.longitud.toFixed(6)}`);
+      if (entrega.direccion) lineas.push(`🏠 *Referencia:* ${entrega.direccion}`);
+    } else if (entrega.direccion) {
+      delete carrito.ubicacion;
+      carrito.direccion_manual = entrega.direccion;
+      lineas.push(`🏠 *Dirección:* ${entrega.direccion}`);
+    }
+    return lineas;
   }
 
   async handleEsperandoConfirmacionWeb({ from, low, text, io, estado }: any) {

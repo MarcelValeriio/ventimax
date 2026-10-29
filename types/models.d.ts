@@ -490,11 +490,23 @@ export interface ICarritoWebItem {
   cantidad: number;
 }
 
+export interface IEntregaCarritoWeb {
+  metodoId: string | any;
+  nombre: string;
+  tipo: string;
+  costo: number;
+  aConvenir: boolean;
+  latitud: number | null;
+  longitud: number | null;
+  direccion: string;
+}
+
 export interface ICarritoWeb {
   _id?: string;
   codigo: string;
   items: ICarritoWebItem[];
   total: number;
+  entrega?: IEntregaCarritoWeb | null;
   estado: "pendiente" | "vinculado";
   telefono?: string | null;
   pedidoId?: string | null | any;

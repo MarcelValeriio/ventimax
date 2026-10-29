@@ -252,7 +252,8 @@ async function run() {
       assert.strictEqual(json.envios.length, 4, "el método desactivado no sale");
       assert.deepStrictEqual(json.envios.map((m: any) => m.nombre), ["Delivery Caracas", "Envío nacional", "Retiro en Catia", "Retiro con horario"]);
       for (const m of json.envios) {
-        assert.deepStrictEqual(Object.keys(m).sort(), ["aConvenir", "costo", "descripcion", "direccion", "horario", "nombre", "tipo"].sort());
+        // id: para que la tienda envíe el método elegido (F2c, el servidor lo revalida); pideDatos: etiqueta del campo
+        assert.deepStrictEqual(Object.keys(m).sort(), ["aConvenir", "costo", "descripcion", "direccion", "horario", "id", "nombre", "pideDatos", "tipo"].sort());
       }
       const delivery = json.envios[0];
       assert.strictEqual(delivery.aConvenir, true);

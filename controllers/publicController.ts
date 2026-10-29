@@ -211,6 +211,47 @@ export async function getCatalogo(req: any, res: any) {
  * Preguntas frecuentes con respuesta, nombres de los métodos de pago, envíos activos y horario.
  * Lista blanca: nunca cuentas, cédulas, correos ni instrucciones de pago.
  */
+/** Enlace de Google Maps a partir de coordenadas (no requiere clave de API). */
+export function enlaceMapa(latitud: number, longitud: number): string {
+  return `https://maps.google.com/?q=${latitud.toFixed(6)},${longitud.toFixed(6)}`;
+}
+
+/**
+ * Valida la entrega que eligió el cliente en la tienda (F2c). El método se busca en la base (activo); el costo
+ * sale de ahí, nunca del navegador. Retiro no guarda ubicación; los demás exigen GPS o una dirección escrita.
+ */
+async function resolverEntrega(entrega: any): Promise<{ ok: true; value: any } | { ok: false; error: string }> {
+  const metodo = await MetodoEnvio.findById(entrega.metodoId);
+  if (!metodo || metodo.activo === false) {
+    return { ok: false, error: "El método de entrega elegido no está disponible. Elige otro." };
+  }
+  const esRetiro = metodo.tipo === "retiro";
+  const aConvenir = !esRetiro && metodo.costoTipo === "a_convenir";
+  const costo = esRetiro || aConvenir ? 0 : Number(metodo.costo) || 0;
+  // La ubicación del teléfono solo vale para el delivery en la ciudad; un envío nacional necesita los datos escritos
+  const tieneGps =
+    metodo.tipo === "delivery_local" && typeof entrega.latitud === "number" && typeof entrega.longitud === "number";
+  const direccion = String(entrega.direccion || "").trim();
+
+  if (!esRetiro && !tieneGps && direccion.length < 8) {
+    return { ok: false, error: "Indica tu ubicación o escribe la dirección de entrega." };
+  }
+
+  return {
+    ok: true,
+    value: {
+      metodoId: metodo._id,
+      nombre: String(metodo.nombre || ""),
+      tipo: String(metodo.tipo || ""),
+      costo,
+      aConvenir,
+      latitud: esRetiro || !tieneGps ? null : entrega.latitud,
+      longitud: esRetiro || !tieneGps ? null : entrega.longitud,
+      direccion: esRetiro ? "" : direccion,
+    },
+  };
+}
+
 export async function getInfo(req: any, res: any) {
   try {
     res.setHeader("Cache-Control", "public, max-age=300");
@@ -233,8 +274,11 @@ export async function getInfo(req: any, res: any) {
         const esRetiro = m.tipo === "retiro";
         const aConvenir = m.costoTipo === "a_convenir";
         return {
+          // Identificador para que la tienda envíe el método elegido (F2c); el servidor lo vuelve a validar
+          id: String(m._id),
           nombre: String(m.nombre || ""),
           tipo: String(m.tipo || ""),
+          pideDatos: esRetiro ? null : String(m.pideDatos || "") || null,
           descripcion: String(m.descripcion || ""),
           costo: aConvenir ? null : Number(m.costo) || 0,
           aConvenir,
@@ -351,6 +395,19 @@ export async function postPedidoWeb(req: any, res: any) {
       });
     }
 
+    // 3b. Entrega elegida en la tienda (opcional): método de la base y costo fijo sumado al total
+    let entregaGuardar: any = null;
+    if (validation.data.entrega) {
+      const entrega = await resolverEntrega(validation.data.entrega);
+      if (entrega.ok === false) {
+        await registrarEventoCatalogo("validacion");
+        console.warn(`⚠️ [Catálogo] POST /api/public/pedidos: entrega rechazada - ${entrega.error}`);
+        return res.status(400).json({ error: entrega.error });
+      }
+      entregaGuardar = entrega.value;
+      totalUsd += entregaGuardar.costo;
+    }
+
     totalUsd = Math.round(totalUsd * 100) / 100;
 
     // 4. Verificación de número de WhatsApp
@@ -392,7 +449,18 @@ export async function postPedidoWeb(req: any, res: any) {
     }
 
     const plantillaPrefill = configCatalogo.mensajePrefill || "Hola, quiero confirmar mi pedido web {{codigo}}";
-    const prefillText = plantillaPrefill.replace(/\{\{codigo\}\}/g, codigo);
+    const lineasPrefill = [plantillaPrefill.replace(/\{\{codigo\}\}/g, codigo)];
+    // La entrega viaja también en el mensaje: el asesor la ve aunque el bot esté en modo manual
+    if (entregaGuardar) {
+      const linea = (clave: string, valor: string) =>
+        String(configManager.get(`settings.messages.${clave}`) || "").replace(/\{\{valor\}\}/g, valor);
+      lineasPrefill.push(linea("webOrderPrefillEntrega", entregaGuardar.nombre));
+      if (entregaGuardar.latitud !== null) {
+        lineasPrefill.push(linea("webOrderPrefillUbicacion", enlaceMapa(entregaGuardar.latitud, entregaGuardar.longitud)));
+      }
+      if (entregaGuardar.direccion) lineasPrefill.push(linea("webOrderPrefillDireccion", entregaGuardar.direccion));
+    }
+    const prefillText = lineasPrefill.filter((l) => l.trim()).join("\n");
     const enlaceWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(prefillText)}`;
 
     // 7. Si es honeypot: responde exactamente igual pero SIN persistir en la base de datos
@@ -413,6 +481,7 @@ export async function postPedidoWeb(req: any, res: any) {
       codigo,
       items: itemsGuardar,
       total: totalUsd,
+      entrega: entregaGuardar,
       estado: "pendiente",
       telefono: null,
       pedidoId: null,
