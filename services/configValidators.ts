@@ -451,3 +451,76 @@ export function validarConfigCatalogo(val: unknown): ResultadoValidacionCatalogo
   };
 }
 
+
+// ==========================================
+// Preguntas frecuentes de la tienda (F2b): editables desde el panel
+// ==========================================
+
+export interface PreguntaFrecuente {
+  pregunta: string;
+  respuesta: string;
+}
+
+export interface PreguntasFrecuentes {
+  items: PreguntaFrecuente[];
+}
+
+export type ResultadoValidacionPreguntas =
+  | { ok: true; value: PreguntasFrecuentes }
+  | { ok: false; error: string };
+
+const MAX_PREGUNTAS_FRECUENTES = 12;
+
+/**
+ * Valida la lista de preguntas frecuentes de la tienda.
+ * Pregunta obligatoria (3 a 120 caracteres), respuesta opcional (hasta 600).
+ * Las claves extra de cada elemento se descartan y no se permiten preguntas repetidas (sin distinguir mayúsculas).
+ */
+export function validarPreguntasFrecuentes(val: any): ResultadoValidacionPreguntas {
+  if (!val || typeof val !== "object" || Array.isArray(val)) {
+    return { ok: false, error: "Las preguntas frecuentes deben ser un objeto con la lista 'items'." };
+  }
+  if (!Array.isArray(val.items)) {
+    return { ok: false, error: "El campo 'items' debe ser una lista." };
+  }
+  if (val.items.length > MAX_PREGUNTAS_FRECUENTES) {
+    return { ok: false, error: `No puede haber más de ${MAX_PREGUNTAS_FRECUENTES} preguntas frecuentes.` };
+  }
+
+  const items: PreguntaFrecuente[] = [];
+  const vistas = new Set<string>();
+
+  for (let i = 0; i < val.items.length; i++) {
+    const item = val.items[i];
+    const numero = i + 1;
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      return { ok: false, error: `La pregunta ${numero} debe ser un objeto.` };
+    }
+    if (item.pregunta !== undefined && item.pregunta !== null && typeof item.pregunta !== "string") {
+      return { ok: false, error: `La pregunta ${numero} debe ser texto.` };
+    }
+    if (item.respuesta !== undefined && item.respuesta !== null && typeof item.respuesta !== "string") {
+      return { ok: false, error: `La respuesta ${numero} debe ser texto.` };
+    }
+
+    const pregunta = String(item.pregunta ?? "").trim();
+    const respuesta = String(item.respuesta ?? "").trim();
+
+    if (pregunta.length < 3 || pregunta.length > 120) {
+      return { ok: false, error: `La pregunta ${numero} debe tener entre 3 y 120 caracteres.` };
+    }
+    if (respuesta.length > 600) {
+      return { ok: false, error: `La respuesta ${numero} no puede exceder 600 caracteres.` };
+    }
+
+    const clave = pregunta.toLowerCase();
+    if (vistas.has(clave)) {
+      return { ok: false, error: `La pregunta '${pregunta}' está repetida.` };
+    }
+    vistas.add(clave);
+
+    items.push({ pregunta, respuesta });
+  }
+
+  return { ok: true, value: { items } };
+}

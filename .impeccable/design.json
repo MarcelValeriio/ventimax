@@ -1,0 +1,429 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-29T12:00:00-04:00",
+  "title": "Design System: Tienda pública (plantilla multimarca)",
+  "extensions": {
+    "colorMeta": {
+      "marca-primario": {
+        "role": "primary",
+        "displayName": "Primario de la marca",
+        "canonical": "var(--primary-color)",
+        "fallback": "#1e8c88",
+        "note": "Llega en tiempo de ejecución desde /api/public/marca; el hex es solo el respaldo de la plantilla. Rampa calculada sobre el respaldo.",
+        "tonalRamp": [
+          "#0c3836",
+          "#125452",
+          "#18706d",
+          "#1e8c88",
+          "#62aeac",
+          "#9acbc9",
+          "#c7e2e1",
+          "#e8f4f3"
+        ]
+      },
+      "accion": {
+        "role": "primary",
+        "displayName": "Acción",
+        "canonical": "color-mix(in srgb, var(--primary-color) 78%, #000)",
+        "fallback": "#176d6a",
+        "tonalRamp": [
+          "#092c2a",
+          "#0e4140",
+          "#125755",
+          "#176d6a",
+          "#5d9997",
+          "#97bdbc",
+          "#c5dada",
+          "#e8f0f0"
+        ]
+      },
+      "accion-hover": {
+        "role": "primary",
+        "displayName": "Acción hover",
+        "canonical": "color-mix(in srgb, var(--primary-color) 64%, #000)",
+        "fallback": "#13595a"
+      },
+      "accion-suave": {
+        "role": "primary",
+        "displayName": "Acción suave",
+        "canonical": "color-mix(in srgb, var(--primary-color) 10%, #fff)",
+        "fallback": "#e8f3f3"
+      },
+      "wa": {
+        "role": "secondary",
+        "displayName": "Verde WhatsApp",
+        "canonical": "#0e7a3e",
+        "tonalRamp": [
+          "#063119",
+          "#084925",
+          "#0b6232",
+          "#0e7a3e",
+          "#56a278",
+          "#93c3a8",
+          "#c3decf",
+          "#e7f2ec"
+        ]
+      },
+      "wa-hover": {
+        "role": "secondary",
+        "displayName": "Verde WhatsApp hover",
+        "canonical": "#0b6833"
+      },
+      "fondo": {
+        "role": "neutral",
+        "displayName": "Fondo gris claro",
+        "canonical": "#f2f3f3",
+        "tonalRamp": [
+          "#616161",
+          "#919292",
+          "#c2c2c2",
+          "#f2f3f3",
+          "#f6f7f7",
+          "#f9fafa",
+          "#fcfcfc",
+          "#fefefe"
+        ]
+      },
+      "superficie": {
+        "role": "neutral",
+        "displayName": "Superficie blanca",
+        "canonical": "#ffffff"
+      },
+      "tinta": {
+        "role": "neutral",
+        "displayName": "Tinta casi negra",
+        "canonical": "#161a1b",
+        "tonalRamp": [
+          "#090a0b",
+          "#0d1010",
+          "#121516",
+          "#161a1b",
+          "#5c5f5f",
+          "#969898",
+          "#c5c6c6",
+          "#e8e8e8"
+        ]
+      },
+      "tinta-2": {
+        "role": "neutral",
+        "displayName": "Tinta 2",
+        "canonical": "#46504f"
+      },
+      "tinta-3": {
+        "role": "neutral",
+        "displayName": "Tinta 3",
+        "canonical": "#5f6968"
+      },
+      "linea": {
+        "role": "neutral",
+        "displayName": "Línea",
+        "canonical": "#e1e5e5",
+        "tonalRamp": [
+          "#5a5c5c",
+          "#878989",
+          "#b4b7b7",
+          "#e1e5e5",
+          "#eaeded",
+          "#f2f3f3",
+          "#f8f8f8",
+          "#fcfcfc"
+        ]
+      },
+      "linea-fuerte": {
+        "role": "neutral",
+        "displayName": "Línea fuerte",
+        "canonical": "#c9cfcf"
+      },
+      "peligro": {
+        "role": "tertiary",
+        "displayName": "Peligro",
+        "canonical": "#b42318",
+        "tonalRamp": [
+          "#480e0a",
+          "#6c150e",
+          "#901c13",
+          "#b42318",
+          "#ca655d",
+          "#dd9c97",
+          "#ecc8c5",
+          "#f8e9e8"
+        ]
+      },
+      "peligro-suave": {
+        "role": "tertiary",
+        "displayName": "Peligro suave",
+        "canonical": "#fef3f2"
+      },
+      "exito": {
+        "role": "tertiary",
+        "displayName": "Éxito",
+        "canonical": "#0e7a3e",
+        "tonalRamp": [
+          "#063119",
+          "#084925",
+          "#0b6232",
+          "#0e7a3e",
+          "#56a278",
+          "#93c3a8",
+          "#c3decf",
+          "#e7f2ec"
+        ]
+      },
+      "exito-suave": {
+        "role": "tertiary",
+        "displayName": "Éxito suave",
+        "canonical": "#e8f5ee"
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Titular",
+        "purpose": "Títulos de listado, preguntas frecuentes y nombre en la ficha."
+      },
+      "title": {
+        "displayName": "Título de bloque",
+        "purpose": "Resumen, Características."
+      },
+      "body": {
+        "displayName": "Texto",
+        "purpose": "Texto corrido, máximo 70ch."
+      },
+      "card-name": {
+        "displayName": "Nombre en tarjeta",
+        "purpose": "Dos líneas con altura reservada."
+      },
+      "label": {
+        "displayName": "Botón",
+        "purpose": "Texto de botones."
+      },
+      "meta": {
+        "displayName": "Dato de apoyo",
+        "purpose": "Bs, fecha de la tasa, notas."
+      },
+      "price": {
+        "displayName": "Precio",
+        "purpose": "Precio de tarjeta, cifras tabulares, centavos elevados a 0.55em."
+      },
+      "price-large": {
+        "displayName": "Precio grande",
+        "purpose": "Precio de la ficha."
+      },
+      "code": {
+        "displayName": "Código del pedido",
+        "purpose": "Monoespaciada, seleccionable completa."
+      }
+    },
+    "shadows": [
+      {
+        "name": "sombra",
+        "value": "0 1px 2px rgba(16, 26, 26, 0.06), 0 2px 8px rgba(16, 26, 26, 0.06)",
+        "purpose": "Flechas del carrusel sobre la foto."
+      },
+      {
+        "name": "sombra-alta",
+        "value": "0 10px 28px rgba(16, 26, 26, 0.16), 0 2px 6px rgba(16, 26, 26, 0.08)",
+        "purpose": "Barra Ver pedido, avisos y hover de tarjeta con cursor."
+      },
+      {
+        "name": "sombra-ayuda",
+        "value": "0 6px 20px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.12)",
+        "purpose": "Botón flotante de ayuda por WhatsApp."
+      }
+    ],
+    "motion": [
+      {
+        "name": "rapido",
+        "value": "0.15s ease",
+        "purpose": "Fondo y borde de botones, píldoras, buscador, miniaturas."
+      },
+      {
+        "name": "medio",
+        "value": "0.2s ease",
+        "purpose": "Sombra de tarjeta, giro de la flecha de preguntas, flechas del carrusel."
+      },
+      {
+        "name": "entrada",
+        "value": "0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Entrada de la barra Ver pedido (24 px) y de los avisos (0.25s, 8 px)."
+      },
+      {
+        "name": "presion",
+        "value": "scale(0.98) en 0.1s",
+        "purpose": "Botones al presionar."
+      },
+      {
+        "name": "reducir-movimiento",
+        "value": "prefers-reduced-motion: reduce → 0.01ms",
+        "purpose": "Apaga toda animación, transición y desplazamiento suave."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px",
+        "purpose": "3 columnas; pasos en fila con texto de apoyo."
+      },
+      {
+        "name": "barra",
+        "value": "700px",
+        "purpose": "Texto de la cuenta en la barra de pedido."
+      },
+      {
+        "name": "md",
+        "value": "768px",
+        "purpose": "Encabezado en una fila."
+      },
+      {
+        "name": "lg",
+        "value": "900px",
+        "purpose": "Ficha y pedido en dos columnas con columna fija."
+      },
+      {
+        "name": "xl",
+        "value": "1000px",
+        "purpose": "4 columnas."
+      }
+    ],
+    "icons": {
+      "set": "Lucide 1.56.0 (ISC), vendorizado en catalogo/js/lucide.js por scripts/vendor-lucide.js",
+      "drawing": "createElementNS, viewBox 24, trazo 2 px, currentColor, aria-hidden",
+      "sizes": "20 px por defecto; 24 px carrito; 36–40 px círculo de pasos; 44 px estado vacío",
+      "channelMarks": "catalogo/img/whatsapp.svg en blanco sobre verde WhatsApp; el panel usa simple-icons (CC0)"
+    }
+  },
+  "components": [
+    {
+      "name": "Botón primario",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Agregar, Pedir y toda acción de compra.",
+      "html": "<button class=\"ds-btn-primario\">Agregar al pedido</button>",
+      "css": ".ds-btn-primario{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border:1px solid transparent;border-radius:8px;background:var(--accion, #176d6a);color:#fff;font-family:system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:.95rem;font-weight:600;cursor:pointer;transition:background-color .15s ease,transform .1s ease}.ds-btn-primario:hover{background:var(--accion-hover, #13595a)}.ds-btn-primario:active{transform:scale(.98)}.ds-btn-primario:focus-visible{outline:3px solid var(--accion, #176d6a);outline-offset:2px}"
+    },
+    {
+      "name": "Botón secundario",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Acciones de apoyo: seguir comprando, preguntar.",
+      "html": "<button class=\"ds-btn-secundario\">Seguir comprando</button>",
+      "css": ".ds-btn-secundario{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border:1px solid #c9cfcf;border-radius:8px;background:#fff;color:#161a1b;font-family:system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:.95rem;font-weight:600;cursor:pointer;transition:background-color .15s ease}.ds-btn-secundario:hover{background:#f2f3f3}.ds-btn-secundario:focus-visible{outline:3px solid var(--accion, #176d6a);outline-offset:2px}"
+    },
+    {
+      "name": "Botón WhatsApp",
+      "kind": "button",
+      "refersTo": "button-whatsapp",
+      "description": "Solo lo que abre WhatsApp; con la marca de WhatsApp en blanco.",
+      "html": "<button class=\"ds-btn-wa\"><svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" fill=\"#fff\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"none\" stroke=\"#fff\" stroke-width=\"2\"/></svg>Pedir por WhatsApp</button>",
+      "css": ".ds-btn-wa{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 18px;border:none;border-radius:8px;background:#0e7a3e;color:#fff;font-family:system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:1rem;font-weight:600;cursor:pointer;transition:background-color .15s ease,transform .1s ease}.ds-btn-wa:hover{background:#0b6833}.ds-btn-wa:active{transform:scale(.98)}.ds-btn-wa:focus-visible{outline:3px solid var(--accion, #176d6a);outline-offset:2px}"
+    },
+    {
+      "name": "Buscador",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Buscador a todo el ancho con lupa de Lucide.",
+      "html": "<label class=\"ds-buscador\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"m21 21-4.34-4.34\"/><circle cx=\"11\" cy=\"11\" r=\"8\"/></svg><input type=\"search\" placeholder=\"Buscar productos\"></label>",
+      "css": ".ds-buscador{position:relative;display:block}.ds-buscador svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#5f6968;pointer-events:none}.ds-buscador input{width:100%;height:44px;padding:0 14px 0 42px;border:1px solid transparent;border-radius:8px;background:#f2f3f3;color:#161a1b;font-family:system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:1rem;transition:background-color .15s ease,border-color .15s ease}.ds-buscador input:focus{outline:none;background:#fff;border-color:var(--accion, #176d6a);box-shadow:0 0 0 3px var(--accion-suave,#e8f3f3)}"
+    },
+    {
+      "name": "Píldora de categoría",
+      "kind": "chip",
+      "refersTo": "chip-category",
+      "description": "Filtro de categoría; activa en tinta sólida.",
+      "html": "<nav class=\"ds-pildoras\"><a class=\"ds-pildora\" aria-current=\"page\" href=\"#\">Todos</a><a class=\"ds-pildora\" href=\"#\">Mesa</a><a class=\"ds-pildora\" href=\"#\">Pared</a></nav>",
+      "css": ".ds-pildoras{display:flex;gap:8px}.ds-pildora{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;border-radius:999px;background:#fff;border:1px solid #c9cfcf;color:#161a1b;font-family:system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:.9375rem;font-weight:500;text-decoration:none;transition:border-color .15s ease}.ds-pildora:hover{border-color:#5f6968}.ds-pildora[aria-current=page]{background:#161a1b;border-color:#161a1b;color:#fff}.ds-pildora:focus-visible{outline:3px solid var(--accion, #176d6a);outline-offset:2px}"
+    },
+    {
+      "name": "Tarjeta de producto",
+      "kind": "card",
+      "refersTo": "card-product",
+      "description": "Foto 1:1, nombre en dos líneas, precio grande, Bs debajo y Agregar a todo el ancho.",
+      "html": "<article class=\"ds-tarjeta\"><div class=\"ds-tarjeta-foto\"></div><div class=\"ds-tarjeta-cuerpo\"><h3 class=\"ds-tarjeta-nombre\">Ventilador de mesa 12 pulgadas, 3 velocidades</h3><div><span class=\"ds-precio\">$46<sup>00</sup></span><span class=\"ds-bs\">Bs 9.016,00</span></div><button class=\"ds-tarjeta-btn\">Agregar</button></div></article>",
+      "css": ".ds-tarjeta{display:flex;flex-direction:column;width:200px;background:#fff;border:1px solid #e1e5e5;border-radius:8px;overflow:hidden;font-family:system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;color:#161a1b;transition:box-shadow .2s ease,border-color .2s ease}.ds-tarjeta:hover{box-shadow:0 10px 28px rgba(16,26,26,.16),0 2px 6px rgba(16,26,26,.08);border-color:transparent}.ds-tarjeta-foto{aspect-ratio:1/1;background:#f4f5f5;border-bottom:1px solid #e1e5e5}.ds-tarjeta-cuerpo{display:flex;flex-direction:column;gap:8px;padding:12px}.ds-tarjeta-nombre{margin:0;font-size:.9375rem;font-weight:500;line-height:1.3}.ds-precio{display:block;font-size:1.375rem;font-weight:600;line-height:1.1;letter-spacing:-.01em;font-variant-numeric:tabular-nums}.ds-precio sup{font-size:.55em}.ds-bs{display:block;font-size:.8125rem;color:#5f6968;font-variant-numeric:tabular-nums}.ds-tarjeta-btn{min-height:44px;border:none;border-radius:8px;background:var(--accion, #176d6a);color:#fff;font-weight:600;font-size:.95rem;cursor:pointer}.ds-tarjeta-btn:hover{background:var(--accion-hover, #13595a)}.ds-tarjeta-btn:focus-visible{outline:3px solid var(--accion, #176d6a);outline-offset:2px}"
+    },
+    {
+      "name": "Sello Agotado",
+      "kind": "custom",
+      "refersTo": "stamp-sold-out",
+      "description": "Sello sólido sobre la foto; el producto se ve pero no se agrega.",
+      "html": "<div class=\"ds-foto-agotada\"><span class=\"ds-sello\">Agotado</span></div>",
+      "css": ".ds-foto-agotada{position:relative;width:160px;aspect-ratio:1/1;background:#f4f5f5;border:1px solid #e1e5e5;border-radius:8px}.ds-sello{position:absolute;top:10px;left:10px;padding:4px 10px;border-radius:4px;background:#161a1b;color:#fff;font-family:system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:.75rem;font-weight:700;letter-spacing:.02em}"
+    },
+    {
+      "name": "Barra Ver pedido",
+      "kind": "custom",
+      "refersTo": "order-bar",
+      "description": "Barra flotante con la cuenta y el total cuando hay algo en el pedido.",
+      "html": "<a class=\"ds-barra\" href=\"#\"><span class=\"ds-barra-total\">$86,00</span><span class=\"ds-barra-accion\">Ver pedido<svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 18 6-6-6-6\"/></svg></span></a>",
+      "css": ".ds-barra{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:360px;min-height:56px;padding:8px 16px;border-radius:12px;background:var(--accion, #176d6a);color:#fff;font-family:system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;text-decoration:none;box-shadow:0 10px 28px rgba(16,26,26,.16),0 2px 6px rgba(16,26,26,.08);transition:background-color .15s ease}.ds-barra:hover{background:var(--accion-hover, #13595a)}.ds-barra:focus-visible{outline:3px solid var(--accion, #176d6a);outline-offset:2px}.ds-barra-total{font-weight:700;font-variant-numeric:tabular-nums}.ds-barra-accion{display:inline-flex;align-items:center;gap:4px;font-weight:700}"
+    },
+    {
+      "name": "Código del pedido",
+      "kind": "custom",
+      "refersTo": "order-code",
+      "description": "El código que el comprador lleva a WhatsApp.",
+      "html": "<div class=\"ds-codigo\"><span class=\"ds-codigo-etiqueta\">Tu código de pedido</span><span class=\"ds-codigo-valor\">PW-7K3Q9</span></div>",
+      "css": ".ds-codigo{display:grid;justify-items:center;gap:10px;padding:18px 16px;background:#f2f3f3;border-radius:12px;font-family:system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif}.ds-codigo-etiqueta{font-size:.875rem;color:#46504f}.ds-codigo-valor{font-family:ui-monospace,'SF Mono','Roboto Mono',Menlo,Consolas,monospace;font-size:2rem;font-weight:700;letter-spacing:.06em;color:#161a1b;user-select:all}"
+    }
+  ],
+  "narrative": {
+    "northStar": "El mostrador honesto",
+    "overview": "La tienda en línea de siempre, ejecutada con acabado de primera (la referencia de calidad es Mercado Libre). Nada compite con el producto y su precio: fondo gris muy claro, tarjetas blancas planas con borde fino, tinta casi negra y un único color de marca que solo aparece donde el comprador actúa. El precio es la pieza más grande de cada tarjeta, en cifras tabulares, con el monto en Bs y la fecha de la tasa en gris debajo; la confianza nace de ver el dato real, no de la decoración.\n\nEs una plantilla multimarca: el sistema no conoce ningún color de marca. El primario llega en tiempo de ejecución desde `/api/public/marca` y todo lo demás (acción, hover, tinte suave) se deriva de él. La densidad es la de una tienda de celular: cuadrícula de dos columnas, áreas táctiles de 44 px como mínimo, pila tipográfica del sistema para cargar rápido en Android económicos con conexión lenta.\n\nEl movimiento es breve y funcional (150 a 300 ms): entrada de la barra de pedido y de los avisos, cambio de fondo en botones, giro de la flecha de las preguntas. Con \"reducir movimiento\" todo se apaga.",
+    "keyCharacteristics": [
+      "Gris neutro de fondo, superficies blancas planas con borde de 1 px.",
+      "Un solo color de acción, derivado del primario de la marca y oscurecido para texto blanco.",
+      "Verde de WhatsApp exclusivo de lo que abre WhatsApp.",
+      "Precio grande, tabular y honesto; Bs y tasa en gris debajo.",
+      "Esquinas de 8 px y 12 px, píldoras para categorías, sombras casi nulas.",
+      "Íconos de trazo de Lucide, un solo estilo; sin emoji ni fuentes de íconos."
+    ],
+    "rules": [
+      {
+        "name": "The One Action Rule",
+        "body": "El color de acción solo aparece en lo que compra, confirma o navega hacia el pedido, y en íconos pequeños de apoyo. Nunca como fondo de sección, banda decorativa o tarjeta.",
+        "section": "colors"
+      },
+      {
+        "name": "The Derived Brand Rule",
+        "body": "Ningún componente usa el primario de la marca crudo ni un hex de marca fijo: todo pasa por Acción, Acción hover o Acción suave, para que cualquier marca que llegue por configuración conserve el contraste del texto blanco.",
+        "section": "colors"
+      },
+      {
+        "name": "The Channel Green Rule",
+        "body": "El verde de WhatsApp significa \"esto abre WhatsApp\". No se usa para éxito, disponibilidad ni decoración, aunque el verde de éxito tenga el mismo valor.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Money Rule",
+        "body": "Todo número de dinero o cantidad (precios, Bs, totales, contador del carrito, cantidad) usa cifras tabulares.",
+        "section": "typography"
+      },
+      {
+        "name": "The Price Leads Rule",
+        "body": "En una tarjeta o ficha, el precio en dólares es el texto más grande; el Bs siempre va debajo, en gris y más pequeño, con la tasa del día a la vista.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Until Floating Rule",
+        "body": "Una superficie en el flujo de la página no lleva sombra en reposo. Solo lo fijo o flotante (barra, avisos, botón de ayuda, flechas) y el hover de la tarjeta con cursor la tienen.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** derivar todo color de acción del primario de la marca con `color-mix` (78 % para fondo, 64 % para hover, 10 % sobre blanco para el tinte), nunca escribir el hex de una marca.",
+      "**Do** reservar el verde de WhatsApp a lo que abre WhatsApp, acompañado de la marca de WhatsApp en blanco.",
+      "**Do** mostrar precio en dólares grande y tabular, y debajo el Bs con la tasa del día en Tinta 3.",
+      "**Do** dar 44 px de área táctil a todo control (52 px para la acción final, 56 px para la barra y la ayuda).",
+      "**Do** usar solo íconos de Lucide (vendorizados en `catalogo/js/lucide.js`, trazo 2 px, dibujados con `createElementNS`, decorativos con `aria-hidden`) y, para canales, solo las marcas oficiales en SVG (WhatsApp en la tienda; simple-icons en el panel).",
+      "**Do** mantener superficies planas con borde de 1 px; la sombra solo en lo que flota.",
+      "**Do** apagar animaciones y transiciones con `prefers-reduced-motion`."
+    ],
+    "donts": [
+      "**Don't** usar el color de acción como fondo de secciones, bandas o banners de marca.",
+      "**Don't** poner emoji ni fuentes de íconos en la interfaz.",
+      "**Don't** usar el verde de WhatsApp para estados de éxito o disponibilidad.",
+      "**Don't** anidar tarjetas dentro de tarjetas ni poner sombra a superficies en reposo.",
+      "**Don't** cargar fuentes web ni recursos de CDN de terceros: la pila es la del sistema.",
+      "**Don't** nombrar tokens con el nombre de una marca: la tienda es una plantilla."
+    ]
+  }
+}

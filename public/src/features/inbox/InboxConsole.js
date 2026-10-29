@@ -1,3 +1,4 @@
+import { Icono } from "../../components/Icono.js";
 /**
  * public/src/features/inbox/InboxConsole.js
  * INBOX UNIFICADO (WhatsApp · Instagram · Messenger) — orquestador (fase 2B).
@@ -184,10 +185,10 @@ const ETIQUETA_CANAL = {
 // LAYOUT V3 (§6.1 A-01): el raíl fija el canal activo y la cabecera de la
 // Col-C lo refleja con su icono.
 const ICONO_CANAL = {
-  todos: "fas fa-layer-group",
-  whatsapp: "fab fa-whatsapp",
-  instagram: "fab fa-instagram",
-  messenger: "fab fa-facebook-messenger",
+  todos: { nombre: "layers" },
+  whatsapp: { marca: "whatsapp" },
+  instagram: { marca: "instagram" },
+  messenger: { marca: "messenger" },
 };
 
 const esMovil = () => typeof window !== "undefined" && window.innerWidth < 768;
@@ -1765,7 +1766,7 @@ const InboxConsole = ({ socket, userRole, onOpenCanalConsole }) => {
     if (texto) setBorradores((prev) => ({ ...prev, [clave]: "" }));
     if (replyToMid) setReplyingTo(null);
     // WA-79: aviso de subida en curso (paridad con WhatsAppInput.js:83).
-    window.showToast?.("📎 Subiendo archivo...", "info");
+    window.showToast?.("Subiendo archivo...", "info");
 
     try {
       const formData = new FormData();
@@ -1791,7 +1792,7 @@ const InboxConsole = ({ socket, userRole, onOpenCanalConsole }) => {
           prev.map((m) => (m._id === temporal._id ? { ...m, status: "sent" } : m)),
         );
       }
-      window.showToast?.("✅ Archivo enviado con éxito!");
+      window.showToast?.("Archivo enviado con éxito!");
     } catch (err) {
       setMensajes((prev) =>
         prev.map((m) => (m._id === temporal._id ? { ...m, status: "failed" } : m)),
@@ -2125,7 +2126,7 @@ const InboxConsole = ({ socket, userRole, onOpenCanalConsole }) => {
                   className:
                     "w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-500 via-emerald-600 to-[#0084FF] flex items-center justify-center text-white shadow-xl shadow-emerald-500/20 mb-5 animate-pulse-gentle",
                 },
-                e("i", { className: "fas fa-inbox text-4xl" }),
+                e(Icono, { nombre: "inbox", className: "text-4xl" }),
               ),
               e(
                 "h2",
@@ -2244,7 +2245,7 @@ const InboxConsole = ({ socket, userRole, onOpenCanalConsole }) => {
                     e(
                       "div",
                       { className: `w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4 ${bloqueoParams.nuevoEstado ? "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400" : "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400"}` },
-                      e("i", { className: `fas fa-user-slash text-2xl` })
+                      e(Icono, { nombre: "user-x", className: "text-2xl" })
                     ),
                     e("h3", { className: "text-lg font-bold text-gray-900 dark:text-white" }, bloqueoParams.nuevoEstado ? "Bloquear Usuario" : "Desbloquear Usuario"),
                     e("p", { className: "text-sm text-gray-500 dark:text-gray-400 mt-2" }, 

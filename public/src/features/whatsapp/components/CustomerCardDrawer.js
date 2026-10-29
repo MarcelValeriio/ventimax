@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/whatsapp/components/CustomerCardDrawer.js
 import React, { useState, useEffect } from "https://cdn.skypack.dev/react";
 const e = React.createElement;
@@ -100,12 +101,12 @@ const CustomerCardDrawer = ({
           onClick: () => setZoomLevel((z) => Math.min(z + 0.5, 3)),
           className: "bg-white/20 hover:bg-white/30 text-white w-10 h-10 rounded-full flex items-center justify-center transition shadow-lg",
           title: "Aumentar zoom"
-        }, e("i", { className: "fas fa-search-plus text-sm" })),
+        }, e(Icono, { nombre: "zoom-in", className: "text-sm" })),
         e("button", {
           onClick: () => setZoomLevel((z) => Math.max(z - 0.5, 1)),
           className: "bg-white/20 hover:bg-white/30 text-white w-10 h-10 rounded-full flex items-center justify-center transition shadow-lg",
           title: "Reducir zoom"
-        }, e("i", { className: "fas fa-search-minus text-sm" })),
+        }, e(Icono, { nombre: "zoom-out", className: "text-sm" })),
         e("button", {
           onClick: () => {
             setComprobanteModalOpen(false);
@@ -113,7 +114,7 @@ const CustomerCardDrawer = ({
           },
           className: "bg-red-600 hover:bg-red-700 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold transition shadow-lg text-lg",
           title: "Cerrar visor"
-        }, "✕")
+        }, e(Icono, { nombre: "x" }))
       ]),
       mediaUrl && e("div", {
         className: "overflow-auto max-h-[85vh] max-w-[90vw] flex items-center justify-center",
@@ -135,7 +136,7 @@ const CustomerCardDrawer = ({
     e("div", { className: "p-3.5 bg-[#202c33] text-[#e9edef] flex justify-between items-center sticky top-0 z-10 border-b border-[#2a3942] shadow-md" }, [
       e("div", { className: "flex items-center gap-2.5" }, [
         e("div", { className: "w-9 h-9 rounded-full bg-[#00a884] text-[#111b21] flex items-center justify-center font-black text-base shadow-sm" }, [
-          e("i", { className: "fas fa-id-card" })
+          e(Icono, { nombre: "id-card" })
         ]),
         e("div", null, [
           e("h3", { className: "font-black text-sm tracking-tight text-[#e9edef]" }, "Ficha del Cliente"),
@@ -147,26 +148,26 @@ const CustomerCardDrawer = ({
           onClick: onRefreshContext,
           className: "text-[#8696a0] hover:text-[#00a884] p-2 rounded-lg hover:bg-[#111b21] transition text-xs",
           title: "Refrescar datos"
-        }, e("i", { className: "fas fa-sync-alt" })),
+        }, e(Icono, { nombre: "refresh-cw" })),
         e("button", {
           onClick: onClose,
           className: "text-[#8696a0] hover:text-[#e9edef] p-2 rounded-lg hover:bg-[#111b21] transition text-sm font-black",
           title: "Cerrar ficha"
-        }, "✕")
+        }, e(Icono, { nombre: "x" }))
       ])
     ]),
 
     // Body Dark
     e("div", { className: "p-3.5 space-y-3 flex-1 text-sm" }, [
       loading && e("div", { className: "flex items-center justify-center py-6 text-[#00a884] gap-2 text-xs font-bold bg-[#202c33] rounded-xl border border-[#2a3942]" }, [
-        e("i", { className: "fas fa-spinner fa-spin text-sm" }),
+        e(Icono, { nombre: "loader-circle", girar: true, className: "text-sm" }),
         " Cargando información..."
       ]),
 
       // 1. SECCIÓN CLIENTE (Dark Card)
       e("div", { className: "bg-[#202c33] p-3.5 rounded-xl border border-[#2a3942] shadow-sm space-y-2" }, [
         e("h4", { className: "text-xs font-black text-[#00a884] uppercase tracking-wider flex items-center gap-1.5" }, [
-          e("i", { className: "fas fa-user-check" }),
+          e(Icono, { nombre: "user-check" }),
           "Datos del Cliente"
         ]),
         e("div", { className: "space-y-2 text-xs pt-1" }, [
@@ -186,7 +187,7 @@ const CustomerCardDrawer = ({
             onClick: openGoogleMaps,
             className: "w-full mt-2 bg-[#00a884] hover:bg-[#008069] active:scale-[0.98] text-[#111b21] font-black text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition shadow-md"
           }, [
-            e("i", { className: "fas fa-map-marked-alt text-sm" }),
+            e(Icono, { nombre: "map", className: "text-sm" }),
             "Abrir en Google Maps"
           ])
         ])
@@ -195,7 +196,7 @@ const CustomerCardDrawer = ({
       // 2. SECCIÓN HISTORIAL DE COMPRAS (Dark Card con Alto Contraste)
       e("div", { className: "bg-[#202c33] p-3.5 rounded-xl border border-[#2a3942] shadow-sm space-y-2.5" }, [
         e("h4", { className: "text-xs font-black text-[#00a884] uppercase tracking-wider flex items-center gap-1.5" }, [
-          e("i", { className: "fas fa-chart-pie" }),
+          e(Icono, { nombre: "chart-pie" }),
           "Historial de Compras"
         ]),
         e("div", { className: "grid grid-cols-2 gap-2.5" }, [
@@ -214,7 +215,7 @@ const CustomerCardDrawer = ({
       e("div", { className: "bg-[#202c33] p-3.5 rounded-xl border border-[#2a3942] shadow-sm space-y-2.5" }, [
         e("div", { className: "flex justify-between items-center" }, [
           e("h4", { className: "text-xs font-black text-[#00a884] uppercase tracking-wider flex items-center gap-1.5" }, [
-            e("i", { className: "fas fa-shopping-basket text-amber-400" }),
+            e(Icono, { nombre: "shopping-basket", className: "text-amber-400" }),
             "Carrito en Vivo"
           ]),
           pasoActual && e("span", {
@@ -246,7 +247,7 @@ const CustomerCardDrawer = ({
       pedidoActivo && e("div", { className: "bg-[#202c33] p-3.5 rounded-xl border border-[#2a3942] shadow-sm space-y-3" }, [
         e("div", { className: "flex justify-between items-center" }, [
           e("h4", { className: "text-xs font-black text-[#00a884] uppercase tracking-wider flex items-center gap-1.5" }, [
-            e("i", { className: "fas fa-bolt text-indigo-400" }),
+            e(Icono, { nombre: "zap", className: "text-indigo-400" }),
             `Pedido ${pedidoActivo.idFormateado}`
           ]),
           e("span", {
@@ -262,7 +263,7 @@ const CustomerCardDrawer = ({
           },
           className: "w-full bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-black text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition shadow-md"
         }, [
-          e("i", { className: "fas fa-receipt text-sm" }),
+          e(Icono, { nombre: "receipt", className: "text-sm" }),
           "Ver Comprobante con Zoom"
         ]),
 
@@ -282,10 +283,10 @@ const CustomerCardDrawer = ({
               onClick: handleAssignClick,
               disabled: assigningDriver || !selectedDriver || selectedDriver === pedidoActivo.repartidor,
               className: "bg-[#00a884] hover:bg-[#008069] disabled:opacity-40 text-[#111b21] font-black text-xs px-3.5 py-1.5 rounded-lg transition shrink-0 shadow-sm"
-            }, assigningDriver ? e("i", { className: "fas fa-spinner fa-spin" }) : "Guardar")
+            }, assigningDriver ? e(Icono, { nombre: "loader-circle", girar: true }) : "Guardar")
           ]),
           pedidoActivo.repartidor && e("p", { className: "text-xs font-bold text-[#00a884] mt-1.5 flex items-center gap-1.5 bg-[#00a884]/15 px-2 py-1 rounded-md border border-[#00a884]/30" }, [
-            e("i", { className: "fas fa-motorcycle" }),
+            e(Icono, { nombre: "motorbike" }),
             `Asignado a: @${pedidoActivo.repartidor}`
           ])
         ])

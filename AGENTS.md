@@ -122,7 +122,7 @@ Firmas en el historial: `— Ejecutado por **Antigravity**`, `— Ejecutado por 
 | F4 | Formularios nativos (WhatsApp Flows), lectura de fotos de piezas, equivalencias entre marcas | Pendiente |
 | F5 | **Canal TikTok** (Business Messaging API): mensajes directos de la cuenta de empresa en el Inbox, como cuarto canal con el mismo esquema que Instagram (preguntas frecuentes por el bot; para comprar, enlace a WhatsApp). Beta abierta en Latinoamérica; requiere cuenta TikTok Business y app aprobada (revisión de seguridad y privacidad de TikTok). Investigación previa (2026-10-28, subagente): la documentación oficial de TikTok no se pudo leer sin navegador, así que lo técnico (endpoints, JSON del webhook, firma) está **sin verificar**. Según integradores: ventana de 48 h desde el último mensaje del cliente, unos 10 mensajes por ventana, solo texto e imagen (sin botones confirmados), tokens de ~24 h que se renuevan, y Latinoamérica disponible (Venezuela sin confirmar). Antes del diseño hay que leer la documentación oficial con sesión iniciada. Se diseña después de F0, junto a F2. **Decisión del dueño (2026-10-28): sin botones.** El bot de TikTok responde solo con texto: respuestas por intención (precios, envíos, horario, pagos, catálogo) armadas con variables de la marca y del panel (`{{brandName}}`, horario, métodos de envío y pago vigentes, etc.), y **enlaces** para llevar al cliente a comprar: `{{waLink}}` (chat de WhatsApp con texto prellenado y la etiqueta de origen TikTok) y `{{catalogoUrl}}` (catálogo web de F2; mientras F2 no exista, solo WhatsApp). Los textos van en `messages` de la marca, nunca en el código | Pendiente (requisitos del dueño) |
 | — | Costo de envío por kilómetro | Pendiente (después de F0) |
-| F2b | **Rediseño de la tienda** (pedido del dueño, 2026-10-29): la versión actual es funcional pero básica. Revisar diseño visual, portada, fichas de producto, carrito y confirmación, conservando las reglas de F2-3 (sin frameworks ni CDN, sin `innerHTML`, sin scripts en línea, marca desde `/api/public/marca`). Sugerencia de Claude para incluir: sección de **preguntas frecuentes** (envíos, pagos, garantía, horario) con textos de la marca, para resolver dudas sin salir de la tienda | Pendiente (requisitos del dueño) |
+| F2b | **Rediseño de la tienda** (pedido del dueño, 2026-10-29): estilo de tienda en línea estándar con acabado tipo Mercado Libre, preguntas frecuentes editables desde el panel, íconos de Lucide. Sistema visual en `DESIGN.md`; contexto en `PRODUCT.md` | **Cerrada** (2026-10-29) |
 
 ---
 
@@ -2350,6 +2350,26 @@ Pedido por el dueño el 2026-10-29, con una conversación real del Instagram de 
 
 ---
 
+### F2b · Rediseño de la tienda — **Claude** + subagentes Haiku · `Completada`
+
+Pedido por el dueño el 2026-10-29. Hecho con la herramienta de diseño Impeccable (`PRODUCT.md`, contrato en `.impeccable/surfaces/catalogo-index-html.md`, sistema en `DESIGN.md`). El dueño eligió en la página de decisión "la tienda de siempre" con referencia de calidad Mercado Libre.
+
+- **Tienda (`catalogo/`, Claude):** encabezado con buscador, tres pasos de compra, categorías, orden por precio, cuadrícula con precio $ grande y Bs debajo, "Agregar" que pasa a selector − n +, barra fija "Ver pedido", ficha con carrusel, características y caja de compra fija en escritorio, carrito con resumen, confirmación con el total del servidor y la vigencia del código, estados de carga, vacío y error, y sección de preguntas frecuentes. Íconos de Lucide 1.56.0 copiados al repo (`catalogo/js/lucide.js`, generado con `scripts/vendor-lucide.js`, licencia ISC); sin emojis ni CDN. Pruebas: `test-catalogo-web.ts` 13/13.
+- **Servidor (subagente Haiku, revisado por Claude):** preguntas frecuentes editables (`preguntasFrecuentesService`, `GET`/`PUT /api/admin/config/preguntas-frecuentes`, bloque en Configuración → Catálogo web) y `GET /api/public/info` con lista blanca (preguntas con respuesta, nombres de pagos, envíos activos, horario). Suite `test-preguntas-frecuentes.ts` 13/13. Ajuste de Claude: respaldo del prefijo del pedido web con la marca (`"VM"`/`"MP"`) en `configManager.ts` → `"PW"`.
+- **Revisión final** (revisor de Impeccable): 7 arreglos materiales (categoría inexistente, botones flotantes sobre la cuadrícula, total del servidor en la confirmación, un solo formato de dólares, barra del listado en el celular, "Sin foto" a sangre, caja de compra fija) y una regresión, todos resueltos → `ship`. Detector de diseño sin hallazgos; 0 errores de CSP en Chrome a 390 y 1440 px.
+- **Pendiente del dueño:** escribir las respuestas de garantía, tiempos de entrega y factura en el panel.
+- **Nota para clientes nuevos:** con un color primario muy claro, el texto blanco de los botones puede quedar sin contraste (anotado en `docs/nuevo-cliente.md`).
+
+### M-4 · Panel solo con íconos de Lucide — subagentes Haiku · `Aprobada`
+
+Pedido por el dueño el 2026-10-29: fuera Font Awesome y los íconos genéricos; solo SVG de Lucide.
+
+- Componente `public/src/components/Icono.js` (Claude): Lucide desde `public/src/lib/lucide.js` (generado) y logos de canales (WhatsApp, Instagram, Messenger, Meta) de simple-icons 16.35.0 (CC0), porque Lucide no trae logos de marcas.
+- Subagente Haiku: ~400 usos de Font Awesome en 49 archivos pasados a `Icono`; quitado el `<link>` de Font Awesome; `public/src/lib/iconoTexto.js` solo para el aviso (toast), que sigue insertando el mensaje como texto. Autorizado por el dueño a tocar `features/whatsapp/**` y `features/instagram/**` solo para íconos.
+- Revisión de Claude: `./scripts/ci.sh` en verde, `grep` sin Font Awesome, y recorrido del panel en Chrome con un usuario temporal en la base local (borrado después): Tablero, Inbox, Inventario, Ventas, AI Studio y Configuración con íconos de Lucide, 0 errores. Segunda pasada (M-4b) para los emojis usados como íconos en avisos, títulos y botones.
+
+---
+
 ## Dudas para Claude
 
 _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde debajo.)_
@@ -2378,6 +2398,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-10-29 | 13:00 | F2b: rediseño de la tienda con Impeccable (estilo estándar elegido por el dueño, referencia Mercado Libre), preguntas frecuentes editables y `/api/public/info` (subagente Haiku), íconos de Lucide en la tienda; revisión final `ship` y `DESIGN.md`. M-4: panel sin Font Awesome, solo Lucide (subagente Haiku), revisado en Chrome — Ejecutado por **Claude** + subagentes | Claude (Cerebro) | Completado |
 | 2026-10-29 | 09:30 | `PRODUCT.md` creado por el dueño con la herramienta de diseño Impeccable (contexto del producto para F2b) y revisado por Claude: correcto. Para cumplir su regla de 44 px, botones de cantidad y flechas del carrusel de la tienda subidos de 36 a 44 px. Guía de cliente nuevo: `PRODUCT.md` se reescribe por marca — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 06:30 | Tienda: carrusel de fotos en la ficha del producto (pedido del dueño): deslizar con el dedo o el trackpad (scroll-snap), arrastrar con el mouse, flechas ‹ › que se apagan en los extremos, puntos abajo, miniaturas sincronizadas y flechas del teclado; con una sola foto no hay controles. Lógica en `catalogo/js/galeria.js`; prueba 12 en `test-catalogo-web.ts`. Comprobado en Chrome a 390 px y escritorio, 0 errores de CSP — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 06:00 | Tienda: botón flotante "¿Dudas? Escríbenos" por WhatsApp (pedido del dueño). Número público de Datos del negocio → `WHATSAPP_PHONE`, **nunca** `ADMIN_PHONE_NUMBER` (sin número, no hay botón); texto prellenado con el producto que se mira (`webHelpPrefill`, `webHelpPrefillProducto` en ambas marcas); oculto en carrito y confirmación; etiqueta que se compacta a los 6 s, área táctil de 56 px, zona segura del celular, `prefers-reduced-motion`. Comprobado en Chrome a 390 px y escritorio con 0 errores de CSP; pruebas en `test-api-publica.ts` (17) y `test-catalogo-web.ts` (11). Rediseño de la tienda anotado como F2b — Ejecutado por **Claude** | Claude (Cerebro) | Completado |

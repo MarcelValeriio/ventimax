@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/inbox/components/InboxFilterBar.js
 // Cabecera de filtros de la Col-C del LAYOUT V3 (§6.1 A-02).
 //
@@ -35,10 +36,9 @@ const InboxFilterBar = ({
   return e("div", { className: "space-y-2" }, [
     // Buscador — el placeholder recuerda en qué canal se está buscando
     e("div", { key: "search-wrap", className: "relative" }, [
-      e("i", {
+      e(Icono, {
         key: "search-icon",
-        className:
-          "fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs",
+        nombre: "search", className: "absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs",
       }),
       e("input", {
         key: "search-input",
@@ -68,7 +68,7 @@ const InboxFilterBar = ({
               title: "Limpiar búsqueda",
               "aria-label": "Limpiar búsqueda",
             },
-            e("i", { className: "fas fa-times" }),
+            e(Icono, { nombre: "x" }),
           )
         : null,
     ]),
@@ -86,7 +86,7 @@ const InboxFilterBar = ({
           className: chipClase(Boolean(filtros.noLeidos), "bg-emerald-600"),
         },
         [
-          e("i", { key: "ic", className: "fas fa-envelope text-[9px]" }),
+          e(Icono, { key: "ic", nombre: "mail", className: "text-[9px]" }),
           "No leídos",
           Number(totalesNoLeidos.todos) > 0
             ? e(
@@ -110,7 +110,7 @@ const InboxFilterBar = ({
           title: "Solo conversaciones en modo manual (bot pausado)",
           className: chipClase(filtros.modo === "manual", "bg-amber-600"),
         },
-        [e("i", { key: "ic", className: "fas fa-user-edit text-[9px]" }), "Modo manual"],
+        [e(Icono, { key: "ic", nombre: "user-pen", className: "text-[9px]" }), "Modo manual"],
       ),
       e(
         "button",
@@ -122,7 +122,7 @@ const InboxFilterBar = ({
           title: "Solo conversaciones que requieren atención (definición única del servidor)",
           className: chipClase(Boolean(filtros.atencion), "bg-blue-600"),
         },
-        [e("i", { key: "ic", className: "fas fa-bell text-[9px]" }), "Atención"],
+        [e(Icono, { key: "ic", nombre: "bell", className: "text-[9px]" }), "Atención"],
       ),
       e(
         "button",
@@ -134,7 +134,7 @@ const InboxFilterBar = ({
           title: "Solo conversaciones con pedido (requiere ?conPedido=true en el backend)",
           className: chipClase(Boolean(filtros.conPedido), "bg-purple-600"),
         },
-        [e("i", { key: "ic", className: "fas fa-shopping-bag text-[9px]" }), "Con pedido"],
+        [e(Icono, { key: "ic", nombre: "shopping-bag", className: "text-[9px]" }), "Con pedido"],
       ),
       typeof onRefresh === "function"
         ? e(
@@ -148,9 +148,7 @@ const InboxFilterBar = ({
               className:
                 "px-2.5 py-1 rounded-full text-[11px] font-bold transition whitespace-nowrap flex items-center gap-1 cursor-pointer bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 ml-auto",
             },
-            e("i", {
-              className: `fas fa-sync-alt text-[9px] ${loading ? "fa-spin" : ""}`,
-            }),
+            e(Icono, { nombre: "refresh-cw", girar: loading, className: "text-[9px]" }),
           )
         : null,
     ]),

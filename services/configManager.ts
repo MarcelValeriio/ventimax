@@ -126,13 +126,13 @@ class ConfigManager {
 
     if (!this.config.settings.catalogo || typeof this.config.settings.catalogo !== "object") {
       this.config.settings.catalogo = {
-        prefijoPedido: this.brand === "ventimax" ? "VM" : "MP",
+        prefijoPedido: "PW",
         vigenciaHoras: 72,
         activo: true,
       };
     } else {
       if (!this.config.settings.catalogo.prefijoPedido) {
-        this.config.settings.catalogo.prefijoPedido = this.brand === "ventimax" ? "VM" : "MP";
+        this.config.settings.catalogo.prefijoPedido = "PW";
       }
       if (!this.config.settings.catalogo.vigenciaHoras) {
         this.config.settings.catalogo.vigenciaHoras = 72;
@@ -140,6 +140,13 @@ class ConfigManager {
       if (this.config.settings.catalogo.activo === undefined) {
         this.config.settings.catalogo.activo = true;
       }
+    }
+
+    // Preguntas frecuentes de la tienda (F2b): respaldo opcional si la marca no las trae
+    if (!this.config.settings.tienda || typeof this.config.settings.tienda !== "object") {
+      this.config.settings.tienda = { preguntasFrecuentes: [] };
+    } else if (!Array.isArray(this.config.settings.tienda.preguntasFrecuentes)) {
+      this.config.settings.tienda.preguntasFrecuentes = [];
     }
 
     console.log("✅ Validación de esquema exitosa.");

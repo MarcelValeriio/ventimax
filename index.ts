@@ -430,6 +430,11 @@ mongoose
     await initCatalogoConfig();
     console.log("✅ Configuración del catálogo web inicializada");
 
+    // Preguntas frecuentes de la tienda (F2b): la API pública las lee de memoria
+    const { init: initPreguntasFrecuentes } = require("./services/preguntasFrecuentesService");
+    await initPreguntasFrecuentes();
+    console.log("✅ Preguntas frecuentes de la tienda inicializadas");
+
     // Inicializar Agenda para trabajos en segundo plano
     const { initAgenda } = require("./services/agendaService");
     await initAgenda(io);

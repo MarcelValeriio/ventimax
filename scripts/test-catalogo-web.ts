@@ -244,8 +244,12 @@ async function runTests() {
       // wa.me es el destino del enlace "Abrir WhatsApp" (validado en app.js), no un recurso que se carga
       const esEnlaceWhatsApp = url.startsWith("https://wa.me/");
       const esLocal = url.includes("localhost") || url.includes("127.0.0.1");
+      // El espacio de nombres SVG es un identificador de XML (createElementNS), no un recurso que se descarga
+      const esEspacioSvg = url === "http://www.w3.org/2000/svg";
+      // Aviso de licencia de Lucide en la cabecera del archivo generado (comentario, no se carga)
+      const esLicenciaLucide = jsFile === "lucide.js" && url.startsWith("https://lucide.dev");
       assert.ok(
-        esCloudinary || esEnlaceWhatsApp || esLocal,
+        esCloudinary || esEnlaceWhatsApp || esLocal || esEspacioSvg || esLicenciaLucide,
         `En catalogo/js/${jsFile}: URL externa no permitida: ${url}`
       );
     }
@@ -367,7 +371,8 @@ async function runTests() {
   // Test 11: botón flotante de ayuda por WhatsApp
   console.log("\n▶ Test 11: Botón flotante de ayuda por WhatsApp...");
   assert.strictEqual(debeMostrarAyuda("#/"), true);
-  assert.strictEqual(debeMostrarAyuda("#/producto/fortunne-n04"), true);
+  assert.strictEqual(debeMostrarAyuda("#/producto/fortunne-n04"), false, "la ficha ya tiene «Preguntar por WhatsApp»");
+  assert.strictEqual(debeMostrarAyuda("#/categoria/mesa"), true);
   assert.strictEqual(debeMostrarAyuda("#/carrito"), false, "el carrito ya tiene su botón de WhatsApp");
   assert.strictEqual(debeMostrarAyuda("#/confirmacion/VM-ABCDE"), false);
   const ayuda = { whatsapp: "584125550101", texto: "Hola, tengo una pregunta", textoProducto: "Hola, pregunta sobre {{producto}}" };
@@ -403,8 +408,22 @@ async function runTests() {
   assert.ok(cssSrc.includes("scroll-snap-type: x mandatory"), "deslizar con el dedo usa scroll-snap");
   console.log("  ✅ Test 12 superado (carrusel: límites, índice por desplazamiento, controles accesibles)");
 
+  // Test 13: íconos solo de Lucide (módulo generado), sin emojis ni glifos como íconos
+  console.log("\n▶ Test 13: Íconos de Lucide...");
+  const lucideSrc = fs.readFileSync(path.join(__dirname, "..", "catalogo", "js", "lucide.js"), "utf8");
+  assert.ok(/Lucide v\d+\.\d+\.\d+/.test(lucideSrc) && lucideSrc.includes("ISC"), "lucide.js con versión y licencia");
+  const iconosSrc = fs.readFileSync(path.join(__dirname, "..", "catalogo", "js", "iconos.js"), "utf8");
+  assert.ok(iconosSrc.includes('from "./lucide.js"'), "iconos.js dibuja con los datos de Lucide");
+  for (const nombre of iconosSrc.match(/:\s*"([a-z0-9-]+)",/g) || []) {
+    const clave = nombre.replace(/[:\s",]/g, "");
+    assert.ok(lucideSrc.includes(`"${clave}":`), `ícono ${clave} presente en lucide.js`);
+  }
+  const textoTienda = appSrc + fs.readFileSync(path.join(__dirname, "..", "catalogo", "index.html"), "utf8");
+  assert.ok(!/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(textoTienda), "sin emojis como íconos en la tienda");
+  console.log("  ✅ Test 13 superado (íconos de Lucide, sin emojis)");
+
   console.log("\n================================================================================");
-  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (12/12)");
+  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (13/13)");
   console.log("================================================================================\n");
 }
 

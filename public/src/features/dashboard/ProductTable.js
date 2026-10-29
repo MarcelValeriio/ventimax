@@ -1,3 +1,4 @@
+import { Icono } from "../../components/Icono.js";
 /**
  * public/src/features/dashboard/ProductTable.js
  * Módulo de negocio para la visualización y gestión del inventario - Pure JS Version
@@ -32,7 +33,7 @@ const CategoriesModal = ({ isOpen, onClose, categorias, fetchCategorias }) => {
       setNewCatName("");
       setNewCatParent("");
       fetchCategorias();
-      window.showToast?.("✅ Categoría creada");
+      window.showToast?.("Categoría creada");
     } catch (error) {
       alert("Error creando categoría: " + error.message);
     }
@@ -47,18 +48,18 @@ const CategoriesModal = ({ isOpen, onClose, categorias, fetchCategorias }) => {
       });
       setEditingCatId(null);
       fetchCategorias();
-      window.showToast?.("✅ Categoría actualizada");
+      window.showToast?.("Categoría actualizada");
     } catch (error) {
       alert("Error actualizando categoría: " + error.message);
     }
   };
 
   const handleDeleteCategory = async (id) => {
-    if (!window.confirm("⚠️ ¿Estás seguro de eliminar este menú/categoría?\n\nEsta acción no se puede deshacer y los productos asociados quedarán sin categoría.")) return;
+    if (!window.confirm("¿Estás seguro de eliminar este menú/categoría?\n\nEsta acción no se puede deshacer y los productos asociados quedarán sin categoría.")) return;
     try {
       await apiClient.delete(`/api/admin/categorias/${id}`);
       fetchCategorias();
-      window.showToast?.("🗑️ Categoría eliminada");
+      window.showToast?.("Categoría eliminada");
     } catch (error) {
       alert("Error eliminando categoría: " + error.message);
     }
@@ -94,7 +95,7 @@ const CategoriesModal = ({ isOpen, onClose, categorias, fetchCategorias }) => {
                     onChange: (e) => setEditCatParent(e.target.value),
                     className: "w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-xs dark:text-gray-300"
                   },
-                  e("option", { value: "" }, "📍 Convertir en Menú Principal"),
+                  e("option", { value: "" }, "Convertir en Menú Principal"),
                   categorias.filter(c => c._id !== cat._id).map(c => e("option", { key: c._id, value: c._id }, `Mover como Submenú de: ${c.nombre}`))
               ),
               e(
@@ -110,7 +111,7 @@ const CategoriesModal = ({ isOpen, onClose, categorias, fetchCategorias }) => {
               e(
                   "div",
                   { className: "flex items-center gap-3" },
-                  level > 0 && e("i", { className: "fas fa-level-up-alt fa-rotate-90 text-gray-400 text-xs" }),
+                  level > 0 && e(Icono, { nombre: "corner-right-up", className: "rotate-90 text-gray-400 text-xs" }),
                   e("div", null,
                     e("span", { className: `${level === 0 ? 'font-bold text-gray-800 dark:text-gray-100' : 'font-medium text-gray-600 dark:text-gray-300'} text-sm` }, cat.nombre),
                     children.length > 0 && e("span", { className: "ml-2 text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-500 px-1.5 rounded" }, `${children.length}`)
@@ -129,7 +130,7 @@ const CategoriesModal = ({ isOpen, onClose, categorias, fetchCategorias }) => {
                     },
                     className: "text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 p-2 rounded-lg transition"
                   },
-                  e("i", { className: "fas fa-edit" })
+                  e(Icono, { nombre: "square-pen" })
                 ),
                 e(
                     "button",
@@ -137,7 +138,7 @@ const CategoriesModal = ({ isOpen, onClose, categorias, fetchCategorias }) => {
                       onClick: () => handleDeleteCategory(cat._id),
                       className: "text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 p-2 rounded-lg transition"
                     },
-                    e("i", { className: "fas fa-trash-alt" })
+                    e(Icono, { nombre: "trash" })
                   )
               )
             )
@@ -159,13 +160,13 @@ const CategoriesModal = ({ isOpen, onClose, categorias, fetchCategorias }) => {
         e(
           "h3",
           { className: "text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2" },
-          e("i", { className: "fas fa-tags text-emerald-500" }),
+          e(Icono, { nombre: "tags", className: "text-emerald-500" }),
           "Gestionar Categorías"
         ),
         e(
           "button",
           { onClick: onClose, className: "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition" },
-          e("i", { className: "fas fa-times" })
+          e(Icono, { nombre: "x" })
         )
       ),
       // Body
@@ -176,7 +177,7 @@ const CategoriesModal = ({ isOpen, onClose, categorias, fetchCategorias }) => {
         e(
           "form",
           { onSubmit: handleAddCategory, className: "space-y-3 p-4 bg-emerald-50/30 dark:bg-emerald-500/5 rounded-2xl border border-emerald-100/50 dark:border-emerald-500/20 shadow-inner" },
-          e("p", { className: "text-[10px] font-black text-emerald-600/70 dark:text-emerald-400 uppercase tracking-widest" }, "✨ CREAR NUEVA CATEGORÍA O SECCIÓN"),
+          e("p", { className: "text-[10px] font-black text-emerald-600/70 dark:text-emerald-400 uppercase tracking-widest" }, "CREAR NUEVA CATEGORÍA O SECCIÓN"),
           e("input", {
             type: "text",
             value: newCatName,
@@ -191,7 +192,7 @@ const CategoriesModal = ({ isOpen, onClose, categorias, fetchCategorias }) => {
               onChange: (e) => setNewCatParent(e.target.value),
               className: "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 outline-none text-sm shadow-sm cursor-pointer"
             },
-            e("option", { value: "" }, "📌 Es Categoría Principal"),
+            e("option", { value: "" }, "Es Categoría Principal"),
             categorias.map(c => e("option", { key: c._id, value: c._id }, `Hijo de: ${c.nombre}`))
           ),
           e(
@@ -242,7 +243,7 @@ const ProductTable = () => {
     name: "",
     price: "",
     description: "",
-    emoji: "🍱",
+    emoji: "",
     categoria: "",
     stock: "",
     trackStock: false,
@@ -340,7 +341,7 @@ const ProductTable = () => {
         name: product.name,
         price: product.price,
         description: product.description || "",
-        emoji: product.emoji || "🍱",
+        emoji: product.emoji || "",
         categoria:
           product.categoria?._id ||
           product.categoria ||
@@ -360,7 +361,7 @@ const ProductTable = () => {
         name: "",
         price: "",
         description: "",
-        emoji: "🍱",
+        emoji: "",
         categoria: categorias[0]?._id || "",
         categorias: [],
         stock: "",
@@ -388,10 +389,10 @@ const ProductTable = () => {
         setEditingProduct(updatedProduct);
       }
       fetchProducts();
-      window.showToast?.("✅ Imagen subida correctamente", "success");
+      window.showToast?.("Imagen subida correctamente", "success");
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.message || err.message;
-      window.showToast?.(`❌ ${msg}`, "error");
+      window.showToast?.(`${msg}`, "error");
     } finally {
       setUploadingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -411,10 +412,10 @@ const ProductTable = () => {
         setEditingProduct(updatedProduct);
       }
       fetchProducts();
-      window.showToast?.("🗑️ Imagen eliminada", "success");
+      window.showToast?.("Imagen eliminada", "success");
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.message || err.message;
-      window.showToast?.(`❌ ${msg}`, "error");
+      window.showToast?.(`${msg}`, "error");
     }
   };
 
@@ -431,10 +432,10 @@ const ProductTable = () => {
         setEditingProduct(updatedProduct);
       }
       fetchProducts();
-      window.showToast?.("⭐ Imagen marcada como principal", "success");
+      window.showToast?.("Imagen marcada como principal", "success");
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.message || err.message;
-      window.showToast?.(`❌ ${msg}`, "error");
+      window.showToast?.(`${msg}`, "error");
     }
   };
 
@@ -463,7 +464,7 @@ const ProductTable = () => {
       }
       handleCloseModal();
       fetchInventory();
-      window.showToast?.("✅ Producto guardado exitosamente");
+      window.showToast?.("Producto guardado exitosamente");
     } catch (err) {
       alert("Error al guardar el producto: " + err.message);
     }
@@ -474,7 +475,7 @@ const ProductTable = () => {
     try {
       await apiClient.delete(`/api/admin/products/${id}`);
       fetchInventory();
-      window.showToast?.("🗑️ Producto eliminado");
+      window.showToast?.("Producto eliminado");
     } catch (err) {
       alert("Error al eliminar: " + err.message);
     }
@@ -488,7 +489,7 @@ const ProductTable = () => {
     return e(
       "div",
       { className: "p-10 text-center text-gray-400" },
-      e("i", { className: "fas fa-spinner fa-spin mr-2" }),
+      e(Icono, { nombre: "loader-circle", girar: true, className: "mr-2" }),
       "Cargando catálogo...",
     );
 
@@ -496,7 +497,7 @@ const ProductTable = () => {
     return e(
       "div",
       { className: "p-10 text-center text-red-500" },
-      e("i", { className: "fas fa-exclamation-triangle mr-2" }),
+      e(Icono, { nombre: "triangle-alert", className: "mr-2" }),
       error,
     );
 
@@ -520,7 +521,7 @@ const ProductTable = () => {
             className:
               "text-2xl font-bold text-emerald-800 dark:text-emerald-400 flex items-center gap-3",
           },
-          e("i", { className: "fas fa-box-open" }),
+          e(Icono, { nombre: "package-open" }),
           "Inventario"
         ),
         bcvRate > 0 && e("p", { className: "text-[10px] text-gray-500 font-bold mt-1" }, 
@@ -562,7 +563,7 @@ const ProductTable = () => {
               "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 p-2.5 rounded-xl border dark:border-gray-700 shadow-sm hover:bg-gray-50 transition flex items-center justify-center gap-2 text-sm font-bold active:scale-95",
             title: "Gestionar Categorías"
           },
-          e("i", { className: "fas fa-tags text-emerald-500" }),
+          e(Icono, { nombre: "tags", className: "text-emerald-500" }),
           e("span", { className: "hidden sm:inline" }, "Categorías")
         ),
         e(
@@ -574,7 +575,7 @@ const ProductTable = () => {
               "flex-1 lg:flex-none bg-emerald-600 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition flex items-center justify-center gap-2 text-sm font-bold active:scale-95",
           },
           e("div", { className: "flex items-center gap-2" }, [
-            e("i", { className: "fas fa-plus" }),
+            e(Icono, { nombre: "plus" }),
             "Nuevo"
           ])
         ),
@@ -617,9 +618,7 @@ const ProductTable = () => {
                   className:
                     "text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2",
                 },
-                e("i", {
-                  className: `fas ${editingProduct ? "fa-edit" : "fa-plus-circle"} text-emerald-500`,
-                }),
+                e(Icono, { nombre: editingProduct ? "square-pen" : "circle-plus", className: "text-emerald-500" }),
                 editingProduct ? "Editar Producto" : "Nuevo Producto",
               ),
               e(
@@ -629,7 +628,7 @@ const ProductTable = () => {
                   className:
                     "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition",
                 },
-                e("i", { className: "fas fa-times" }),
+                e(Icono, { nombre: "x" }),
               ),
             ),
             e(
@@ -717,7 +716,7 @@ const ProductTable = () => {
                       className:
                         "block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1",
                     },
-                    "Icono",
+                    "Emoji en el menú del bot (opcional)",
                   ),
                   e("input", {
                     type: "text",
@@ -745,7 +744,7 @@ const ProductTable = () => {
                     e(
                       "span",
                       { className: "text-sm font-semibold text-gray-700 dark:text-gray-200" },
-                      "🔒 Control de Stock"
+                      "Control de Stock"
                     ),
                     e(
                       "span",
@@ -952,7 +951,7 @@ const ProductTable = () => {
                         className:
                           "text-xs px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold rounded-lg hover:bg-emerald-500/20 transition flex items-center gap-1",
                       },
-                      e("i", { className: `fas ${uploadingImage ? "fa-spinner fa-spin" : "fa-upload"}` }),
+                      e(Icono, { nombre: uploadingImage ? "loader-circle" : "upload", girar: uploadingImage }),
                       uploadingImage ? "Subiendo..." : "Subir foto"
                     )
                 ),
@@ -963,7 +962,7 @@ const ProductTable = () => {
                         className:
                           "p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-dashed border-gray-200 dark:border-gray-700 text-xs text-gray-400 text-center",
                       },
-                      "💡 Guarda el producto para añadir fotos"
+                      "Guarda el producto para añadir fotos"
                     )
                   : e(
                       "div",
@@ -983,7 +982,7 @@ const ProductTable = () => {
                                 "p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-dashed border-gray-200 dark:border-gray-700 text-xs text-gray-400 text-center cursor-pointer hover:border-emerald-400 transition",
                               onClick: () => fileInputRef.current?.click(),
                             },
-                            "📷 No hay fotos. Haz clic en 'Subir foto' para agregar (máx 5)."
+                            "No hay fotos. Haz clic en 'Subir foto' para agregar (máx 5)."
                           )
                         : e(
                             "div",
@@ -1026,7 +1025,7 @@ const ProductTable = () => {
                                         className:
                                           "p-1 bg-emerald-600 text-white rounded text-[10px] hover:bg-emerald-700 w-full font-bold",
                                       },
-                                      "⭐ Principal"
+                                      e(Icono, { nombre: "star", className: "inline mr-1 fill-current" }), " Principal"
                                     ),
                                   e(
                                     "button",
@@ -1037,7 +1036,7 @@ const ProductTable = () => {
                                       className:
                                         "p-1 bg-red-600 text-white rounded text-[10px] hover:bg-red-700 w-full font-bold",
                                     },
-                                    "🗑️ Borrar"
+                                    "Borrar"
                                   )
                                 )
                               )
@@ -1096,7 +1095,7 @@ const ProductTable = () => {
                     className:
                       "w-12 h-12 object-cover rounded-xl border border-gray-100 dark:border-gray-700",
                   })
-                : e("span", { className: "text-2xl bg-gray-50 dark:bg-gray-900 w-12 h-12 flex items-center justify-center rounded-xl" }, p.emoji),
+                : e("span", { className: "text-2xl bg-gray-50 dark:bg-gray-900 w-12 h-12 flex items-center justify-center rounded-xl" }, e(Icono, { nombre: "package", className: "text-gray-400" })),
               e("div", null,
                 e("h4", { className: "font-bold text-gray-800 dark:text-gray-100" }, p.name),
                 e("p", { className: "text-[10px] font-black text-gray-400 uppercase" }, `SKU: ${p.id}`)
@@ -1121,13 +1120,13 @@ const ProductTable = () => {
               e("p", { className: "text-[10px] text-gray-400 uppercase font-black" }, "Stock"),
               e("p", { className: "text-xs font-bold" },
                 p.trackStock
-                  ? (p.stock > 0 ? `📦 ${p.stock} disponibles` : `⚠️ Agotado`)
-                  : "♾️ Ilimitado"
+                  ? (p.stock > 0 ? `${p.stock} disponibles` : `Agotado`)
+                  : "Ilimitado"
               )
             ),
             e("div", null,
               e("p", { className: "text-[10px] text-gray-400 uppercase font-black" }, "Estado"),
-              e("p", { className: "text-xs font-bold text-blue-500" }, p.activo !== false ? "✅ Activo" : "❌ Inactivo")
+              e("p", { className: "text-xs font-bold text-blue-500" }, p.activo !== false ? "Activo" : "Inactivo")
             )
           ),
           e(
@@ -1139,7 +1138,7 @@ const ProductTable = () => {
                 onClick: () => handleOpenModal(p),
                 className: "flex-1 h-11 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center gap-2 font-bold text-sm active:scale-95 transition-all"
               },
-              e("i", { className: "fas fa-edit" }),
+              e(Icono, { nombre: "square-pen" }),
               "Editar"
             ),
             e(
@@ -1148,7 +1147,7 @@ const ProductTable = () => {
                 onClick: () => handleDelete(p.id),
                 className: "w-11 h-11 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-xl flex items-center justify-center active:scale-95 transition-all"
               },
-              e("i", { className: "fas fa-trash-alt" })
+              e(Icono, { nombre: "trash" })
             )
           )
         )
@@ -1183,9 +1182,7 @@ const ProductTable = () => {
               },
               e("div", { className: "flex items-center gap-2" },
                 "ID",
-                e("i", {
-                  className: `fas fa-sort${sortDirection === "asc" ? "-up" : "-down"} ${sortDirection ? "text-emerald-500" : "opacity-20"} transition-all`,
-                })
+                e(Icono, { nombre: sortDirection === "asc" ? "arrow-up" : "arrow-down", className: `${sortDirection ? "text-emerald-500" : "opacity-20"} transition-all` })
               )
             ),
             e("th", { className: "px-6 py-4" }, "Nombre"),
@@ -1229,7 +1226,7 @@ const ProductTable = () => {
                           className:
                             "w-7 h-7 object-cover rounded-lg inline-block mr-3 align-middle border border-gray-100 dark:border-gray-700",
                         })
-                      : e("span", { className: "mr-3 text-lg" }, p.emoji),
+                      : e("span", { className: "mr-3 text-lg" }, e(Icono, { nombre: "package", className: "text-gray-400" })),
                     p.name,
                   ),
                   e(
@@ -1267,7 +1264,7 @@ const ProductTable = () => {
                     { className: "px-6 py-4 text-center" },
                     e("span", {
                       className: `text-xs font-bold px-2 py-1 rounded-full ${p.trackStock ? (p.stock > 0 ? "bg-blue-50 text-blue-600" : "bg-red-50 text-red-600") : "bg-gray-100 text-gray-500"}`
-                    }, p.trackStock ? (p.stock > 0 ? `📦 ${p.stock}` : "⚠️ Agotado") : "♾️")
+                    }, p.trackStock ? (p.stock > 0 ? `${p.stock}` : "Agotado") : "∞")
                   ),
                   e(
                     "td",
@@ -1279,7 +1276,7 @@ const ProductTable = () => {
                         className:
                           "text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition",
                       },
-                      e("i", { className: "fas fa-edit" }),
+                      e(Icono, { nombre: "square-pen" }),
                     ),
                     e(
                       "button",
@@ -1288,7 +1285,7 @@ const ProductTable = () => {
                         className:
                           "text-red-500 hover:text-red-700 dark:hover:text-red-300 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition",
                       },
-                      e("i", { className: "fas fa-trash-alt" }),
+                      e(Icono, { nombre: "trash" }),
                     ),
                   ),
                 ),
@@ -1303,8 +1300,8 @@ const ProductTable = () => {
                     className:
                       "px-6 py-12 text-center text-gray-400 dark:text-gray-600 italic",
                   },
-                  e("i", {
-                    className: "fas fa-box-open text-4xl mb-3 block opacity-20",
+                  e(Icono, {
+                    nombre: "package-open", className: "text-4xl mb-3 block opacity-20",
                   }),
                   "No hay productos que coincidan con la búsqueda.",
                 ),

@@ -2,12 +2,13 @@ import { Request, Response } from "express";
 const axios = require("axios");
 const { configStore, EDITABLE_KEYS, SECRET_KEYS, getConfig, setConfig } = require("../services/configStore");
 const { registrarAuditoria } = require("../services/auditService");
-const { validarValorConfig, validarHorarioAtencion, validarFlujoNoLaborable, validarDatosNegocio, validarConfigCatalogo } = require("../services/configValidators");
+const { validarValorConfig, validarHorarioAtencion, validarFlujoNoLaborable, validarDatosNegocio, validarConfigCatalogo, validarPreguntasFrecuentes } = require("../services/configValidators");
 const { getHorario, setHorario, formatearHorarioAtencion } = require("../services/horarioService");
 const { getFlujoNoLaborable, setFlujoNoLaborable } = require("../services/flujoNoLaborableService");
 const { getDatosNegocio, setDatosNegocio } = require("../services/datosNegocioService");
 const { getConfigCatalogo, setConfigCatalogo } = require("../services/catalogoConfigService");
 const { obtenerReporteAbuso } = require("../services/catalogoAbusoService");
+const { getPreguntasFrecuentes, setPreguntasFrecuentes } = require("../services/preguntasFrecuentesService");
 
 /**
  * Obtiene la configuración completa para el panel administrativo.
@@ -353,6 +354,44 @@ export const updateCatalogoConfig = async (req: Request, res: Response) => {
 };
 
 /**
+ * Preguntas frecuentes de la tienda (F2b): lista editable desde el panel.
+ */
+export const getPreguntasFrecuentesConfig = async (req: Request, res: Response) => {
+  try {
+    const preguntas = await getPreguntasFrecuentes();
+    res.json({ success: true, preguntas });
+  } catch (error: any) {
+    console.error("❌ Error obteniendo preguntas frecuentes:", error);
+    res.status(500).json({ success: false, error: "Error al obtener las preguntas frecuentes" });
+  }
+};
+
+export const updatePreguntasFrecuentesConfig = async (req: Request, res: Response) => {
+  try {
+    const payload = req.body?.preguntas !== undefined ? req.body.preguntas : req.body;
+    const validacion = validarPreguntasFrecuentes(payload);
+    if (!validacion.ok) {
+      return res.status(400).json({ success: false, error: validacion.error });
+    }
+
+    const anterior = await getPreguntasFrecuentes();
+    const guardado = await setPreguntasFrecuentes(validacion.value);
+
+    await registrarAuditoria(req, {
+      tipoRecurso: "config",
+      accion: "update",
+      recursoId: "preguntasFrecuentes",
+      detalles: { previo: anterior, nuevo: guardado },
+    });
+
+    res.json({ success: true, message: "Preguntas frecuentes guardadas correctamente", preguntas: guardado });
+  } catch (error: any) {
+    console.error("❌ Error actualizando preguntas frecuentes:", error);
+    res.status(500).json({ success: false, error: "Error al guardar las preguntas frecuentes" });
+  }
+};
+
+/**
  * Obtiene el reporte de eventos anti-abuso del catálogo web de los últimos 14 días.
  */
 export const getCatalogoAbuso = async (req: Request, res: Response) => {
@@ -378,4 +417,6 @@ module.exports = {
   getCatalogoConfig,
   updateCatalogoConfig,
   getCatalogoAbuso,
+  getPreguntasFrecuentesConfig,
+  updatePreguntasFrecuentesConfig,
 };

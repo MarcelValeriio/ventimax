@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/whatsapp/components/WhatsAppSidebar.js
 import React, { useState, useEffect } from "https://cdn.skypack.dev/react";
 import ContactCard from "./ContactCard.js";
@@ -195,7 +196,7 @@ const WhatsAppSidebar = ({
                       className:
                         "w-8 h-8 rounded-xl bg-gradient-to-tr from-[#25D366] via-[#00A884] to-[#008069] flex items-center justify-center text-white shadow-sm",
                     },
-                    e("i", { className: "fab fa-whatsapp text-lg" }),
+                    e(Icono, { marca: "whatsapp", className: "text-lg" }),
                   ),
                   e(
                     "div",
@@ -247,7 +248,7 @@ const WhatsAppSidebar = ({
                       title: "Perfil de WhatsApp Business",
                       "aria-label": "Perfil de WhatsApp Business",
                     },
-                    e("i", { className: "fas fa-store text-xs" }),
+                    e(Icono, { nombre: "store", className: "text-xs" }),
                   ),
                   e(
                     "button",
@@ -262,7 +263,7 @@ const WhatsAppSidebar = ({
                         }`,
                       title: isMuted ? "Activar sonido" : "Silenciar notificaciones",
                     },
-                    e("i", { className: `fas ${isMuted ? "fa-bell-slash" : "fa-bell"} text-xs` }),
+                    e(Icono, { nombre: isMuted ? "bell-off" : "bell", className: "text-xs" }),
                   ),
                   e(
                     "button",
@@ -276,7 +277,7 @@ const WhatsAppSidebar = ({
                       title: "Actualizar lista de chats",
                       "aria-label": "Actualizar lista",
                     },
-                    e("i", { className: "fas fa-sync-alt text-xs" }),
+                    e(Icono, { nombre: "refresh-cw", className: "text-xs" }),
                   ),
                 ],
               ),
@@ -288,10 +289,9 @@ const WhatsAppSidebar = ({
             "div",
             { key: "search-wrap", className: "relative" },
             [
-              e("i", {
+              e(Icono, {
                 key: "search-icon",
-                className:
-                  "fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs",
+                nombre: "search", className: "absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs",
               }),
               e("input", {
                 key: "search-input",
@@ -313,7 +313,7 @@ const WhatsAppSidebar = ({
                     title: "Limpiar búsqueda",
                     "aria-label": "Limpiar búsqueda",
                   },
-                  e("i", { className: "fas fa-times" }),
+                  e(Icono, { nombre: "x" }),
                 ),
             ],
           ),
@@ -453,7 +453,7 @@ const WhatsAppSidebar = ({
                   "p-8 text-center flex flex-col items-center justify-center h-48 text-gray-400 dark:text-gray-500",
               },
               [
-                e("i", { className: "fas fa-search text-3xl mb-2 opacity-30" }),
+                e(Icono, { nombre: "search", className: "text-3xl mb-2 opacity-30" }),
                 e(
                   "p",
                   {

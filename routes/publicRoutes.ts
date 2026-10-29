@@ -60,6 +60,7 @@ const pedidosWebLimiter = rateLimit({
 // 5. Rutas públicas
 router.get("/marca", publicGetLimiter, publicController.getMarca);
 router.get("/catalogo", publicGetLimiter, publicController.getCatalogo);
+router.get("/info", publicGetLimiter, publicController.getInfo);
 router.post("/pedidos", pedidosWebLimiter, publicController.postPedidoWeb);
 
 // 6. Rechazo de cualquier otra ruta bajo /api/public (ej. GET /pedidos/:codigo no existe)

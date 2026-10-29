@@ -1,3 +1,4 @@
+import { Icono } from "../../components/Icono.js";
 import React, { useState, useEffect } from "https://cdn.skypack.dev/react";
 import apiClient from "../../services/apiClient.js";
 
@@ -118,7 +119,7 @@ const AuditLogs = ({ onBack }) => {
               className:
                 "w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 transition-colors",
             },
-            e("i", { className: "fas fa-times text-gray-500" }),
+            e(Icono, { nombre: "x", className: "text-gray-500" }),
           ),
         ),
 
@@ -336,7 +337,7 @@ const AuditLogs = ({ onBack }) => {
           onBack && e("button", {
             onClick: onBack,
             className: "w-10 h-10 rounded-full bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-emerald-500 transition-all active:scale-90"
-          }, e("i", { className: "fas fa-arrow-left" })),
+          }, e(Icono, { nombre: "arrow-left" })),
           e(
             "div",
             null,
@@ -363,7 +364,7 @@ const AuditLogs = ({ onBack }) => {
           className:
             "bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2 text-xs",
         },
-        e("i", { className: "fas fa-sync-alt" }),
+        e(Icono, { nombre: "refresh-cw" }),
         "Actualizar",
       ),
     ),
@@ -514,7 +515,7 @@ const AuditLogs = ({ onBack }) => {
                       { className: "text-gray-400 truncate max-w-[100px]" },
                       log.estadoAnterior || "---",
                     ),
-                    e("i", { className: "fas fa-arrow-right text-gray-300" }),
+                    e(Icono, { nombre: "arrow-right", className: "text-gray-300" }),
                     e(
                       "span",
                       { className: "text-emerald-500 truncate max-w-[100px]" },

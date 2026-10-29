@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/whatsapp/components/QuickReplyBottomSheet.js
 import React, { useState, useEffect, useRef } from "https://cdn.skypack.dev/react";
 const e = React.createElement;
@@ -12,7 +13,7 @@ const e = React.createElement;
  * - Filtro por categorías y favoritas.
  * - Orden: Favoritas primero, respetando orden manual para el resto.
  * - Cierre con botón, tecla Escape y clic en backdrop.
- * - Iconografía estricta con Font Awesome (sin emojis decorativos en controles).
+ * - Iconografía estricta con Lucide (sin emojis decorativos en controles).
  * - Accesibilidad: role="dialog", aria-modal="true", aria-label="Respuestas rápidas".
  */
 const QuickReplyBottomSheet = ({
@@ -140,7 +141,7 @@ const QuickReplyBottomSheet = ({
                   className:
                     "w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-[#008069] dark:text-emerald-400 flex items-center justify-center font-bold text-xs sm:text-sm border border-emerald-200 dark:border-emerald-800/50",
                 }, [
-                  e("i", { className: "fas fa-bolt", "aria-hidden": "true" }),
+                  e(Icono, { nombre: "zap", "aria-hidden": "true" }),
                 ]),
                 e("div", null, [
                   e(
@@ -170,7 +171,7 @@ const QuickReplyBottomSheet = ({
                     "w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 flex items-center justify-center transition cursor-pointer text-xs sm:text-sm border border-transparent dark:border-gray-700 focus:ring-2 focus:ring-[#008069]",
                   title: "Cerrar (Escape)",
                 },
-                e("i", { className: "fas fa-times", "aria-hidden": "true" }),
+                e(Icono, { nombre: "x", "aria-hidden": "true" }),
               ),
             ],
           ),
@@ -185,9 +186,8 @@ const QuickReplyBottomSheet = ({
             },
             [
               e("div", { className: "relative flex items-center" }, [
-                e("i", {
-                  className:
-                    "fas fa-search absolute left-3 text-gray-400 dark:text-gray-500 text-xs pointer-events-none",
+                e(Icono, {
+                  nombre: "search", className: "absolute left-3 text-gray-400 dark:text-gray-500 text-xs pointer-events-none",
                   "aria-hidden": "true",
                 }),
                 e("input", {
@@ -210,7 +210,7 @@ const QuickReplyBottomSheet = ({
                       className:
                         "absolute right-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 text-xs cursor-pointer",
                     },
-                    e("i", { className: "fas fa-times-circle", "aria-hidden": "true" }),
+                    e(Icono, { nombre: "circle-x", "aria-hidden": "true" }),
                   ),
               ]),
             ],
@@ -256,7 +256,7 @@ const QuickReplyBottomSheet = ({
                     }`,
                   },
                   [
-                    e("i", { className: "fas fa-star text-[10px]", "aria-hidden": "true" }),
+                    e(Icono, { nombre: "star", className: "text-[10px]", "aria-hidden": "true" }),
                     e("span", null, "Favoritas"),
                   ],
                 ),
@@ -297,9 +297,8 @@ const QuickReplyBottomSheet = ({
                       "flex flex-col items-center justify-center p-8 text-center text-gray-400 dark:text-gray-500 gap-2",
                   },
                   [
-                    e("i", {
-                      className:
-                        "fas fa-comment-slash text-3xl text-gray-300 dark:text-gray-600",
+                    e(Icono, {
+                      nombre: "message-circle-off", className: "text-3xl text-gray-300 dark:text-gray-600",
                       "aria-hidden": "true",
                     }),
                     e(
@@ -320,7 +319,7 @@ const QuickReplyBottomSheet = ({
                             "mt-1 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-[#008069] dark:text-emerald-400 text-xs font-bold rounded-lg transition cursor-pointer flex items-center gap-1.5 border border-gray-200 dark:border-gray-700",
                         },
                         [
-                          e("i", { className: "fas fa-undo text-[10px]", "aria-hidden": "true" }),
+                          e(Icono, { nombre: "undo-2", className: "text-[10px]", "aria-hidden": "true" }),
                           e("span", null, "Restablecer filtros"),
                         ],
                       ),
@@ -361,7 +360,7 @@ const QuickReplyBottomSheet = ({
                                   "text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/60",
                               },
                               [
-                                e("i", { className: "fas fa-star text-[9px]", "aria-hidden": "true" }),
+                                e(Icono, { nombre: "star", className: "text-[9px]", "aria-hidden": "true" }),
                                 e("span", null, "Favorita"),
                               ],
                             ),
@@ -377,7 +376,7 @@ const QuickReplyBottomSheet = ({
                                 title: "Carga el mensaje en el input para completarlo antes de enviar",
                               },
                               [
-                                e("i", { className: "fas fa-edit text-[9px]", "aria-hidden": "true" }),
+                                e(Icono, { nombre: "square-pen", className: "text-[9px]", "aria-hidden": "true" }),
                                 e("span", null, "Completar"),
                               ],
                             )
@@ -389,8 +388,8 @@ const QuickReplyBottomSheet = ({
                                 title: `Envío directo a ${channelName}`,
                               },
                               [
-                                e("i", {
-                                  className: "fas fa-paper-plane text-[9px]",
+                                e(Icono, {
+                                  nombre: "send", className: "text-[9px]",
                                   "aria-hidden": "true",
                                 }),
                                 e("span", null, "Envío directo"),

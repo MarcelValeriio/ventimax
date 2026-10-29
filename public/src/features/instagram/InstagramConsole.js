@@ -1,3 +1,4 @@
+import { Icono } from "../../components/Icono.js";
 /**
  * public/src/features/instagram/InstagramConsole.js
  * Consola Principal de Instagram Direct
@@ -305,8 +306,8 @@ const InstagramConsole = ({ socket }) => {
       if (window.showToast) {
         window.showToast(
           nextMode === "automatico"
-            ? "🤖 Bot activado para este contacto"
-            : "👤 Modo manual activado para este contacto",
+            ? "Bot activado para este contacto"
+            : "Modo manual activado para este contacto",
           nextMode === "automatico" ? "success" : "warning",
         );
       }
@@ -322,8 +323,8 @@ const InstagramConsole = ({ socket }) => {
         if (window.showToast) {
           window.showToast(
             nextMode === "automatico"
-              ? "🤖 Bot activado para este contacto"
-              : "👤 Modo manual activado para este contacto",
+              ? "Bot activado para este contacto"
+              : "Modo manual activado para este contacto",
             nextMode === "automatico" ? "success" : "warning",
           );
         }
@@ -578,7 +579,7 @@ const InstagramConsole = ({ socket }) => {
                           "div",
                           { key: "banner-msg", className: "flex items-center gap-2" },
                           [
-                            e("i", { className: "fas fa-robot text-amber-600 dark:text-amber-400" }),
+                            e(Icono, { nombre: "bot", className: "text-amber-600 dark:text-amber-400" }),
                             e("span", null, "Bot de Instagram pausado globalmente — Las respuestas automáticas están apagadas."),
                           ],
                         ),
@@ -656,7 +657,7 @@ const InstagramConsole = ({ socket }) => {
                   className:
                     "w-20 h-20 rounded-3xl bg-gradient-to-tr from-[#F77737] via-[#E1306C] to-[#833AB4] flex items-center justify-center text-white shadow-xl shadow-pink-500/20 mb-5 animate-pulse-gentle",
                 },
-                e("i", { className: "fab fa-instagram text-4xl" }),
+                e(Icono, { marca: "instagram", className: "text-4xl" }),
               ),
               e(
                 "h2",

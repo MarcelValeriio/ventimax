@@ -190,3 +190,10 @@ mejoras.txt
 
 # Configuración generada del catálogo estático (F2-3)
 catalogo/config.js
+
+# Herramienta de diseño Impeccable: capturas de revisión, bocetos y datos locales (no se suben)
+.impeccable/review/
+.impeccable/mocks/
+.impeccable/decision-payload.json
+.impeccable/config.local.json
+.impeccable/questions/

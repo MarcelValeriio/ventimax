@@ -1,3 +1,4 @@
+import { Icono } from "../../components/Icono.js";
 /**
  * public/src/features/sales/SalesDashboard.js
  * Panel de métricas financieras con Filtros de Fecha y Respaldo Total
@@ -134,11 +135,11 @@ const SalesDashboard = ({ userRole = "admin" }) => {
   const handleSubmitManualSale = async () => {
     try {
       if (!manualSale.cliente.nombre.trim()) {
-        window.showToast?.("⚠️ El nombre del cliente es obligatorio.", "error");
+        window.showToast?.("El nombre del cliente es obligatorio.", "error");
         return;
       }
       if (manualSale.items.length === 0) {
-        window.showToast?.("⚠️ Debe agregar al menos un producto.", "error");
+        window.showToast?.("Debe agregar al menos un producto.", "error");
         return;
       }
       const invalidItem = manualSale.items.find(
@@ -146,7 +147,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
       );
       if (invalidItem) {
         window.showToast?.(
-          "⚠️ Verifica que todos los productos tengan nombre y cantidad.",
+          "Verifica que todos los productos tengan nombre y cantidad.",
           "error",
         );
         return;
@@ -167,20 +168,20 @@ const SalesDashboard = ({ userRole = "admin" }) => {
       }
       if (res.data && res.data.success) {
         window.showToast?.(
-          `✅ Venta #${res.data.data.correlativo} registrada con éxito!`,
+          `Venta #${res.data.data.correlativo} registrada con éxito!`,
         );
         setShowManualSaleModal(false);
         fetchSales(currentPage);
       } else {
         window.showToast?.(
-          `❌ ${res.data.error || "No se pudo registrar la venta"}`,
+          `${res.data.error || "No se pudo registrar la venta"}`,
           "error",
         );
       }
     } catch (err) {
       console.error("❌ Error registrando venta manual:", err);
       const errMsg = err.response?.data?.error || err.message;
-      window.showToast?.(`❌ Error: ${errMsg}`, "error");
+      window.showToast?.(`Error: ${errMsg}`, "error");
     }
   };
 
@@ -304,7 +305,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
   const handleDeleteOrder = async (id) => {
     if (!id) return;
     const ok = window.confirm(
-      "⚠️ ¿Eliminar este pedido definitivamente?\n\nEsta acción NO se puede deshacer. Úsalo solo para pedidos de prueba.",
+      "¿Eliminar este pedido definitivamente?\n\nEsta acción NO se puede deshacer. Úsalo solo para pedidos de prueba.",
     );
     if (!ok) return;
     setDeleting(true);
@@ -385,7 +386,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
     return e(
       "div",
       { className: "p-10 text-center text-gray-400 animate-pulse" },
-      e("i", { className: "fas fa-spinner fa-spin mr-2" }),
+      e(Icono, { nombre: "loader-circle", girar: true, className: "mr-2" }),
       "Sincronizando con Atlas...",
     );
 
@@ -437,7 +438,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
             className:
               "flex-1 sm:flex-none px-4 py-2 bg-emerald-600 text-white rounded-lg shadow hover:bg-emerald-700 transition flex items-center justify-center gap-2 active:scale-95 font-bold text-sm",
           },
-          e("i", { className: "fas fa-plus" }),
+          e(Icono, { nombre: "plus" }),
           "Venta Manual",
         ),
         e(
@@ -449,8 +450,8 @@ const SalesDashboard = ({ userRole = "admin" }) => {
               "flex-1 sm:flex-none px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg shadow-sm hover:bg-gray-50 flex items-center justify-center gap-2 active:scale-95 font-bold text-sm",
           },
           isFetchingFull
-            ? e("i", { className: "fas fa-spinner fa-spin text-emerald-500" })
-            : e("i", { className: "fas fa-file-pdf text-red-500" }),
+            ? e(Icono, { nombre: "loader-circle", girar: true, className: "text-emerald-500" })
+            : e(Icono, { nombre: "file-text", className: "text-red-500" }),
           "Exportar PDF",
         ),
         e(
@@ -464,9 +465,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
             className:
               "flex-1 sm:flex-none px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg shadow-sm hover:bg-gray-50 flex items-center justify-center gap-2 active:scale-95 font-bold text-sm",
           },
-          e("i", {
-            className: `fas ${refreshing ? "fa-sync fa-spin" : "fa-sync-alt"} text-emerald-500`,
-          }),
+          e(Icono, { nombre: "refresh-cw", girar: refreshing, className: "text-emerald-500" }),
           "Refrescar",
         ),
       ),
@@ -577,7 +576,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
               className:
                 "text-xs font-bold text-blue-600 dark:text-blue-400 uppercase flex items-center gap-1.5",
             },
-            e("i", { className: "fab fa-meta text-sm" }),
+            e(Icono, { marca: "meta", className: "text-sm" }),
             "Ventas por Anuncios",
           ),
           e(
@@ -606,7 +605,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
           e(
             "span",
             { className: "flex items-center gap-1" },
-            e("i", { className: "fas fa-bullhorn text-[10px] text-blue-500" }),
+            e(Icono, { nombre: "megaphone", className: "text-[10px] text-blue-500" }),
             `${totalAdsPedidos} pedidos CTWA`,
           ),
           e(
@@ -724,7 +723,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
             className:
               "w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0",
           },
-          e("i", { className: "fas fa-globe text-lg" }),
+          e(Icono, { nombre: "globe", className: "text-lg" }),
         ),
         e(
           "div",
@@ -794,7 +793,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
               className:
                 "font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-2",
             },
-            e("i", { className: "fas fa-filter text-orange-500" }),
+            e(Icono, { nombre: "funnel", className: "text-orange-500" }),
             "Embudo de Conversión",
           ),
           e(
@@ -851,12 +850,12 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                 className:
                   "font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2",
               },
-              e("i", { className: "fas fa-trophy text-amber-500" }),
+              e(Icono, { nombre: "trophy", className: "text-amber-500" }),
               "Top Productos",
             ),
             loadingTopProducts &&
-              e("i", {
-                className: "fas fa-spinner fa-spin text-emerald-500 text-xs",
+              e(Icono, {
+                nombre: "loader-circle", girar: true, className: "text-emerald-500 text-xs",
               }),
           ),
           topProducts.length === 0 && !loadingTopProducts
@@ -1028,7 +1027,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                                 "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800",
                               title: `Meta Ad (CTWA): ${t.ctwaClid || ""}`,
                             },
-                            e("i", { className: "fab fa-meta text-[9px]" }),
+                            e(Icono, { marca: "meta", className: "text-[9px]" }),
                             "Ad",
                           ),
                         (t.esWeb || t.origenWebCodigo) &&
@@ -1039,7 +1038,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                                 "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800",
                               title: `Pedido Web: ${t.origenWebCodigo || ""}`,
                             },
-                            e("i", { className: "fas fa-globe text-[9px]" }),
+                            e(Icono, { nombre: "globe", className: "text-[9px]" }),
                             "WEB",
                           ),
                       ),
@@ -1100,7 +1099,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                         colSpan: 6,
                         className: "px-6 py-10 text-center text-gray-400",
                       },
-                      "📭 No hay registros en este periodo.",
+                      "No hay registros en este periodo.",
                     ),
                   ),
             ),
@@ -1202,7 +1201,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
           className:
             "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-6 py-3 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center gap-3 hover:bg-gray-200 transition shadow-sm active:scale-95 font-bold text-sm",
         },
-        e("i", { className: "fas fa-database text-emerald-500" }),
+        e(Icono, { nombre: "database", className: "text-emerald-500" }),
         "Descargar Respaldo Total (JSON)",
       ),
     ),
@@ -1244,7 +1243,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                 onClick: () => setShowPdfPreview(false),
                 className: "text-gray-400 p-2",
               },
-              "✕",
+              e(Icono, { nombre: "x" }),
             ),
           ),
           e(
@@ -1416,7 +1415,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                 className:
                   "flex-1 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-50",
               },
-              "❌ Cancelar",
+              "Cancelar",
             ),
             e(
               "button",
@@ -1426,10 +1425,8 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                 className:
                   "flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold shadow-lg hover:bg-emerald-700 flex items-center justify-center gap-2 disabled:opacity-50",
               },
-              e("i", {
-                className: `fas ${isExporting ? "fa-spinner fa-spin" : "fa-check-circle"}`,
-              }),
-              isExporting ? "Generando..." : "📥 Confirmar Descarga",
+              e(Icono, { nombre: isExporting ? "loader-circle" : "circle-check", girar: isExporting }),
+              isExporting ? "Generando..." : "Confirmar Descarga",
             ),
           ),
         ),
@@ -1460,7 +1457,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                 className:
                   "font-bold text-lg text-emerald-800 dark:text-emerald-400 flex items-center gap-2",
               },
-              e("i", { className: "fas fa-cart-plus" }),
+              e(Icono, { nombre: "shopping-cart" }),
               "Registrar Venta Manual (Fuera de WhatsApp)",
             ),
             e(
@@ -1470,7 +1467,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                 className:
                   "text-gray-400 dark:text-gray-500 hover:text-gray-600 p-2 font-bold text-lg",
               },
-              "✕",
+              e(Icono, { nombre: "x" }),
             ),
           ),
           // Form Content
@@ -1502,7 +1499,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                     onClick: () => setShowContactList(!showContactList),
                     className: "px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800 rounded-lg text-xs font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/50 transition flex items-center gap-2",
                   },
-                  e("i", { className: "fas fa-address-book" }),
+                  e(Icono, { nombre: "book-user" }),
                   "Lista de Contactos"
                 )
               ),
@@ -1554,8 +1551,8 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                     },
                     e("div", { className: "font-bold text-sm text-gray-800 dark:text-gray-200" }, contact.nombre || "Sin nombre"),
                     e("div", { className: "text-xs text-gray-500 dark:text-gray-400 flex gap-2 mt-1" },
-                      e("span", null, e("i", { className: "fas fa-phone mr-1" }), contact.telefono || "N/A"),
-                      e("span", null, e("i", { className: "fas fa-id-card mr-1" }), contact.cedula || "N/A")
+                      e("span", null, e(Icono, { nombre: "phone", className: "mr-1" }), contact.telefono || "N/A"),
+                      e("span", null, e(Icono, { nombre: "id-card", className: "mr-1" }), contact.cedula || "N/A")
                     )
                   ))
                 )
@@ -1671,7 +1668,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                     className:
                       "px-3 py-1 bg-emerald-50 dark:bg-emerald-955/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 rounded-lg text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/35 flex items-center gap-1 active:scale-95 transition",
                   },
-                  e("i", { className: "fas fa-plus" }),
+                  e(Icono, { nombre: "plus" }),
                   "Agregar Producto",
                 ),
               ),
@@ -1791,7 +1788,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                         className:
                           "p-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/30 text-red-500 dark:text-red-400 rounded-lg active:scale-95 transition",
                       },
-                      e("i", { className: "fas fa-trash-alt text-xs" }),
+                      e(Icono, { nombre: "trash", className: "text-xs" }),
                     ),
                   );
                 }),
@@ -1864,14 +1861,14 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                       className:
                         "w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm",
                     },
-                    e("option", { value: "Efectivo" }, "💵 Efectivo"),
-                    e("option", { value: "Pago Móvil" }, "📱 Pago Móvil"),
-                    e("option", { value: "Transferencia" }, "🏦 Transferencia"),
+                    e("option", { value: "Efectivo" }, "Efectivo"),
+                    e("option", { value: "Pago Móvil" }, "Pago Móvil"),
+                    e("option", { value: "Transferencia" }, "Transferencia"),
                     e("option", { value: "Zelle" }, "🇺🇸 Zelle"),
                     e(
                       "option",
                       { value: "Punto de Venta" },
-                      "💳 Punto de Venta",
+                      "Punto de Venta",
                     ),
                   ),
                 ),
@@ -1928,7 +1925,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                     className:
                       "block text-xs text-gray-500 dark:text-gray-400 mb-1",
                   },
-                  "📸 Comprobante de Pago (opcional)",
+                  "Comprobante de Pago (opcional)",
                 ),
                 e(
                   "div",
@@ -1949,7 +1946,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                         className:
                           "text-red-500 hover:text-red-700 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition flex-shrink-0",
                       },
-                      e("i", { className: "fas fa-times" }),
+                      e(Icono, { nombre: "x" }),
                     ),
                 ),
                 comprobanteFile &&
@@ -1959,7 +1956,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                       className:
                         "text-[10px] text-emerald-600 dark:text-emerald-400 mt-1",
                     },
-                    `📎 ${comprobanteFile.name} (${(comprobanteFile.size / 1024).toFixed(1)} KB)`,
+                    `${comprobanteFile.name} (${(comprobanteFile.size / 1024).toFixed(1)} KB)`,
                   ),
               ),
             ),
@@ -2041,7 +2038,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                 className:
                   "flex-1 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-50 transition active:scale-95 text-sm",
               },
-              "❌ Cancelar",
+              "Cancelar",
             ),
             e(
               "button",
@@ -2050,8 +2047,8 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                 className:
                   "flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition flex items-center justify-center gap-2 active:scale-95 text-sm",
               },
-              e("i", { className: "fas fa-check-circle" }),
-              "💾 Registrar Venta",
+              e(Icono, { nombre: "circle-check" }),
+              "Registrar Venta",
             ),
           ),
         ),

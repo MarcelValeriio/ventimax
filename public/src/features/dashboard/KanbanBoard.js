@@ -1,3 +1,4 @@
+import { Icono } from "../../components/Icono.js";
 /**
  * public/src/features/dashboard/KanbanBoard.js
  * Tablero Operativo para Gestión de Pedidos (Priority 1) - Pure JS Version
@@ -80,9 +81,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
       "div",
       { className: "flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700/50 rounded-full border border-gray-100 dark:border-gray-700 group relative cursor-help" },
       e("div", { className: `w-2 h-2 rounded-full ${colorClass}` }),
-      e("i", {
-        className: `fas ${icon} text-[10px] text-gray-400 group-hover:text-emerald-500 transition-colors`,
-      }),
+      e(Icono, { nombre: icon, className: "text-[10px] text-gray-400 group-hover:text-emerald-500 transition-colors" }),
       e(
         "span",
         {
@@ -98,28 +97,28 @@ const KanbanBoard = ({ socket, userRole, health }) => {
     {
       id: "pendiente_verificacion",
       title: "Por Verificar",
-      icon: "fa-clock",
+      icon: "clock",
       color: "bg-yellow-100 text-yellow-800",
       accent: "border-yellow-500",
     },
     {
       id: "verificado",
       title: "Verificado",
-      icon: "fa-check-circle",
+      icon: "circle-check",
       color: "bg-orange-100 text-orange-800",
       accent: "border-orange-500",
     },
     {
       id: "en_ruta",
       title: "En Ruta",
-      icon: "fa-truck",
+      icon: "truck",
       color: "bg-blue-100 text-blue-800",
       accent: "border-blue-500",
     },
     {
       id: "entregado",
       title: "Entregado",
-      icon: "fa-home",
+      icon: "house",
       color: "bg-green-100 text-green-800",
       accent: "border-green-500",
     },
@@ -159,7 +158,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
             o._id === orderId ? { ...o, estado: newStatus } : o,
           ),
         );
-        window.showToast?.(`✅ Pedido actualizado a ${newStatus}`);
+        window.showToast?.(`Pedido actualizado a ${newStatus}`);
       }
     } catch (error) {
       alert("Error al actualizar el estado");
@@ -357,8 +356,8 @@ const KanbanBoard = ({ socket, userRole, health }) => {
       <div style="text-align: center; margin-bottom: 16px; border-bottom: 1px dashed #000; padding-bottom: 12px;">
         <h2 style="margin: 0; font-size: 18px; font-weight: bold; text-transform: uppercase;">Comanda de Pedido${brandName ? ` ${esc(brandName)}` : ""}</h2>
         <h1 style="margin: 6px 0; font-size: 28px; font-weight: 900;">#${esc(correlativo)}</h1>
-        ${order.ctwaClid ? `<div style="margin: 4px auto 6px auto; display: inline-block; font-size: 11px; font-weight: bold; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 2px 8px; border-radius: 4px;">📣 META AD (CTWA)</div>` : ""}
-        ${order.origenWeb?.codigo ? `<div style="margin: 4px auto 6px auto; display: inline-block; font-size: 11px; font-weight: bold; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; padding: 2px 8px; border-radius: 4px;">🌐 PEDIDO WEB: ${esc(order.origenWeb.codigo)}</div>` : ""}
+        ${order.ctwaClid ? `<div style="margin: 4px auto 6px auto; display: inline-block; font-size: 11px; font-weight: bold; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 2px 8px; border-radius: 4px;">META AD (CTWA)</div>` : ""}
+        ${order.origenWeb?.codigo ? `<div style="margin: 4px auto 6px auto; display: inline-block; font-size: 11px; font-weight: bold; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; padding: 2px 8px; border-radius: 4px;">PEDIDO WEB: ${esc(order.origenWeb.codigo)}</div>` : ""}
         <p style="margin: 0; font-size: 13px; color: #333;">${esc(fecha)}</p>
       </div>
 
@@ -547,7 +546,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
             className:
               "text-xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2",
           },
-          e("i", { className: "fas fa-columns text-emerald-500" }),
+          e(Icono, { nombre: "columns-3", className: "text-emerald-500" }),
           e("span", { className: "hidden md:inline" }, "Tablero Operativo"),
         ),
         health && e(
@@ -556,17 +555,17 @@ const KanbanBoard = ({ socket, userRole, health }) => {
           e(StatusLED, {
             status: health.socket,
             label: "Socket",
-            icon: "fa-plug",
+            icon: "plug",
           }),
           e(StatusLED, {
             status: health.whatsapp,
             label: "WhatsApp",
-            icon: "fa-mobile-alt",
+            icon: "smartphone",
           }),
           e(StatusLED, {
             status: health.mongodb,
             label: "Database",
-            icon: "fa-database",
+            icon: "database",
           }),
         ),
       ),
@@ -578,7 +577,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
             "p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500",
           title: "Refrescar Tablero",
         },
-        e("i", { className: `fas fa-sync-alt ${loading ? "fa-spin" : ""}` }),
+        e(Icono, { nombre: "refresh-cw", girar: loading }),
       ),
     ),
     e(
@@ -595,7 +594,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
             onClick: () => setActiveTabCol(col.id),
             className: `flex-1 py-3 px-4 text-xs font-black uppercase tracking-widest transition-all border-b-2 whitespace-nowrap ${activeTabCol === col.id ? "border-emerald-500 text-emerald-600 bg-emerald-50/30" : "border-transparent text-gray-400 hover:text-gray-600"}`,
           },
-          e("i", { className: `fas ${col.icon} mr-2` }),
+          e(Icono, { nombre: col.icon, className: "mr-2" }),
           col.title.split(" ")[0],
         ),
       ),
@@ -618,7 +617,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
             e(
               "span",
               { className: "flex items-center gap-2" },
-              e("i", { className: `fas ${col.icon}` }),
+              e(Icono, { nombre: col.icon }),
               col.title,
               col.id === "verificado" && verifiedPendingCount > 0 &&
                 e(
@@ -628,7 +627,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
                       "animate-bounce bg-orange-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full",
                     title: `${verifiedPendingCount} pedido(s) listo(s) para despachar`,
                   },
-                  `🚚 ${verifiedPendingCount}`,
+                  e(Icono, { nombre: "truck", className: "inline mr-1" }), verifiedPendingCount,
                 ),
             ),
             e(
@@ -691,7 +690,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
                         className:
                           "absolute -top-2 -right-2 bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-lg animate-bounce",
                       },
-                      e("i", { className: "fas fa-exclamation text-[10px]" }),
+                      e(Icono, { nombre: "circle-alert", className: "text-[10px]" }),
                     ),
                   e(
                     "div",
@@ -717,7 +716,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
                                   "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800",
                                 title: `Meta Ad (CTWA): ${order.ctwaClid}`,
                               },
-                              e("i", { className: "fab fa-meta text-[9px]" }),
+                              e(Icono, { marca: "meta", className: "text-[9px]" }),
                               "Ad",
                             ),
                           Boolean(order.origenWeb?.codigo) &&
@@ -728,19 +727,16 @@ const KanbanBoard = ({ socket, userRole, health }) => {
                                   "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800",
                                 title: `Pedido Web: ${order.origenWeb.codigo}`,
                               },
-                              e("i", { className: "fas fa-globe text-[9px]" }),
+                              e(Icono, { nombre: "globe", className: "text-[9px]" }),
                               "WEB",
                             ),
-                          e(
-                            "i",
-                            {
+                          e(Icono, {
                               onClick: (ev) => {
                                 ev.stopPropagation();
                                 handlePrintOrder(order);
                               },
-                              className:
-                                "fas fa-print text-gray-400 hover:text-blue-500 cursor-pointer text-xs p-1 transition-colors",
-                              title: "Imprimir comanda",
+                              nombre: "printer", className: "text-gray-400 hover:text-blue-500 cursor-pointer text-xs p-1 transition-colors",
+                              titulo: "Imprimir comanda",
                             },
                           ),
                         ],
@@ -785,7 +781,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
                         className:
                           "text-[10px] font-medium text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1",
                       },
-                      e("i", { className: "fas fa-truck text-[9px]" }),
+                      e(Icono, { nombre: "truck", className: "text-[9px]" }),
                       `${order.envio.nombre}${order.envio.costoAcordado ? ` ($${Number(order.envio.costo).toFixed(2)}, acordado con el asesor)` : (order.envio.aConvenir ? " (A convenir)" : (order.envio.costo ? ` ($${Number(order.envio.costo).toFixed(2)})` : ""))}`,
                     ),
                   order.notas &&
@@ -803,7 +799,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
                               "text-[10px] font-bold text-yellow-800 dark:text-yellow-400 uppercase flex items-center gap-1 mb-0.5",
                           },
                           [
-                            e("i", { className: "fas fa-sticky-note" }),
+                            e(Icono, { nombre: "sticky-note" }),
                             " Notas",
                           ]
                         ),
@@ -872,7 +868,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
                           e(
                             "span",
                             { className: "text-[12px]" },
-                            metodoInfo.esEfectivo ? "💵" : "💳",
+                            metodoInfo.esEfectivo ? e(Icono, { nombre: "banknote" }) : e(Icono, { nombre: "credit-card" }),
                           ),
                           e(
                             "span",
@@ -917,7 +913,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
       e("div", { className: "fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" }, 
         e("div", { className: "bg-[#111b21] border border-[#2a3942] rounded-2xl p-6 max-w-sm w-full shadow-2xl transform scale-100 animate-in fade-in zoom-in-95 duration-200" }, [
           e("div", { className: "w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4" }, 
-            e("i", { className: "fas fa-exclamation-triangle text-2xl text-red-500" })
+            e(Icono, { nombre: "triangle-alert", className: "text-2xl text-red-500" })
           ),
           e("h3", { className: "text-lg font-black text-[#e9edef] text-center mb-2" }, "¿Eliminar Pedido?"),
           e("p", { className: "text-sm text-[#8696a0] text-center mb-6" }, "Esta acción es irreversible. Se borrará permanentemente del sistema."),
@@ -932,7 +928,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
               disabled: deletingId === orderToDelete,
               className: "flex-1 px-4 py-2.5 rounded-lg font-bold text-white bg-red-500 hover:bg-red-600 transition disabled:opacity-50 flex justify-center items-center gap-2 cursor-pointer"
             }, [
-              deletingId === orderToDelete ? e("i", { className: "fas fa-spinner fa-spin" }) : e("i", { className: "fas fa-trash" }),
+              deletingId === orderToDelete ? e(Icono, { nombre: "loader-circle", girar: true }) : e(Icono, { nombre: "trash" }),
               "Eliminar"
             ])
           ])

@@ -1,3 +1,4 @@
+import { Icono } from "../../components/Icono.js";
 /**
  * public/src/features/dashboard/SettingsPanel.js
  * Panel de Configuración: navegación por secciones (lateral en escritorio, pestañas en móvil)
@@ -28,11 +29,11 @@ const DAYS_OF_WEEK = [
 ];
 
 const SECTIONS = [
-  { id: "general", label: "General", icon: "fa-sliders-h", adminOnly: false },
-  { id: "notificaciones", label: "Notificaciones", icon: "fa-bell", adminOnly: false },
-  { id: "operacion", label: "Operación", icon: "fa-tasks", adminOnly: true },
-  { id: "canales", label: "Canales y variables", icon: "fa-plug", adminOnly: true },
-  { id: "catalogo", label: "Catálogo web", icon: "fa-globe", adminOnly: true },
+  { id: "general", label: "General", icon: "sliders-horizontal", adminOnly: false },
+  { id: "notificaciones", label: "Notificaciones", icon: "bell", adminOnly: false },
+  { id: "operacion", label: "Operación", icon: "list-checks", adminOnly: true },
+  { id: "canales", label: "Canales y variables", icon: "plug", adminOnly: true },
+  { id: "catalogo", label: "Catálogo web", icon: "globe", adminOnly: true },
 ];
 
 // Clases literales (Tailwind necesita verlas completas en el código)
@@ -80,7 +81,7 @@ const SettingsGroup = ({ title, rows }) =>
 
 // Una fila de ajuste: icono, título, descripción y control (interruptor o acción)
 const SettingRow = ({ icon, tone = "emerald", title, description, control, onClick }) => {
-  const trailing = control || (onClick && e("i", { className: "fas fa-chevron-right text-xs text-gray-300 dark:text-gray-600" }));
+  const trailing = control || (onClick && e(Icono, { nombre: "chevron-right", className: "text-xs text-gray-300 dark:text-gray-600" }));
   return e("div", {
     onClick: onClick,
     role: onClick ? "button" : undefined,
@@ -102,7 +103,7 @@ const SettingRow = ({ icon, tone = "emerald", title, description, control, onCli
     e("div", { className: "flex items-center gap-4 min-w-0" },
       e("div", {
         className: `shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${ICON_TONES[tone]}`,
-      }, e("i", { className: `fas ${icon}` })),
+      }, e(Icono, { nombre: icon })),
       e("div", { className: "min-w-0" },
         e("p", { className: "text-sm font-bold text-gray-800 dark:text-gray-100" }, title),
         description && e("p", { className: "text-xs text-gray-500 dark:text-gray-400 mt-0.5" }, description)
@@ -182,7 +183,7 @@ const WatchdogModal = ({
         disabled: saving,
         "aria-label": "Cerrar",
         className: "w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition",
-      }, e("i", { className: "fas fa-times" }))
+      }, e(Icono, { nombre: "x" }))
     ),
 
     // Accesos rápidos
@@ -285,7 +286,7 @@ const WatchdogModal = ({
             saving ? "opacity-60 cursor-wait" : ""
           }`,
         },
-          e("i", { className: `fas ${saving ? "fa-spinner fa-spin" : "fa-save"}` }),
+          e(Icono, { nombre: saving ? "loader-circle" : "save", girar: saving }),
           saving ? "Guardando..." : "Guardar"
         )
       )
@@ -348,6 +349,11 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
   const [catalogoLoading, setCatalogoLoading] = useState(false);
   const [catalogoSaving, setCatalogoSaving] = useState(false);
   const [abusoReporte, setAbusoReporte] = useState([]);
+
+  // Preguntas frecuentes de la tienda (F2b)
+  const [faqItems, setFaqItems] = useState([]);
+  const [faqLoading, setFaqLoading] = useState(false);
+  const [faqSaving, setFaqSaving] = useState(false);
   const [abusoLoading, setAbusoLoading] = useState(false);
 
   const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
@@ -443,6 +449,25 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       }
     };
     fetchDatosNegocio();
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const fetchPreguntasFrecuentes = async () => {
+      try {
+        setFaqLoading(true);
+        const client = window.apiClient || apiClient;
+        const res = await client.get("/api/admin/config/preguntas-frecuentes");
+        if (res.data?.success && res.data?.preguntas) {
+          setFaqItems(res.data.preguntas.items || []);
+        }
+      } catch (err) {
+        console.warn("No se pudieron cargar las preguntas frecuentes:", err);
+      } finally {
+        setFaqLoading(false);
+      }
+    };
+    fetchPreguntasFrecuentes();
   }, [isAdmin]);
 
   // Carga la configuración de Días No Laborables (solo admin)
@@ -667,6 +692,50 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
     }
   };
 
+  // Preguntas frecuentes de la tienda (F2b): añadir, quitar, subir/bajar y guardar
+  const FAQ_MAX = 12;
+
+  const handleFaqChange = (index, campo, valor) => {
+    setFaqItems(faqItems.map((item, i) => (i === index ? { ...item, [campo]: valor } : item)));
+  };
+
+  const handleFaqAdd = () => {
+    if (faqItems.length >= FAQ_MAX) {
+      toast(`Puedes tener hasta ${FAQ_MAX} preguntas`, "error");
+      return;
+    }
+    setFaqItems([...faqItems, { pregunta: "", respuesta: "" }]);
+  };
+
+  const handleFaqRemove = (index) => {
+    setFaqItems(faqItems.filter((_, i) => i !== index));
+  };
+
+  const handleFaqMove = (index, delta) => {
+    const destino = index + delta;
+    if (destino < 0 || destino >= faqItems.length) return;
+    const copia = [...faqItems];
+    [copia[index], copia[destino]] = [copia[destino], copia[index]];
+    setFaqItems(copia);
+  };
+
+  const handleSaveFaq = async () => {
+    setFaqSaving(true);
+    try {
+      const client = window.apiClient || apiClient;
+      const res = await client.put("/api/admin/config/preguntas-frecuentes", { items: faqItems });
+      if (res.data?.success && res.data?.preguntas) {
+        setFaqItems(res.data.preguntas.items || []);
+        toast("Preguntas frecuentes guardadas correctamente", "success");
+      }
+    } catch (err) {
+      console.error("Error guardando preguntas frecuentes:", err);
+      toast(err.response?.data?.error || err.message || "Error al guardar las preguntas frecuentes", "error");
+    } finally {
+      setFaqSaving(false);
+    }
+  };
+
   const handleSaveFlujo = async () => {
     if (flujoActivo && !entregaDiferidaActivo && !retiroEnPuntoActivo) {
       toast("Activa al menos una modalidad o apaga el flujo de días no laborables", "error");
@@ -784,7 +853,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       rows: [
         e(SettingRow, {
           key: "tema",
-          icon: isDark ? "fa-moon" : "fa-sun",
+          icon: isDark ? "moon" : "sun",
           tone: isDark ? "indigo" : "amber",
           title: "Modo oscuro",
           description: isDark ? "Activado" : "Desactivado",
@@ -798,7 +867,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       rows: [
         e(SettingRow, {
           key: "usuario",
-          icon: "fa-user-circle",
+          icon: "circle-user",
           tone: "gray",
           title: user?.nombre || user?.user || "Usuario",
           description: `Rol: ${user?.role || "—"}`,
@@ -806,7 +875,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
             href: "/logout",
             className: "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition",
           },
-            e("i", { className: "fas fa-sign-out-alt mr-2" }),
+            e(Icono, { nombre: "log-out", className: "mr-2" }),
             "Cerrar sesión"
           ),
         }),
@@ -822,7 +891,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       rows: [
         e(SettingRow, {
           key: "sonido",
-          icon: "fa-volume-up",
+          icon: "volume-2",
           tone: audioEnabled ? "emerald" : "gray",
           title: "Sonidos de alerta",
           description: audioEnabled ? "Suenan mientras el panel está abierto" : "Silenciados",
@@ -830,7 +899,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
         }),
         e(SettingRow, {
           key: "push",
-          icon: "fa-mobile-alt",
+          icon: "smartphone",
           tone: pushSubscribed ? "blue" : "gray",
           title: "Notificaciones push",
           description: !pushSupported
@@ -863,7 +932,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       rows: [
         e(SettingRow, {
           key: "alertas",
-          icon: "fa-shield-alt",
+          icon: "shield",
           tone: "rose",
           title: "Alertas Admin por WhatsApp",
           description: describirAlertas(watchdogDisabledDays, watchdogStartHour, watchdogEndHour, watchdogLoading),
@@ -880,7 +949,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       e("div", { className: "bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-6 space-y-6" },
         e("div", { className: "flex items-center gap-3" },
           e("div", { className: `w-10 h-10 rounded-2xl flex items-center justify-center text-sm ${ICON_TONES.blue}` },
-            e("i", { className: "fas fa-building" })
+            e(Icono, { nombre: "building" })
           ),
           e("div", null,
             e("h4", { className: "text-sm font-bold text-gray-800 dark:text-gray-100" }, "Datos legales y de contacto"),
@@ -975,7 +1044,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
             disabled: datosSaving || datosLoading,
             className: "px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 transition disabled:opacity-50 flex items-center gap-2",
           },
-            datosSaving && e("i", { className: "fas fa-spinner fa-spin" }),
+            datosSaving && e(Icono, { nombre: "loader-circle", girar: true }),
             datosSaving ? "Guardando..." : "Guardar datos del negocio"
           )
         )
@@ -987,7 +1056,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
         e("div", { className: "flex items-start justify-between gap-4" },
           e("div", { className: "flex items-center gap-3" },
             e("div", { className: `w-10 h-10 rounded-2xl flex items-center justify-center text-sm ${ICON_TONES.teal}` },
-              e("i", { className: "fas fa-clock" })
+              e(Icono, { nombre: "clock" })
             ),
             e("div", null,
               e("h4", { className: "text-sm font-bold text-gray-800 dark:text-gray-100" }, "Horario comercial del Bot y Delivery"),
@@ -1013,7 +1082,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
                 }`,
               },
                 e("span", { className: "text-xs uppercase" }, d.short),
-                e("i", { className: `fas fa-check text-[10px] ${active ? "opacity-100" : "opacity-0"}` })
+                e(Icono, { nombre: "check", className: `text-[10px] ${active ? "opacity-100" : "opacity-0"}` })
               );
             })
           )
@@ -1045,7 +1114,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
             disabled: horarioSaving || horarioLoading,
             className: "px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 transition disabled:opacity-50 flex items-center gap-2",
           },
-            horarioSaving && e("i", { className: "fas fa-spinner fa-spin" }),
+            horarioSaving && e(Icono, { nombre: "loader-circle", girar: true }),
             horarioSaving ? "Guardando..." : "Guardar horario"
           )
         )
@@ -1057,7 +1126,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
         e("div", { className: "flex items-start justify-between gap-4" },
           e("div", { className: "flex items-center gap-3" },
             e("div", { className: `w-10 h-10 rounded-2xl flex items-center justify-center text-sm ${ICON_TONES.amber}` },
-              e("i", { className: "fas fa-moon" })
+              e(Icono, { nombre: "moon" })
             ),
             e("div", null,
               e("h4", { className: "text-sm font-bold text-gray-800 dark:text-gray-100" }, "Flujo especial en días no laborables"),
@@ -1155,7 +1224,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
             disabled: flujoSaving || flujoLoading,
             className: "px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 transition disabled:opacity-50 flex items-center gap-2",
           },
-            flujoSaving && e("i", { className: "fas fa-spinner fa-spin" }),
+            flujoSaving && e(Icono, { nombre: "loader-circle", girar: true }),
             flujoSaving ? "Guardando..." : "Guardar días no laborables"
           )
         )
@@ -1165,10 +1234,10 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       key: "gestion",
       title: "Gestión",
       rows: [
-        e(SettingRow, { key: "personal", icon: "fa-users-cog", tone: "blue", title: "Personal", description: "Usuarios, roles y permisos", onClick: () => setActiveTab("users") }),
-        e(SettingRow, { key: "auditoria", icon: "fa-history", tone: "purple", title: "Auditoría", description: "Historial de acciones realizadas", onClick: () => setActiveTab("audit") }),
-        e(SettingRow, { key: "respuestas", icon: "fa-comment-dots", tone: "amber", title: "Respuestas rápidas", description: "Mensajes predefinidos del chat", onClick: () => setActiveTab("quickreplies") }),
-        e(SettingRow, { key: "faqs", icon: "fa-question-circle", tone: "teal", title: "Preguntas frecuentes", description: "Respuestas automáticas por WhatsApp", onClick: () => setActiveTab("faqs") }),
+        e(SettingRow, { key: "personal", icon: "user-cog", tone: "blue", title: "Personal", description: "Usuarios, roles y permisos", onClick: () => setActiveTab("users") }),
+        e(SettingRow, { key: "auditoria", icon: "rotate-ccw-clock", tone: "purple", title: "Auditoría", description: "Historial de acciones realizadas", onClick: () => setActiveTab("audit") }),
+        e(SettingRow, { key: "respuestas", icon: "message-circle-more", tone: "amber", title: "Respuestas rápidas", description: "Mensajes predefinidos del chat", onClick: () => setActiveTab("quickreplies") }),
+        e(SettingRow, { key: "faqs", icon: "circle-question-mark", tone: "teal", title: "Preguntas frecuentes", description: "Respuestas automáticas por WhatsApp", onClick: () => setActiveTab("faqs") }),
       ],
     }),
   ];
@@ -1181,7 +1250,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       rows: [
         e(SettingRow, {
           key: "entorno",
-          icon: "fa-sliders-h",
+          icon: "sliders-horizontal",
           tone: "indigo",
           title: "Variables de entorno y canales",
           description: "Teléfonos de alerta y ajustes editables; IDs, plantillas y estado de secretos en solo lectura",
@@ -1190,7 +1259,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       ],
     }),
     e("div", { key: "nota", className: "flex gap-3 items-start rounded-2xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/60 dark:bg-blue-900/20 p-4 text-xs text-blue-800 dark:text-blue-200" },
-      e("i", { className: "fas fa-info-circle mt-0.5 text-blue-500" }),
+      e(Icono, { nombre: "info", className: "mt-0.5 text-blue-500" }),
       e("p", null, "Los tokens y claves secretas se gestionan en Render. Aquí solo ves si están configurados; nunca se muestran ni se editan desde el panel.")
     ),
   ];
@@ -1207,7 +1276,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
         e("div", { className: "flex items-start justify-between gap-4" },
           e("div", { className: "flex items-center gap-3" },
             e("div", { className: `w-10 h-10 rounded-2xl flex items-center justify-center text-sm ${ICON_TONES.teal}` },
-              e("i", { className: "fas fa-store" })
+              e(Icono, { nombre: "store" })
             ),
             e("div", null,
               e("h4", { className: "text-sm font-bold text-gray-800 dark:text-gray-100" }, "Tienda online pública"),
@@ -1245,7 +1314,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
             catalogoConfig.prefijo !== catalogoPrefijoOriginal && e("div", {
               className: "mt-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200 flex items-start gap-2",
             },
-              e("i", { className: "fas fa-exclamation-triangle mt-0.5 text-amber-500" }),
+              e(Icono, { nombre: "triangle-alert", className: "mt-0.5 text-amber-500" }),
               e("span", null, "Los pedidos web creados con el prefijo anterior se dejan de reconocer (vencen automáticamente a los 3 días).")
             )
           ),
@@ -1271,8 +1340,81 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
             disabled: catalogoSaving || catalogoLoading,
             className: "px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 transition disabled:opacity-50 flex items-center gap-2",
           },
-            catalogoSaving && e("i", { className: "fas fa-spinner fa-spin" }),
+            catalogoSaving && e(Icono, { nombre: "loader-circle", girar: true }),
             catalogoSaving ? "Guardando..." : "Guardar catálogo"
+          )
+        )
+      )
+    ),
+    e("section", { key: "preguntas-frecuentes", className: "space-y-3" },
+      e("h3", { className: "text-[11px] font-black uppercase tracking-widest text-gray-400 px-1" }, "Preguntas frecuentes de la tienda"),
+      e("div", { className: "bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-6 space-y-4" },
+        e("p", { className: "text-xs text-gray-500 dark:text-gray-400" }, "Las preguntas sin respuesta no se muestran en la tienda."),
+        faqLoading && e("p", { className: "text-xs text-gray-400" }, "Cargando..."),
+        ...faqItems.map((item, index) =>
+          e("div", { key: index, className: "space-y-2 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" },
+            e("div", { className: "flex items-center justify-between gap-2" },
+              e("span", { className: "text-[11px] font-black uppercase tracking-widest text-gray-400" }, `Pregunta ${index + 1}`),
+              e("div", { className: "flex items-center gap-1" },
+                e("button", {
+                  type: "button",
+                  onClick: () => handleFaqMove(index, -1),
+                  disabled: index === 0 || faqSaving,
+                  "aria-label": "Subir pregunta",
+                  className: "w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition",
+                }, e(Icono, { nombre: "arrow-up" })),
+                e("button", {
+                  type: "button",
+                  onClick: () => handleFaqMove(index, 1),
+                  disabled: index === faqItems.length - 1 || faqSaving,
+                  "aria-label": "Bajar pregunta",
+                  className: "w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition",
+                }, e(Icono, { nombre: "arrow-down" })),
+                e("button", {
+                  type: "button",
+                  onClick: () => handleFaqRemove(index),
+                  disabled: faqSaving,
+                  "aria-label": "Quitar pregunta",
+                  className: "w-8 h-8 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-30 transition",
+                }, e(Icono, { nombre: "trash" }))
+              )
+            ),
+            e("input", {
+              type: "text",
+              value: item.pregunta,
+              maxLength: 120,
+              placeholder: "Escribe la pregunta",
+              onChange: (ev) => handleFaqChange(index, "pregunta", ev.target.value),
+              className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500",
+            }),
+            e("textarea", {
+              rows: 3,
+              value: item.respuesta,
+              maxLength: 600,
+              placeholder: "Respuesta (si la dejas vacía, la pregunta no se muestra)",
+              onChange: (ev) => handleFaqChange(index, "respuesta", ev.target.value),
+              className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none",
+            })
+          )
+        ),
+        e("div", { className: "flex flex-wrap items-center justify-between gap-3 pt-2" },
+          e("button", {
+            type: "button",
+            onClick: handleFaqAdd,
+            disabled: faqSaving || faqItems.length >= FAQ_MAX,
+            className: "px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition disabled:opacity-50 flex items-center gap-2",
+          },
+            e(Icono, { nombre: "plus" }),
+            "Añadir pregunta"
+          ),
+          e("button", {
+            type: "button",
+            onClick: handleSaveFaq,
+            disabled: faqSaving || faqLoading,
+            className: "px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 transition disabled:opacity-50 flex items-center gap-2",
+          },
+            faqSaving && e(Icono, { nombre: "loader-circle", girar: true }),
+            faqSaving ? "Guardando..." : "Guardar preguntas"
           )
         )
       )
@@ -1286,13 +1428,13 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
           disabled: abusoLoading,
           className: "text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 transition",
         },
-          e("i", { className: `fas fa-sync-alt ${abusoLoading ? "fa-spin" : ""}` }),
+          e(Icono, { nombre: "refresh-cw", girar: abusoLoading }),
           "Actualizar"
         )
       ),
       e("div", { className: "bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 overflow-hidden" },
         e("div", { className: "p-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400" },
-          e("i", { className: "fas fa-shield-alt text-amber-500 text-sm" }),
+          e(Icono, { nombre: "shield", className: "text-amber-500 text-sm" }),
           e("span", null, "Monitoreo agregado de peticiones e incidentes detectados por la API pública (R14). Sin direcciones IP ni datos personales.")
         ),
         e("div", { className: "overflow-x-auto" },
@@ -1356,7 +1498,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
               : "text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800"
           }`,
         },
-          e("i", { className: `fas ${s.icon} w-4 text-center` }),
+          e(Icono, { nombre: s.icon, className: "w-4 text-center" }),
           s.label
         );
       })),

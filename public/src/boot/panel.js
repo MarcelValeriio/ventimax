@@ -1,3 +1,4 @@
+import { Icono } from "../components/Icono.js";
 // Arranque del panel (/panel). Antes estaba en línea en public/index.html; se movió aquí
 // para que la CSP no necesite 'unsafe-inline' (F0-11).
 import React, {
@@ -5,6 +6,7 @@ import React, {
   useEffect,
 } from "https://cdn.skypack.dev/react";
 import ReactDOM from "https://cdn.skypack.dev/react-dom";
+import { iconoHtml } from "../lib/iconoTexto.js";
 import KanbanBoard from "../features/dashboard/KanbanBoard.js?v=10";
 import InventoryManager from "../features/inventory/InventoryManager.js?v=6";
 import WhatsAppConsole from "../features/whatsapp/WhatsAppConsole.js?v=8";
@@ -270,21 +272,21 @@ function App() {
         id: 1,
         text: "Conexión WhatsApp",
         status: health.whatsapp === "connected",
-        icon: "fa-mobile-alt",
+        icon: "smartphone",
       },
       {
         id: 2,
         text: "Salud del Sistema (DB/Socket)",
         status: health.socket && health.mongodb === "connected",
-        icon: "fa-server",
+        icon: "server",
       },
       {
         id: 3,
         text: "Tasa BCV Activa",
         status: bcvData.tasa > 0,
-        icon: "fa-university",
+        icon: "landmark",
       },
-      { id: 4, text: "Cargar Productos", status: true, icon: "fa-box" },
+      { id: 4, text: "Cargar Productos", status: true, icon: "package" },
     ];
 
     return e(
@@ -302,7 +304,7 @@ function App() {
             className:
               "font-bold text-gray-800 dark:text-white text-sm flex items-center gap-2",
           },
-          e("i", { className: "fas fa-rocket text-emerald-500" }),
+          e(Icono, { nombre: "rocket", className: "text-emerald-500" }),
           "Guía de Inicio Rápido",
         ),
         e(
@@ -318,7 +320,7 @@ function App() {
             className:
               "text-gray-400 hover:text-gray-600 dark:hover:text-white",
           },
-          e("i", { className: "fas fa-times text-xs" }),
+          e(Icono, { nombre: "x", className: "text-xs" }),
         ),
       ),
       e(
@@ -336,9 +338,7 @@ function App() {
               {
                 className: `w-6 h-6 rounded-full flex items-center justify-center transition-colors ${step.status ? "bg-emerald-100 text-emerald-600 border border-emerald-200" : "bg-gray-50 text-gray-400 border border-gray-100"}`,
               },
-              e("i", {
-                className: `fas ${step.status ? "fa-check-circle" : "fa-circle-notch animate-spin-slow"}`,
-              }),
+              e(Icono, { nombre: step.status ? "circle-check" : "loader-circle", className: step.status ? "" : "animate-spin-slow" }),
             ),
             e(
               "span",
@@ -386,11 +386,11 @@ function App() {
       if (order && order.canal && order.canal !== "whatsapp") return;
       playCashSound();
       window.showToast(
-        `💰 Nuevo comprobante de ${order.cliente?.nombre || order.whatsappId}`,
+        `Nuevo comprobante de ${order.cliente?.nombre || order.whatsappId}`,
         "success",
       );
       sendPushNotification(
-        "💰 Nuevo Pedido!",
+        "Nuevo Pedido!",
         `Pedido #${order.correlativo || "---"} de ${order.cliente?.nombre}`,
       );
     });
@@ -402,7 +402,7 @@ function App() {
       });
       playAlertSound();
       sendPushNotification(
-        "🚨 Cliente Atrapado",
+        "Cliente Atrapado",
         `El cliente ${data.telefono} requiere ayuda.`,
       );
     });
@@ -415,7 +415,7 @@ function App() {
 
     socket.on("alerta_orden_estancada", (data) => {
       window.showToast(
-        `🚨 Órden #${data.correlativo || data.id} estancada (${data.minutos} min)`,
+        `Órden #${data.correlativo || data.id} estancada (${data.minutos} min)`,
         "error",
       );
       playAlertSound();
@@ -430,7 +430,7 @@ function App() {
     socket.on("alerta_pedido_verificado", (data) => {
       playAlertSound();
       window.showToast(
-        `🚚 ${data.count} pedido(s) verificado(s) sin despachar`,
+        `${data.count} pedido(s) verificado(s) sin despachar`,
         "warning",
       );
     });
@@ -438,7 +438,7 @@ function App() {
     socket.on("pago_confirmado", (order) => {
       playSuccessSound();
       window.showToast(
-        `✅ Pago verificado: #${order.correlativo || order.id}`,
+        `Pago verificado: #${order.correlativo || order.id}`,
         "success",
       );
     });
@@ -500,20 +500,20 @@ function App() {
       });
       const data = await res.json();
       if (data.success) {
-        window.showToast("⚡ Bot destrabado con éxito");
+        window.showToast("Bot destrabado con éxito");
         setStuckClients((prev) =>
           prev.filter((c) => c.telefono !== telefono),
         );
       }
     } catch (err) {
-      window.showToast("❌ Error al destrabar", "error");
+      window.showToast("Error al destrabar", "error");
     }
   };
 
   const NavButton = ({
     tab,
     icon,
-    iconPrefix = "fas",
+    
     iconColor = "",
     title,
     customClass = "",
@@ -531,9 +531,7 @@ function App() {
         } ${customClass}`,
         title: title,
       },
-      e("i", {
-        className: `${iconPrefix} ${icon} text-xl md:text-lg mb-0.5 ${iconColor}`,
-      }),
+      e(Icono, { nombre: icon, className: `text-xl md:text-lg mb-0.5 ${iconColor}` }),
       e(
         "span",
         {
@@ -625,8 +623,8 @@ function App() {
                 className:
                   "w-12 h-12 bg-red-600 rounded-full flex items-center justify-center animate-pulse",
               },
-              e("i", {
-                className: "fas fa-exclamation-triangle text-xl",
+              e(Icono, {
+                nombre: "triangle-alert", className: "text-xl",
               }),
             ),
             e(
@@ -638,7 +636,7 @@ function App() {
                   className:
                     "font-black text-sm uppercase tracking-wider",
                 },
-                "🚨 Emergencia",
+                e(Icono, { nombre: "siren", className: "inline mr-1" }), " Emergencia",
               ),
               e(
                 "p",
@@ -654,7 +652,7 @@ function App() {
               className:
                 "w-full md:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-3 md:py-2 px-6 rounded-xl active:scale-95 transition-all shadow-lg text-sm whitespace-nowrap",
             },
-            "⚡ Destrabar",
+            e(Icono, { nombre: "zap", className: "inline mr-1" }), " Destrabar",
           ),
         ),
       ),
@@ -687,13 +685,13 @@ function App() {
         user.role === "cajero") &&
         e(NavButton, {
           tab: "kanban",
-          icon: "fa-columns",
+          icon: "columns-3",
           title: "Tablero",
         }),
       (!user || user.role === "admin" || user.role === "cajero") &&
         e(NavButton, {
           tab: "inbox",
-          icon: "fa-inbox",
+          icon: "inbox",
           title: "Inbox",
           badge: inboxUnread,
         }),
@@ -715,19 +713,19 @@ function App() {
       (!user || user.role === "admin") &&
         e(NavButton, {
           tab: "inventory",
-          icon: "fa-box",
+          icon: "package",
           title: "Inventario",
         }),
       (!user || user.role === "admin" || user.role === "cajero") &&
         e(NavButton, {
           tab: "sales",
-          icon: "fa-chart-line",
+          icon: "chart-line",
           title: "Ventas",
         }),
       (!user || user.role === "admin") &&
         e(NavButton, {
           tab: "aistudio",
-          icon: "fa-magic",
+          icon: "wand-sparkles",
           title: "AI Studio",
           customClass:
             "text-emerald-400 animate-pulse-gentle nav-button-ai-studio",
@@ -735,7 +733,7 @@ function App() {
       (!user || user.role === "admin") &&
         e(NavButton, {
           tab: "config",
-          icon: "fa-cog",
+          icon: "settings",
           title: "Config",
         }),
 
@@ -762,7 +760,7 @@ function App() {
               "w-10 h-10 rounded-xl flex items-center justify-center text-red-100 hover:bg-red-700 transition-all active:scale-90 shadow-sm border border-red-700/30",
             title: "Cerrar Sesión",
           },
-          e("i", { className: "fas fa-sign-out-alt" }),
+          e(Icono, { nombre: "log-out" }),
         ),
       ),
     ),
@@ -795,8 +793,8 @@ function App() {
                 className:
                   "w-7 h-7 md:w-8 md:h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 flex-shrink-0",
               },
-              e("i", {
-                className: "fas fa-dollar-sign text-[10px] md:text-xs",
+              e(Icono, {
+                nombre: "dollar-sign", className: "text-[10px] md:text-xs",
               }),
             ),
             e(
@@ -841,8 +839,8 @@ function App() {
                   className:
                     "w-7 h-7 md:w-8 md:h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/20 flex-shrink-0",
                 },
-                e("i", {
-                  className: "fas fa-euro-sign text-[10px] md:text-xs",
+                e(Icono, {
+                  nombre: "euro", className: "text-[10px] md:text-xs",
                 }),
               ),
               e(
@@ -934,7 +932,7 @@ function App() {
                 className:
                   "w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner",
               },
-              e("i", { className: "fas fa-volume-up text-3xl" }),
+              e(Icono, { nombre: "volume-2", className: "text-3xl" }),
             ),
             e(
               "h3",
@@ -993,11 +991,20 @@ function App() {
 ReactDOM.render(e(App), document.getElementById("root"));
 
 // Helper global para Toasts
+// Ícono del aviso según su tipo (Lucide). Sin tipo, se trata como "success".
+const ICONOS_AVISO = {
+  success: ["circle-check", "text-emerald-500"],
+  error: ["circle-alert", "text-red-500"],
+  info: ["info", "text-sky-500"],
+  warning: ["triangle-alert", "text-amber-500"],
+};
+
 window.showToast = (msg, type = "success") => {
   const toast = document.getElementById("toast");
   if (!toast) return;
+  const [nombreIcono, colorIcono] = ICONOS_AVISO[type] || ICONOS_AVISO.success;
   // El mensaje puede traer datos del cliente o del servidor: se inserta como texto, nunca como HTML.
-  toast.innerHTML = `<i class="fas ${type === "success" ? "fa-check-circle text-emerald-500" : "fa-exclamation-circle text-red-500"} text-xl mr-3"></i><span class="text-sm font-medium text-gray-700"></span>`;
+  toast.innerHTML = `${iconoHtml(nombreIcono, `text-xl mr-3 ${colorIcono}`)}<span class="text-sm font-medium text-gray-700"></span>`;
   toast.querySelector("span").textContent = String(msg ?? "");
   toast.classList.remove("translate-y-[-150%]", "opacity-0");
   setTimeout(

@@ -6,16 +6,22 @@ const { getConfigCatalogoSync } = require("../services/catalogoConfigService");
 const { registrarEventoCatalogo } = require("../services/catalogoAbusoService");
 const { obtenerCategoriasDeProducto } = require("../services/catalogQuery");
 const { pedidoPublicoSchema } = require("../validators");
+const { getPreguntasFrecuentesSync } = require("../services/preguntasFrecuentesService");
+const { formatearHorarioAtencion } = require("../services/horarioService");
 
 let Producto = require("../models/Producto");
 let Categoria = require("../models/Categoria");
 let CarritoWeb = require("../models/CarritoWeb");
+let MetodoPago = require("../models/MetodoPago");
+let MetodoEnvio = require("../models/MetodoEnvio");
 
 if (process.env.NODE_ENV === "test") {
   const dbLocal = require("../services/dbLocal");
   Producto = dbLocal.getProductoModel();
   Categoria = dbLocal.getCategoriaModel();
   CarritoWeb = dbLocal.getCarritoWebModel();
+  MetodoPago = dbLocal.getMetodoPagoModel();
+  MetodoEnvio = dbLocal.getMetodoEnvioModel();
 }
 
 const ALFABETO_CODIGO = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -196,6 +202,52 @@ export async function getCatalogo(req: any, res: any) {
   } catch (error: any) {
     console.error("❌ Error en getCatalogo público:", error);
     return res.status(500).json({ error: "Error al obtener el catálogo público" });
+  }
+}
+
+/**
+ * GET /api/public/info
+ * Cache-Control: public, max-age=300
+ * Preguntas frecuentes con respuesta, nombres de los métodos de pago, envíos activos y horario.
+ * Lista blanca: nunca cuentas, cédulas, correos ni instrucciones de pago.
+ */
+export async function getInfo(req: any, res: any) {
+  try {
+    res.setHeader("Cache-Control", "public, max-age=300");
+
+    const preguntas = getPreguntasFrecuentesSync()
+      .items.filter((p: any) => p.respuesta && p.respuesta.trim() !== "")
+      .map((p: any) => ({ pregunta: p.pregunta, respuesta: p.respuesta }));
+
+    const pagosDb = await MetodoPago.find({ activo: true }).sort({ _id: 1 });
+    const pagos = (pagosDb || [])
+      .filter((m: any) => m && m.activo !== false && m.nombre)
+      .map((m: any) => String(m.nombre));
+
+    const horario = formatearHorarioAtencion();
+
+    const enviosDb = await MetodoEnvio.find({ activo: true }).sort({ orden: 1, createdAt: 1 });
+    const envios = (enviosDb || [])
+      .filter((m: any) => m && m.activo !== false)
+      .map((m: any) => {
+        const esRetiro = m.tipo === "retiro";
+        const aConvenir = m.costoTipo === "a_convenir";
+        return {
+          nombre: String(m.nombre || ""),
+          tipo: String(m.tipo || ""),
+          descripcion: String(m.descripcion || ""),
+          costo: aConvenir ? null : Number(m.costo) || 0,
+          aConvenir,
+          // Solo el retiro tiene punto físico; sin horario propio se usa el de atención
+          direccion: esRetiro ? String(m.direccion || "") || null : null,
+          horario: esRetiro ? String(m.horario || "") || horario : null,
+        };
+      });
+
+    return res.status(200).json({ preguntas, pagos, envios, horario });
+  } catch (error: any) {
+    console.error("❌ Error en getInfo público:", error);
+    return res.status(500).json({ error: "Error al obtener la información de la tienda" });
   }
 }
 

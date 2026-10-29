@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/whatsapp/components/WhatsAppHeader.js
 import React, { useState, useEffect } from "https://cdn.skypack.dev/react";
 const e = React.createElement;
@@ -76,7 +77,7 @@ const WhatsAppHeader = ({
             className:
               "block md:hidden p-2 text-white hover:bg-white/10 rounded-full transition-colors flex items-center justify-center mr-1 shrink-0",
           },
-          e("i", { className: "fas fa-arrow-left text-lg" })
+          e(Icono, { nombre: "arrow-left", className: "text-lg" })
         ),
         e(
           "div",
@@ -114,11 +115,7 @@ const WhatsAppHeader = ({
                       : "bg-emerald-300"
                   }`,
                 }),
-                e("i", {
-                  className: `fas ${
-                    operationMode === "manual" ? "fa-user" : "fa-robot"
-                  } text-[9px]`,
-                }),
+                e(Icono, { nombre: operationMode === "manual" ? "user" : "bot", className: "text-[9px]" }),
                 e(
                   "span",
                   { className: "hidden sm:inline" },
@@ -146,7 +143,7 @@ const WhatsAppHeader = ({
             }`,
           },
           [
-            e("i", { className: "fas fa-id-card text-sm" }),
+            e(Icono, { nombre: "id-card", className: "text-sm" }),
             e("span", { className: "hidden sm:inline text-xs" }, "Ficha"),
           ],
         ),
@@ -160,7 +157,7 @@ const WhatsAppHeader = ({
               "p-2 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-bold bg-white text-[#008069] hover:bg-emerald-50 transition flex items-center gap-1.5 cursor-pointer shadow-sm",
           },
           [
-            e("i", { className: "fas fa-robot text-sm" }),
+            e(Icono, { nombre: "bot", className: "text-sm" }),
             e(
               "span",
               { className: "hidden sm:inline text-xs" },

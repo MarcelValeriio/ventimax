@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/whatsapp/components/ContactCard.js
 import React from "https://cdn.skypack.dev/react";
 const e = React.createElement;
@@ -7,7 +8,7 @@ const e = React.createElement;
  * 
  * - Mobile: Densidad mejorada con altura visual mínima de 3 líneas (line-clamp-3) para facilitar lectura.
  * - Desktop: Presentación compacta y equilibrada (line-clamp-2 md:line-clamp-1/2).
- * - Accesibilidad: Jerarquía visual clara, metadatos no superpuestos, iconografía Font Awesome.
+ * - Accesibilidad: Jerarquía visual clara, metadatos no superpuestos, iconografía Lucide.
  */
 const ContactCard = ({
   phone,
@@ -71,7 +72,7 @@ const ContactCard = ({
                 "aria-label": "Modo Manual",
               },
               [
-                e("i", { className: "fas fa-user-edit text-[7px]", "aria-hidden": "true" }),
+                e(Icono, { nombre: "user-pen", className: "text-[7px]", "aria-hidden": "true" }),
               ],
             ),
         ],
@@ -143,7 +144,7 @@ const ContactCard = ({
                   title: `Estado actual: ${pasoLabel}`,
                 },
                 [
-                  e("i", { className: "fas fa-tag text-[8px]", "aria-hidden": "true" }),
+                  e(Icono, { nombre: "tag", className: "text-[8px]", "aria-hidden": "true" }),
                   e("span", { className: "truncate" }, pasoLabel),
                 ],
               )

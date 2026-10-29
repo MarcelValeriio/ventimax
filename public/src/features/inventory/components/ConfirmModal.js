@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 /**
  * public/src/features/inventory/components/ConfirmModal.js
  * Componente de confirmación estilado para acciones destructivas
@@ -28,7 +29,7 @@ const ConfirmModal = ({
         e("div", { 
           className: `w-16 h-16 rounded-full mx-auto ${isDanger ? 'bg-red-50 dark:bg-red-900/20 text-red-500' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500'} flex items-center justify-center mb-5 text-2xl shadow-inner` 
         },
-          e("i", { className: `fas ${isDanger ? 'fa-trash-alt' : 'fa-check-circle'}` })
+          e(Icono, { nombre: isDanger ? "trash" : "circle-check" })
         ),
         e("h3", { className: "text-xl font-bold text-gray-800 dark:text-gray-100 mb-2" }, title),
         e("p", { className: "text-sm text-gray-500 dark:text-gray-400 leading-relaxed" }, message)

@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 /**
  * public/src/features/instagram/components/InstagramSidebar.js
  * Barra lateral de conversaciones de Instagram Direct
@@ -92,7 +93,7 @@ const InstagramSidebar = ({
                       className:
                         "w-8 h-8 rounded-xl bg-gradient-to-tr from-[#F77737] via-[#E1306C] to-[#833AB4] flex items-center justify-center text-white shadow-sm shrink-0",
                     },
-                    e("i", { className: "fab fa-instagram text-lg" }),
+                    e(Icono, { marca: "instagram", className: "text-lg" }),
                   ),
                   e(
                     "div",
@@ -147,14 +148,7 @@ const InstagramSidebar = ({
                         } ${isTogglingBot ? "opacity-60 cursor-wait" : ""}`,
                       },
                       [
-                        e("i", {
-                          key: "bot-icon",
-                          className: `fas fa-robot text-[11px] ${
-                            botEnabled
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-amber-600 dark:text-amber-400"
-                          }`,
-                        }),
+                        e(Icono, { key: "bot-icon", nombre: "bot", className: `text-[11px] ${botEnabled ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}` }),
                         e(
                           "span",
                           { key: "bot-label", className: "text-[11px]" },
@@ -183,10 +177,9 @@ const InstagramSidebar = ({
             "div",
             { key: "search-wrap", className: "relative" },
             [
-              e("i", {
+              e(Icono, {
                 key: "search-icon",
-                className:
-                  "fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs",
+                nombre: "search", className: "absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs",
               }),
               e("input", {
                 key: "search-input",
@@ -207,7 +200,7 @@ const InstagramSidebar = ({
                       "absolute right-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs p-1",
                     title: "Limpiar búsqueda",
                   },
-                  e("i", { className: "fas fa-times" }),
+                  e(Icono, { nombre: "x" }),
                 ),
             ],
           ),
@@ -281,7 +274,7 @@ const InstagramSidebar = ({
                   "p-8 text-center text-gray-400 dark:text-gray-500 flex flex-col items-center gap-2",
               },
               [
-                e("i", { key: "empty-icon", className: "fab fa-instagram text-3xl opacity-30 mb-1" }),
+                e(Icono, { key: "empty-icon", marca: "instagram", className: "text-3xl opacity-30 mb-1" }),
                 e("p", { key: "empty-text", className: "text-xs font-medium" }, "No se encontraron conversaciones"),
               ],
             )
@@ -345,15 +338,15 @@ const InstagramSidebar = ({
                                     : "Usuario de Instagram"),
                               ),
                               contact.verified &&
-                                e("i", {
+                                e(Icono, {
                                   key: "verified",
-                                  className: "fas fa-check-circle text-sky-500 text-[10px]",
+                                  nombre: "circle-check", className: "text-sky-500 text-[10px]",
                                 }),
                               contact.origen === "anuncio" &&
-                                e("i", {
+                                e(Icono, {
                                   key: "ad-badge",
-                                  className: "fas fa-bullhorn text-purple-500 text-[10px] shrink-0",
-                                  title: "Vino de un anuncio",
+                                  nombre: "megaphone", className: "text-purple-500 text-[10px] shrink-0",
+                                  titulo: "Vino de un anuncio",
                                   "aria-label": "Vino de un anuncio",
                                 }),
                             ],

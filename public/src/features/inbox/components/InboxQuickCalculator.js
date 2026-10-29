@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/inbox/components/InboxQuickCalculator.js
 // Calculadora rápida de cotización (USD y Bs BCV) con soporte para múltiples categorías.
 import React, { useState, useEffect, useRef } from "https://cdn.skypack.dev/react";
@@ -253,8 +254,8 @@ const InboxQuickCalculator = ({ onFillInput }) => {
             "h-7 px-2.5 rounded-full text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs cursor-pointer active:scale-95 transition bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700",
         },
         [
-          e("i", {
-            className: "fas fa-calculator text-[10px] text-emerald-600 dark:text-emerald-400",
+          e(Icono, {
+            nombre: "calculator", className: "text-[10px] text-emerald-600 dark:text-emerald-400",
             "aria-hidden": "true",
           }),
           e("span", { className: "hidden sm:inline" }, "Cotizar"),
@@ -291,9 +292,8 @@ const InboxQuickCalculator = ({ onFillInput }) => {
               },
               [
                 e("div", { className: "flex items-center gap-1.5" }, [
-                  e("i", {
-                    className:
-                      "fas fa-calculator text-emerald-600 dark:text-emerald-400 text-xs",
+                  e(Icono, {
+                    nombre: "calculator", className: "text-emerald-600 dark:text-emerald-400 text-xs",
                   }),
                   e(
                     "span",
@@ -321,7 +321,7 @@ const InboxQuickCalculator = ({ onFillInput }) => {
                         "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs p-1 rounded-full cursor-pointer",
                       "aria-label": "Cerrar",
                     },
-                    e("i", { className: "fas fa-times" }),
+                    e(Icono, { nombre: "x" }),
                   ),
                 ]),
               ],
@@ -337,8 +337,8 @@ const InboxQuickCalculator = ({ onFillInput }) => {
                     "py-6 flex flex-col items-center justify-center gap-2 text-gray-500 dark:text-gray-400",
                 },
                 [
-                  e("i", {
-                    className: "fas fa-circle-notch fa-spin text-lg text-emerald-500",
+                  e(Icono, {
+                    nombre: "loader-circle", girar: true, className: "text-lg text-emerald-500",
                   }),
                   e("span", { className: "text-xs" }, "Cargando catálogo y BCV..."),
                 ],
@@ -504,7 +504,7 @@ const InboxQuickCalculator = ({ onFillInput }) => {
                               className:
                                 "w-6 sm:w-7 h-6 sm:h-7 rounded-lg flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer shrink-0",
                             },
-                            e("i", { className: "fas fa-trash text-xs" }),
+                            e(Icono, { nombre: "trash", className: "text-xs" }),
                           ),
                         );
                       }
@@ -531,7 +531,7 @@ const InboxQuickCalculator = ({ onFillInput }) => {
                         "self-start flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 py-1 px-1.5 rounded hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition cursor-pointer",
                     },
                     [
-                      e("i", { className: "fas fa-plus text-[10px]" }),
+                      e(Icono, { nombre: "plus", className: "text-[10px]" }),
                       e("span", null, "Añadir otro"),
                     ],
                   ),
@@ -596,8 +596,8 @@ const InboxQuickCalculator = ({ onFillInput }) => {
                         "w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer",
                     },
                     [
-                      e("i", {
-                        className: "fas fa-comment-dots text-xs",
+                      e(Icono, {
+                        nombre: "message-circle-more", className: "text-xs",
                         "aria-hidden": "true",
                       }),
                       e("span", null, "Insertar en el chat"),

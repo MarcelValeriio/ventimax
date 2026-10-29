@@ -196,6 +196,20 @@ module.exports = function (io) {
     configAdminController.getCatalogoAbuso,
   );
 
+  // Preguntas frecuentes de la tienda (F2b, Solo Admin con config:manage)
+  router.get(
+    "/config/preguntas-frecuentes",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.getPreguntasFrecuentesConfig,
+  );
+  router.put(
+    "/config/preguntas-frecuentes",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.updatePreguntasFrecuentesConfig,
+  );
+
   // Gestión de Categorías (Solo Admin)
   router.get(
     "/categorias",

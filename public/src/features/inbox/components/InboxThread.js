@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/inbox/components/InboxThread.js
 // Hilo de la conversación activa con burbujas normalizadas (§6.2 MensajeUnificado).
 // Reutiliza los patrones visuales de MessageList (WhatsApp) e InstagramMessageList.
@@ -66,7 +67,7 @@ const e = React.createElement;
 const CANAL_META = {
   whatsapp: {
     label: "WhatsApp",
-    icono: "fab fa-whatsapp",
+    icono: { marca: "whatsapp" },
     chip: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
     // LOTE B5 · WA-84: `bg-[#dcf8c6]` es el verde EXACTO de la burbuja saliente de
     // MessageBubble.js:241 (el inbox usaba `#d9fdd3`). `rounded-br-xs` deja la
@@ -83,7 +84,7 @@ const CANAL_META = {
   },
   instagram: {
     label: "Instagram",
-    icono: "fab fa-instagram",
+    icono: { marca: "instagram" },
     chip: "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300",
     saliente:
       "bg-gradient-to-r from-[#833AB4] via-[#E1306C] to-[#E1306C] text-white rounded-br-xs shadow-md shadow-pink-500/10",
@@ -95,7 +96,7 @@ const CANAL_META = {
   },
   messenger: {
     label: "Messenger",
-    icono: "fab fa-facebook-messenger",
+    icono: { marca: "messenger" },
     chip: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300",
     saliente: "bg-[#0084FF] text-white rounded-br-xs shadow-md shadow-sky-500/10",
     fondo: "bg-[#f8f8f8] dark:bg-gray-900",
@@ -263,7 +264,7 @@ const getFileIconInfo = (name, mime) => {
   const m = (mime || "").toLowerCase();
 
   if (ext === "pdf" || m.includes("pdf")) {
-    return { icon: "fa-file-pdf", color: "text-red-500", label: "PDF" };
+    return { icon: "file-text", color: "text-red-500", label: "PDF" };
   }
   if (
     ["xls", "xlsx", "csv", "ods"].includes(ext) ||
@@ -273,26 +274,26 @@ const getFileIconInfo = (name, mime) => {
     m.includes("excel") ||
     m.includes("csv")
   ) {
-    return { icon: "fa-file-excel", color: "text-green-500", label: "XLS" };
+    return { icon: "file-spreadsheet", color: "text-green-500", label: "XLS" };
   }
   if (
     ["doc", "docx", "rtf", "odt"].includes(ext) ||
     m.includes("word") ||
     m.includes("document")
   ) {
-    return { icon: "fa-file-word", color: "text-blue-500", label: "DOC" };
+    return { icon: "file-text", color: "text-blue-500", label: "DOC" };
   }
   if (
     ["zip", "rar", "7z", "tar", "gz"].includes(ext) ||
     m.includes("zip") ||
     m.includes("compressed")
   ) {
-    return { icon: "fa-file-archive", color: "text-amber-500", label: "ZIP" };
+    return { icon: "file-archive", color: "text-amber-500", label: "ZIP" };
   }
   if (["txt", "md"].includes(ext) || m.includes("text/plain")) {
-    return { icon: "fa-file-alt", color: "text-gray-500", label: "TXT" };
+    return { icon: "file-text", color: "text-gray-500", label: "TXT" };
   }
-  return { icon: "fa-file", color: "text-gray-500", label: "ARCHIVO" };
+  return { icon: "file", color: "text-gray-500", label: "ARCHIVO" };
 };
 
 // ── LOTE B5 · WA-84 — cola de burbuja (mismo triángulo que styles.js) ───────
@@ -326,11 +327,11 @@ const estiloCola = (entrante, color) =>
 // LOTE B5 · WA-95 — paridad de los ticks con MessageBubble.js:136-207 (legacy):
 //   enviando ⏱ → reloj · enviado ✓ · entregado ✓✓ gris · leído ✓✓ AZUL (#53bdeb).
 const STATUS_ICONO = {
-  enviando: { icono: "fas fa-clock text-white/80", titulo: "Enviando mensaje..." },
-  sent: { icono: "fas fa-check text-white drop-shadow-sm", titulo: "Enviado a Meta" },
-  delivered: { icono: "fas fa-check-double text-white drop-shadow-sm", titulo: "Entregado al dispositivo" },
-  read: { icono: "fas fa-check-double text-[#53bdeb] drop-shadow-sm", titulo: "Leído por el cliente" },
-  failed: { icono: "fas fa-exclamation-triangle text-red-600", titulo: "Falló el envío" },
+  enviando: { icono: { nombre: "clock", className: "text-white/80" }, titulo: "Enviando mensaje..." },
+  sent: { icono: { nombre: "check", className: "text-white drop-shadow-sm" }, titulo: "Enviado a Meta" },
+  delivered: { icono: { nombre: "check-check", className: "text-white drop-shadow-sm" }, titulo: "Entregado al dispositivo" },
+  read: { icono: { nombre: "check-check", className: "text-[#53bdeb] drop-shadow-sm" }, titulo: "Leído por el cliente" },
+  failed: { icono: { nombre: "triangle-alert", className: "text-red-600" }, titulo: "Falló el envío" },
 };
 
 // LOTE B7b · IG-46 — Instagram Direct NO emite estados de entrega por webhook
@@ -339,7 +340,7 @@ const STATUS_ICONO = {
 // salientes (InstagramMessageList.js:232-237). Es la entrada de respaldo del
 // canal: si algún día el servidor aporta un `status` real, ese manda.
 const STATUS_IG_SALIENTE = {
-  icono: "fas fa-check-double text-white/90",
+  icono: { nombre: "check-check", className: "text-white/90" },
   titulo: "Entregado por Instagram Direct",
 };
 
@@ -629,10 +630,7 @@ const InboxThread = ({
         className: `w-full ${clases} text-white py-2.5 px-4 rounded-lg text-xs sm:text-sm font-bold shadow-sm transition flex items-center justify-center gap-2 active:scale-[0.99] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`,
       },
       [
-        e("i", {
-          key: "ic",
-          className: `fas ${cargandoAccion ? "fa-spinner fa-spin" : icono} text-sm`,
-        }),
+        e(Icono, { key: "ic", nombre: cargandoAccion ? "loader-circle" : icono, girar: cargandoAccion, className: "text-sm" }),
         texto,
       ],
     );
@@ -661,7 +659,7 @@ const InboxThread = ({
                 `btn-confirmar-pago-${orderId}`,
                 `Confirmar pago y enviar comandas${correlativoStr}`,
                 { accion: () => onConfirmarPago(orderId), titulo: `Confirmar Pago${correlativoStr}` },
-                "fa-check-double",
+                "check-check",
                 `Confirmar Pago${correlativoStr}`,
                 "bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800",
               )
@@ -680,7 +678,7 @@ const InboxThread = ({
                   accion: () => onCambiarEstadoPedido(orderId, "en_ruta"),
                   titulo: `Despachar Pedido${correlativoStr}`,
                 },
-                "fa-motorcycle",
+                "motorbike",
                 `Despachar Pedido${correlativoStr}`,
                 "bg-blue-600 hover:bg-blue-700 active:bg-blue-800",
               )
@@ -699,7 +697,7 @@ const InboxThread = ({
                   accion: () => onCambiarEstadoPedido(orderId, "entregado"),
                   titulo: `Marcar como Entregado${correlativoStr}`,
                 },
-                "fa-flag-checkered",
+                "flag",
                 `Marcar como Entregado${correlativoStr}`,
                 "bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800",
               )
@@ -753,7 +751,7 @@ const InboxThread = ({
               className:
                 "w-10 h-10 bg-[#027eb5] text-white rounded-full flex items-center justify-center shrink-0",
             },
-            e("i", { className: "fas fa-shopping-bag" }),
+            e(Icono, { nombre: "shopping-bag" }),
           ),
           e("div", { key: "info" }, [
             e(
@@ -763,7 +761,7 @@ const InboxThread = ({
                 className:
                   "text-xs font-black text-[#015c85] dark:text-sky-200 uppercase tracking-tighter",
               },
-              `📦 Pedido Confirmado ${ped.idFormateado || ped.correlativo || "---"}`,
+              `Pedido Confirmado ${ped.idFormateado || ped.correlativo || "---"}`,
             ),
             e(
               "p",
@@ -884,7 +882,7 @@ const InboxThread = ({
             title: "Volver a la lista",
             "aria-label": "Volver a la lista",
           },
-          e("i", { className: "fas fa-arrow-left" }),
+          e(Icono, { nombre: "arrow-left" }),
         ),
         canal === "instagram"
           ? e(InstagramAvatar, {
@@ -920,11 +918,11 @@ const InboxThread = ({
             // (origen: InstagramHeader.js:80-85). La alimenta el `perfil` del
             // objeto unificado.
             igVerificado
-              ? e("i", {
+              ? e(Icono, {
                   key: "verificado",
                   "data-testid": "ig-verificado-header",
-                  className: "fas fa-check-circle text-sky-500 text-[11px] shrink-0",
-                  title: "Cuenta verificada",
+                  nombre: "circle-check", className: "text-sky-500 text-[11px] shrink-0",
+                  titulo: "Cuenta verificada",
                   "aria-label": "Cuenta verificada",
                 })
               : null,
@@ -936,15 +934,15 @@ const InboxThread = ({
                 title: `Canal: ${meta.label}`,
               },
               [
-                e("i", { key: "ic", className: `${meta.icono} text-[8px]` }),
+                e(Icono, { key: "ic", ...meta.icono, className: "text-[8px]" }),
                 meta.label,
               ],
             ),
             conversacion.origen === "anuncio"
-              ? e("i", {
+              ? e(Icono, {
                   key: "origen",
-                  className: "fas fa-bullhorn text-purple-500 text-[10px] shrink-0",
-                  title: `Vino de un anuncio${conversacion.detalleOrigen ? ` (${conversacion.detalleOrigen})` : ""}`,
+                  nombre: "megaphone", className: "text-purple-500 text-[10px] shrink-0",
+                  titulo: `Vino de un anuncio${conversacion.detalleOrigen ? ` (${conversacion.detalleOrigen})` : ""}`,
                 })
               : null,
             codigoWebActivo
@@ -957,7 +955,7 @@ const InboxThread = ({
                     title: `Pedido web: ${codigoWebActivo}`,
                   },
                   [
-                    e("i", { key: "ic-web", className: "fas fa-shopping-cart text-[8px]" }),
+                    e(Icono, { key: "ic-web", nombre: "shopping-cart", className: "text-[8px]" }),
                     `Pedido web ${codigoWebActivo}`,
                   ],
                 )
@@ -1028,10 +1026,7 @@ const InboxThread = ({
                     }`,
                   },
                   [
-                    e("i", {
-                      key: "ic",
-                      className: `fas ${esManual ? "fa-user-edit" : "fa-robot"} text-[10px]`,
-                    }),
+                    e(Icono, { key: "ic", nombre: esManual ? "user-pen" : "bot", className: "text-[10px]" }),
                     e("span", { key: "txt", className: "hidden sm:inline" }, esManual ? "Manual" : "Bot ON"),
                   ],
                 )
@@ -1053,9 +1048,7 @@ const InboxThread = ({
                     : "border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800"
                 }`,
               },
-              e("i", {
-                className: `fas ${menuAccionesAbierto ? "fa-times" : "fa-bars"} text-xs`,
-              }),
+              e(Icono, { nombre: menuAccionesAbierto ? "x" : "menu", className: "text-xs" }),
             ),
 
             // Dropdown de acciones estilado
@@ -1088,9 +1081,8 @@ const InboxThread = ({
                                 "w-full text-left px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-gray-700 dark:text-gray-200 transition cursor-pointer group",
                             },
                             [
-                              e("i", {
-                                className:
-                                  "fas fa-robot text-xs w-4 text-center text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform",
+                              e(Icono, {
+                                nombre: "bot", className: "text-xs w-4 text-center text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform",
                               }),
                               e("div", { className: "flex flex-col flex-1 min-w-0" }, [
                                 e("span", { className: "font-semibold text-gray-800 dark:text-gray-100" }, "Venta IA"),
@@ -1118,9 +1110,8 @@ const InboxThread = ({
                               }`,
                             },
                             [
-                              e("i", {
-                                className:
-                                  "fas fa-id-card text-xs w-4 text-center text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform",
+                              e(Icono, {
+                                nombre: "id-card", className: "text-xs w-4 text-center text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform",
                               }),
                               e("div", { className: "flex flex-col flex-1 min-w-0" }, [
                                 e("span", { className: "font-semibold" }, "Ficha del Cliente"),
@@ -1151,9 +1142,8 @@ const InboxThread = ({
                               }`,
                             },
                             [
-                              e("i", {
-                                className:
-                                  "fas fa-info-circle text-xs w-4 text-center text-[#E1306C] group-hover:scale-110 transition-transform",
+                              e(Icono, {
+                                nombre: "info", className: "text-xs w-4 text-center text-[#E1306C] group-hover:scale-110 transition-transform",
                               }),
                               e("div", { className: "flex flex-col flex-1 min-w-0" }, [
                                 e("span", { className: "font-semibold" }, "Perfil de Instagram"),
@@ -1186,9 +1176,8 @@ const InboxThread = ({
                                 "w-full text-left px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-gray-700 dark:text-gray-200 transition cursor-pointer group",
                             },
                             [
-                              e("i", {
-                                className:
-                                  "fas fa-unlock text-xs w-4 text-center text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform",
+                              e(Icono, {
+                                nombre: "lock-open", className: "text-xs w-4 text-center text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform",
                               }),
                               e("div", { className: "flex flex-col flex-1 min-w-0" }, [
                                 e("span", { className: "font-semibold text-gray-800 dark:text-gray-100" }, "Destrabar Bot"),
@@ -1212,9 +1201,8 @@ const InboxThread = ({
                                 "w-full text-left px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/60 text-gray-700 dark:text-gray-200 transition cursor-pointer group",
                             },
                             [
-                              e("i", {
-                                className:
-                                  "fas fa-external-link-alt text-xs w-4 text-center text-gray-500 group-hover:scale-110 transition-transform",
+                              e(Icono, {
+                                nombre: "external-link", className: "text-xs w-4 text-center text-gray-500 group-hover:scale-110 transition-transform",
                               }),
                               e("div", { className: "flex flex-col flex-1 min-w-0" }, [
                                 e("span", { className: "font-semibold text-gray-800 dark:text-gray-100" }, `Consola de ${meta.label}`),
@@ -1248,11 +1236,7 @@ const InboxThread = ({
                               }`,
                             },
                             [
-                              e("i", {
-                                className: `fas ${
-                                  conversacion.bloqueado ? "fa-user-check text-emerald-600 dark:text-emerald-400" : "fa-user-slash text-red-500"
-                                } text-xs w-4 text-center group-hover:scale-110 transition-transform`,
-                              }),
+                              e(Icono, { nombre: conversacion.bloqueado ? "user-check" : "user-x", className: `${conversacion.bloqueado ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"} text-xs w-4 text-center group-hover:scale-110 transition-transform` }),
                               e("div", { className: "flex flex-col flex-1 min-w-0" }, [
                                 e(
                                   "span",
@@ -1294,7 +1278,7 @@ const InboxThread = ({
           },
           [
             e("div", { key: "banner-msg", className: "flex items-center gap-2 min-w-0" }, [
-              e("i", { className: "fas fa-robot text-amber-600 dark:text-amber-400" }),
+              e(Icono, { nombre: "bot", className: "text-amber-600 dark:text-amber-400" }),
               e(
                 "span",
                 { className: "truncate" },
@@ -1329,7 +1313,7 @@ const InboxThread = ({
           },
           [
             e("div", { key: "info", className: "flex items-center gap-2 min-w-0 text-purple-800 dark:text-purple-200 font-semibold" }, [
-              e("i", { key: "ic", className: "fas fa-shopping-bag" }),
+              e(Icono, { key: "ic", nombre: "shopping-bag" }),
               e(
                 "span",
                 { key: "txt", className: "truncate" },
@@ -1380,10 +1364,9 @@ const InboxThread = ({
              "inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xs text-xs text-gray-500 dark:text-gray-400 font-medium",
          },
          [
-           e("i", {
+           e(Icono, {
              key: "banner-icon",
-             className:
-               "fab fa-instagram text-transparent bg-clip-text bg-gradient-to-r from-[#833AB4] via-[#E1306C] to-[#F77737] text-sm",
+             marca: "instagram", className: "text-transparent bg-clip-text bg-gradient-to-r from-[#833AB4] via-[#E1306C] to-[#F77737] text-sm",
            }),
            e("span", { key: "banner-text" }, "Conversación de Instagram Direct"),
          ],
@@ -1408,7 +1391,7 @@ const InboxThread = ({
            className:
              "bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-2 shadow-sm",
          },
-         "👤 Modo Manual — El bot está pausado para este chat. Los mensajes del cliente no recibirán respuesta automática.",
+         "Modo Manual — El bot está pausado para este chat. Los mensajes del cliente no recibirán respuesta automática.",
        ),
      )
    : null,
@@ -1439,7 +1422,7 @@ const InboxThread = ({
                   "h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 gap-2",
               },
               [
-                e("i", { key: "ic", className: `${meta.icono} text-4xl opacity-30` }),
+                e(Icono, { key: "ic", ...meta.icono, className: "text-4xl opacity-30" }),
                 e(
                   "p",
                   { key: "txt", className: "text-xs font-medium" },
@@ -1563,7 +1546,7 @@ const InboxThread = ({
                       className:
                         "opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 text-gray-400 hover:text-[#008069] dark:hover:text-emerald-400 bg-white/90 dark:bg-gray-800/90 rounded-full shadow-xs text-xs cursor-pointer shrink-0 select-none mb-1",
                     },
-                    e("i", { className: "fas fa-reply" }),
+                    e(Icono, { nombre: "reply" }),
                   )
                 : null;
 
@@ -1664,9 +1647,9 @@ const InboxThread = ({
                                         "flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-500 dark:text-gray-300",
                                     },
                                     [
-                                      e("i", {
+                                      e(Icono, {
                                         key: "ic",
-                                        className: "fas fa-image text-gray-400 text-base",
+                                        nombre: "image", className: "text-gray-400 text-base",
                                       }),
                                       e("span", { key: "txt" }, "No se pudo cargar la imagen."),
                                     ],
@@ -1732,9 +1715,8 @@ const InboxThread = ({
                                       className:
                                         "w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-800 flex items-center justify-center shrink-0",
                                     },
-                                    e("i", {
-                                      className:
-                                        "fas fa-map-marker-alt text-blue-500 dark:text-blue-300",
+                                    e(Icono, {
+                                      nombre: "map-pin", className: "text-blue-500 dark:text-blue-300",
                                     }),
                                   ),
                                   e("div", { key: "txt", className: "flex flex-col" }, [
@@ -1783,9 +1765,7 @@ const InboxThread = ({
                                     key: "ic",
                                     className: `w-10 h-10 rounded-lg bg-white dark:bg-gray-800 shadow-xs flex items-center justify-center shrink-0 ${fileIconInfo.color}`,
                                   },
-                                  e("i", {
-                                    className: `fas ${fileIconInfo.icon} text-lg`,
-                                  }),
+                                  e(Icono, { nombre: fileIconInfo.icon, className: "text-lg" }),
                                 ),
                                 e("div", { key: "info", className: "flex-1 min-w-0 pr-2" }, [
                                   e(
@@ -1815,7 +1795,7 @@ const InboxThread = ({
                                       "opacity-60 group-hover:opacity-100 transition-opacity p-1 shrink-0",
                                     title: "Descargar",
                                   },
-                                  e("i", { className: "fas fa-arrow-down text-xs" }),
+                                  e(Icono, { nombre: "arrow-down", className: "text-xs" }),
                                 ),
                               ],
                             )
@@ -1839,9 +1819,9 @@ const InboxThread = ({
                                           "El cliente envió un código de pedido web mientras el bot está en modo manual",
                                       },
                                       [
-                                        e("i", {
+                                        e(Icono, {
                                           key: "ic",
-                                          className: "fas fa-shopping-cart text-[9px]",
+                                          nombre: "shopping-cart", className: "text-[9px]",
                                         }),
                                         "Código de pedido web",
                                       ],
@@ -1866,11 +1846,7 @@ const InboxThread = ({
                             // sustituye por el botón Reintentar (paridad exacta con
                             // MessageBubble.js:173-196 del legacy).
                             status && !puedeReintentar
-                              ? e("i", {
-                                  key: "status",
-                                  className: `${status.icono} text-[9px] ml-0.5`,
-                                  title: status.titulo,
-                                })
+                              ? e(Icono, { key: "status", ...status.icono, className: `${status.icono.className} text-[9px] ml-0.5`, titulo: status.titulo })
                               : null,
                             puedeReintentar
                               ? e(
@@ -1901,7 +1877,7 @@ const InboxThread = ({
                                     e(
                                       "span",
                                       { key: "ic", className: "text-xs leading-none" },
-                                      "⚠️",
+                                      e(Icono, { nombre: "triangle-alert", className: "text-xs" }),
                                     ),
                                     e(
                                       "span",
@@ -1964,9 +1940,9 @@ const InboxThread = ({
             },
             [
               e("div", { key: "cita", className: "flex items-center gap-2 truncate min-w-0" }, [
-                e("i", {
+                e(Icono, {
                   key: "ic",
-                  className: "fas fa-reply text-[#008069] shrink-0 text-[11px]",
+                  nombre: "reply", className: "text-[#008069] shrink-0 text-[11px]",
                 }),
                 e(
                   "span",
@@ -1995,7 +1971,7 @@ const InboxThread = ({
                   className:
                     "text-gray-400 hover:text-gray-700 dark:hover:text-white p-1 rounded-full shrink-0 cursor-pointer transition",
                 },
-                e("i", { className: "fas fa-times text-xs" }),
+                e(Icono, { nombre: "x", className: "text-xs" }),
               ),
             ],
           )
@@ -2030,7 +2006,7 @@ const InboxThread = ({
                   : `Adjuntar imagen (${meta.label} solo admite imágenes)`,
               "aria-label": "Adjuntar archivo",
             },
-            e("i", { className: "far fa-image text-base sm:text-lg" }),
+            e(Icono, { nombre: "image", className: "text-base sm:text-lg" }),
           ),
           // LOTE B7a · WA-71 — botón de emojis (origen: WhatsAppInput.js:198-209).
           e(
@@ -2044,7 +2020,7 @@ const InboxThread = ({
               className:
                 "w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-gray-700/60 transition-colors active:scale-95 shrink-0 mb-0.5 cursor-pointer",
             },
-            e("i", { className: "far fa-smile text-base sm:text-lg", "aria-hidden": "true" }),
+            e(Icono, { nombre: "face-slightly-smiling", className: "text-base sm:text-lg", "aria-hidden": "true" }),
           ),
           e(
             "div",
@@ -2113,7 +2089,7 @@ const InboxThread = ({
               title: "Enviar mensaje",
               "aria-label": "Enviar mensaje",
             },
-            e("i", { className: "fas fa-paper-plane text-sm" }),
+            e(Icono, { nombre: "send", className: "text-sm" }),
           ),
         ],
       ),

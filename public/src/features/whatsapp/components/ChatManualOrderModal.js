@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 import React from "https://cdn.skypack.dev/react";
 const { useState, useEffect } = React;
 const e = React.createElement;
@@ -92,7 +93,7 @@ const ChatManualOrderModal = ({
     
     const isValidUrl = comprobanteAIUrl && (String(comprobanteAIUrl).startsWith("http") || String(comprobanteAIUrl).startsWith("/api/"));
     if (isDigital && !comprobanteFile && !isValidUrl) {
-      window.showToast?.("⚠️ Debes adjuntar o tener capturado el comprobante para pagos digitales.", "error");
+      window.showToast?.("Debes adjuntar o tener capturado el comprobante para pagos digitales.", "error");
       setSaving(false);
       return;
     }
@@ -110,7 +111,7 @@ const ChatManualOrderModal = ({
     let vueltoUSD = 0;
     if (!isDigital && formData.pago.pagoCon !== "" && pagoConNum > 0) {
       if (pagoConNum < totalUSD) {
-        window.showToast?.("⚠️ El billete (Pago con) no puede ser menor al total del pedido.", "error");
+        window.showToast?.("El billete (Pago con) no puede ser menor al total del pedido.", "error");
         setSaving(false);
         return;
       }
@@ -156,14 +157,14 @@ const ChatManualOrderModal = ({
         headers: { "Content-Type": "multipart/form-data" }
       });
       if (res.data && res.data.success) {
-        window.showToast?.("✅ Venta manual generada");
+        window.showToast?.("Venta manual generada");
         onClose();
       } else {
-        window.showToast?.("❌ Error: " + res.data.error, "error");
+        window.showToast?.("Error: " + res.data.error, "error");
       }
     } catch (e) {
       const errorMsg = e.response?.data?.error || "Error de red";
-      window.showToast?.("❌ Error: " + errorMsg, "error");
+      window.showToast?.("Error: " + errorMsg, "error");
     } finally {
       setSaving(false);
     }
@@ -184,17 +185,17 @@ const ChatManualOrderModal = ({
     e("div", { className: "bg-[#111b21] rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden text-[#e9edef] border border-[#2a3942]" }, [
       e("div", { className: "p-4 border-b border-[#2a3942] flex justify-between items-center bg-[#202c33]" }, [
         e("h2", { className: "text-lg font-bold flex items-center gap-2" }, [
-          e("i", { className: "fas fa-robot text-[#00a884]" }),
+          e(Icono, { nombre: "bot", className: "text-[#00a884]" }),
           "Copiloto: Venta Manual"
         ]),
         e("button", { onClick: onClose, className: "text-[#8696a0] hover:text-[#e9edef] transition" }, 
-          e("i", { className: "fas fa-times text-xl" })
+          e(Icono, { nombre: "x", className: "text-xl" })
         )
       ]),
       
       e("div", { className: "p-4 overflow-y-auto flex-1 space-y-5" }, [
         loading ? e("div", { className: "text-center py-12" }, [
-          e("i", { className: "fas fa-circle-notch fa-spin text-4xl text-[#00a884] mb-3" }),
+          e(Icono, { nombre: "loader-circle", girar: true, className: "text-4xl text-[#00a884] mb-3" }),
           e("p", { className: "text-[#8696a0] font-semibold tracking-wide" }, "Analizando la conversación...")
         ]) : e(React.Fragment, null, [
           
@@ -247,7 +248,7 @@ const ChatManualOrderModal = ({
                 onChange: ev => updateItem(idx, "cantidad", ev.target.value),
                 className: "w-20 bg-[#111b21] border border-[#2a3942] p-2 rounded-lg text-center text-sm text-[#e9edef] focus:border-[#00a884] outline-none"
               }),
-              e("button", { onClick: () => removeItem(idx), className: "text-red-400 hover:text-red-300 px-3 transition" }, e("i", { className: "fas fa-trash" }))
+              e("button", { onClick: () => removeItem(idx), className: "text-red-400 hover:text-red-300 px-3 transition" }, e(Icono, { nombre: "trash" }))
             ]))
           ]),
           
@@ -301,7 +302,7 @@ const ChatManualOrderModal = ({
               }),
               e("div", { className: "flex-1 text-xs" }, [
                 e("p", { className: "text-[#00a884] font-semibold flex items-center gap-1.5" }, [
-                  e("i", { className: "fas fa-check-circle" }),
+                  e(Icono, { nombre: "circle-check" }),
                   "Comprobante extraído del chat"
                 ]),
                 e("a", { 
@@ -333,11 +334,11 @@ const ChatManualOrderModal = ({
         const isValidUrl = comprobanteAIUrl && (String(comprobanteAIUrl).startsWith("http") || String(comprobanteAIUrl).startsWith("/api/"));
         const faltaComprobante = isDigital && !comprobanteFile && !isValidUrl;
         return e("button", { 
-          onClick: faltaComprobante ? () => window.showToast?.("⚠️ Adjunta el comprobante de pago primero.", "error") : handleSave, 
+          onClick: faltaComprobante ? () => window.showToast?.("Adjunta el comprobante de pago primero.", "error") : handleSave, 
           disabled: loading || saving,
           className: `px-5 py-2.5 rounded-lg font-black transition flex items-center gap-2 ${faltaComprobante ? 'bg-gray-700 text-gray-500 cursor-not-allowed hover:bg-gray-700' : 'bg-[#00a884] text-[#111b21] hover:bg-[#008069] disabled:opacity-50'}` 
         }, [
-          saving ? e("i", { className: "fas fa-spinner fa-spin" }) : e("i", { className: "fas fa-check" }),
+          saving ? e(Icono, { nombre: "loader-circle", girar: true }) : e(Icono, { nombre: "check" }),
           "Confirmar e Ingresar"
         ])
       })()

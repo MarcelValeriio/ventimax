@@ -1,3 +1,4 @@
+import { Icono } from "./Icono.js";
 /**
  * public/src/components/OrderDetailsModal.js
  * Componente Modal de Detalles de Pedidos Compartido (Versión COMANDA EXTENDIDA - Clean Animations)
@@ -86,9 +87,9 @@ const OrderDetailsModal = ({
       const res = await apiClient.put(`/api/admin/orders/${order._id}/envio`, payload);
       if (res.data?.success) {
         if (res.data.aviso) {
-          alert(`⚠️ ${res.data.aviso}`);
+          alert(`${res.data.aviso}`);
         }
-        window.showToast?.("✅ Método de envío actualizado");
+        window.showToast?.("Método de envío actualizado");
         if (res.data.data) {
           setEditForm(JSON.parse(JSON.stringify(res.data.data)));
           if (order) {
@@ -100,7 +101,7 @@ const OrderDetailsModal = ({
         if (onUpdateStatus) onUpdateStatus(order._id, order.estado);
       }
     } catch (err) {
-      alert("❌ Error actualizando envío: " + (err.response?.data?.error || err.message));
+      alert("Error actualizando envío: " + (err.response?.data?.error || err.message));
     } finally {
       setSavingShipping(false);
     }
@@ -265,7 +266,7 @@ const OrderDetailsModal = ({
                   onClick: () => setIsEditing(true),
                   className: "bg-white/20 hover:bg-white/30 text-white rounded-full p-2 transition flex items-center justify-center",
                   title: "Editar Pedido"
-                }, e("i", { className: "fas fa-edit text-sm" })),
+                }, e(Icono, { nombre: "square-pen", className: "text-sm" })),
                 e(
                   "p",
                   { className: "text-xs font-bold opacity-90" },
@@ -285,7 +286,7 @@ const OrderDetailsModal = ({
                         "inline-flex items-center gap-1 px-2.5 py-0.5 bg-blue-500/80 border border-white/30 rounded-full text-[10px] font-black uppercase shadow-xs tracking-wider",
                       title: `Click-to-WhatsApp: ${order?.ctwaClid}`,
                     },
-                    e("i", { className: "fab fa-meta text-[10px]" }),
+                    e(Icono, { marca: "meta", className: "text-[10px]" }),
                     "Meta Ad",
                   ),
                 e(
@@ -310,7 +311,7 @@ const OrderDetailsModal = ({
                 className:
                   "text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase mb-1",
               },
-              "👤 Cliente",
+              "Cliente",
             ),
             isEditing
               ? e("div", { className: "space-y-2 mt-2" }, [
@@ -361,7 +362,7 @@ const OrderDetailsModal = ({
                         className:
                           "text-emerald-500 font-bold text-sm flex items-center gap-2 mt-1 hover:underline w-fit",
                       },
-                      [e("i", { className: "fab fa-whatsapp" }), telefonoCliente],
+                      [e(Icono, { marca: "whatsapp" }), telefonoCliente],
                     ),
                 ]),
             // Micro-CRM Badges
@@ -381,11 +382,11 @@ const OrderDetailsModal = ({
                     },
                     [
                       e("span", { className: "flex items-center gap-1.5" }, [
-                        e("i", { className: "fas fa-id-card text-blue-600 dark:text-blue-400" }),
+                        e(Icono, { nombre: "id-card", className: "text-blue-600 dark:text-blue-400" }),
                         "Ficha CRM del Cliente",
                       ]),
                       loadingCrm &&
-                        e("i", { className: "fas fa-spinner fa-spin text-blue-500 text-xs" }),
+                        e(Icono, { nombre: "loader-circle", girar: true, className: "text-blue-500 text-xs" }),
                     ],
                   ),
                   e(
@@ -500,7 +501,7 @@ const OrderDetailsModal = ({
                         className:
                           "w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm",
                       },
-                      e("i", { className: "fab fa-meta text-sm" }),
+                      e(Icono, { marca: "meta", className: "text-sm" }),
                     ),
                     e("div", { className: "overflow-hidden" }, [
                       e(
@@ -541,7 +542,7 @@ const OrderDetailsModal = ({
                   className:
                     "text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2",
                 },
-                "📍 Dirección de Entrega",
+                "Dirección de Entrega",
               ),
               isEditing
                 ? e("textarea", {
@@ -569,7 +570,7 @@ const OrderDetailsModal = ({
                       "inline-flex items-center gap-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold transition w-fit",
                   },
                   [
-                    e("i", { className: "fas fa-map-marked-alt text-red-500" }),
+                    e(Icono, { nombre: "map", className: "text-red-500" }),
                     "Ver en Google Maps",
                   ],
                 ),
@@ -579,7 +580,7 @@ const OrderDetailsModal = ({
         e("div", { className: "bg-gray-50 dark:bg-gray-700/30 p-4 rounded-xl border border-gray-100 dark:border-gray-700 space-y-3" }, [
           e("div", { className: "flex justify-between items-center" }, [
             e("div", { className: "flex items-center gap-2" }, [
-              e("i", { className: "fas fa-truck text-emerald-600 dark:text-emerald-400 text-xs" }),
+              e(Icono, { nombre: "truck", className: "text-emerald-600 dark:text-emerald-400 text-xs" }),
               e("span", { className: "text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest" }, "Método de Entrega / Envío"),
             ]),
             !["entregado", "cancelado", "anulado"].includes(order?.estado) &&
@@ -609,9 +610,9 @@ const OrderDetailsModal = ({
                     ),
                   ]),
                   order.envio.tipo === "retiro" && order.envio.direccion &&
-                    e("p", { className: "text-xs text-gray-500 dark:text-gray-400 italic" }, `📍 Punto: ${order.envio.direccion}`),
+                    e("p", { className: "text-xs text-gray-500 dark:text-gray-400 italic" }, `Punto: ${order.envio.direccion}`),
                   order.envio.tipo === "retiro" && order.envio.horario &&
-                    e("p", { className: "text-xs text-gray-500 dark:text-gray-400 italic" }, `🕒 Horario: ${order.envio.horario}`),
+                    e("p", { className: "text-xs text-gray-500 dark:text-gray-400 italic" }, `Horario: ${order.envio.horario}`),
                 ])
               : e("p", { className: "text-xs text-gray-400 italic" }, "Sin método de envío seleccionado"),
           ]),
@@ -686,7 +687,7 @@ const OrderDetailsModal = ({
               className:
                 "text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 border-b pb-2 dark:border-gray-700",
             },
-            "🛒 Detalle de Productos",
+            "Detalle de Productos",
           ),
           e("div", { className: "space-y-4" }, [
             ((isEditing ? editForm?.items : order?.items) || []).length > 0
@@ -732,7 +733,7 @@ const OrderDetailsModal = ({
                             setEditForm(prev => ({ ...prev, items: newItems }));
                           },
                           className: "text-red-500 hover:text-red-700 p-1 rounded-full bg-red-50"
-                        }, e("i", { className: "fas fa-trash-alt" }))
+                        }, e(Icono, { nombre: "trash" }))
                       ])
                     ],
                   );
@@ -779,14 +780,14 @@ const OrderDetailsModal = ({
                   },
                   isEfectivo
                     ? [
-                        e("i", {
-                          className: "fas fa-money-bill-wave text-emerald-500",
+                        e(Icono, {
+                          nombre: "banknote", className: "text-emerald-500",
                         }),
                         "Efectivo",
                       ]
                     : [
-                        e("i", {
-                          className: "fas fa-credit-card text-blue-500",
+                        e(Icono, {
+                          nombre: "credit-card", className: "text-blue-500",
                         }),
                         metodoNombre.toUpperCase(),
                       ],
@@ -870,7 +871,7 @@ const OrderDetailsModal = ({
                       className:
                         "text-[10px] font-black text-gray-400 uppercase mb-2",
                     },
-                    "🧾 Registro Contable",
+                    "Registro Contable",
                   ),
                   e(
                     "div",
@@ -934,7 +935,7 @@ const OrderDetailsModal = ({
                       className:
                         "text-[10px] font-black text-gray-400 uppercase mb-2",
                     },
-                    "🖼️ Comprobante Adjunto",
+                    "Comprobante Adjunto",
                   ),
                   e(
                     "a",
@@ -961,7 +962,7 @@ const OrderDetailsModal = ({
                 className:
                   "text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2",
               },
-              "📝 Notas del Pedido",
+              "Notas del Pedido",
             ),
             isEditing
               ? e("textarea", {
@@ -980,7 +981,7 @@ const OrderDetailsModal = ({
                 ),
           ]),
         isEditing && e("div", { className: "mt-4 bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/30" }, [
-          e("p", { className: "text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-2" }, "📎 Subir o Reemplazar Comprobante de Pago"),
+          e("p", { className: "text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-2" }, "Subir o Reemplazar Comprobante de Pago"),
           e("input", {
             type: "file",
             accept: "image/*",
@@ -1007,7 +1008,7 @@ const OrderDetailsModal = ({
                   "w-full px-6 py-3 bg-red-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-red-600/20 active:scale-95 transition flex items-center justify-center gap-2 hover:bg-red-700 disabled:opacity-50",
               },
               [
-                e("i", { className: "fas fa-trash-alt" }),
+                e(Icono, { nombre: "trash" }),
                 deleting ? "Eliminando..." : "Eliminar Pedido",
               ],
             ),
@@ -1031,7 +1032,7 @@ const OrderDetailsModal = ({
             disabled: saving,
             className: "flex-[2] bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition flex items-center justify-center gap-2"
           }, [
-            saving ? e("i", { className: "fas fa-spinner fa-spin" }) : e("i", { className: "fas fa-save" }),
+            saving ? e(Icono, { nombre: "loader-circle", girar: true }) : e(Icono, { nombre: "save" }),
             saving ? "Guardando..." : "Guardar Cambios"
           ])
         ] : [
@@ -1056,7 +1057,7 @@ const OrderDetailsModal = ({
                 className:
                   "flex-[2] bg-orange-500 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-orange-500/20 active:scale-95 transition flex items-center justify-center gap-2",
               },
-              [e("i", { className: "fas fa-check-double" }), "Confirmar Pago"],
+              [e(Icono, { nombre: "check-check" }), "Confirmar Pago"],
             ),
           showRouteBtn &&
             e(
@@ -1069,7 +1070,7 @@ const OrderDetailsModal = ({
                 className:
                   "flex-[2] bg-blue-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-500/20 active:scale-95 transition flex items-center justify-center gap-2",
               },
-              [e("i", { className: "fas fa-truck" }), "Despachar Pedido"],
+              [e(Icono, { nombre: "truck" }), "Despachar Pedido"],
             ),
           showDeliverBtn &&
             e(
@@ -1083,7 +1084,7 @@ const OrderDetailsModal = ({
                   "flex-[2] bg-indigo-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition flex items-center justify-center gap-2",
               },
               [
-                e("i", { className: "fas fa-flag-checkered" }),
+                e(Icono, { nombre: "flag" }),
                 "Marcar como Entregado",
               ],
             ),

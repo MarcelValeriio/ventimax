@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/inbox/components/InboxConversationRow.js
 // Fila de conversación del Inbox Unificado.
 // Evolución de whatsapp/components/ContactCard.js: en vez de props sueltas recibe
@@ -21,7 +22,7 @@ const CANAL_META = {
   whatsapp: {
     label: "WhatsApp",
     abrev: "WA",
-    icono: "fab fa-whatsapp",
+    icono: { marca: "whatsapp" },
     chip: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
     badge: "bg-[#25D366]",
     // LOTE B7b: la píldora de no leídos y el color de la hora con no leídos
@@ -32,7 +33,7 @@ const CANAL_META = {
   instagram: {
     label: "Instagram",
     abrev: "IG",
-    icono: "fab fa-instagram",
+    icono: { marca: "instagram" },
     chip: "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300",
     badge: "bg-gradient-to-tr from-[#F77737] via-[#E1306C] to-[#833AB4]",
     pill: "bg-gradient-to-r from-[#E1306C] to-[#833AB4] text-white",
@@ -41,7 +42,7 @@ const CANAL_META = {
   messenger: {
     label: "Messenger",
     abrev: "MSGR",
-    icono: "fab fa-facebook-messenger",
+    icono: { marca: "messenger" },
     chip: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300",
     badge: "bg-[#0084FF]",
     pill: "bg-[#0084FF] text-white",
@@ -175,7 +176,7 @@ const InboxConversationRow = ({ conversacion, isActive, onClick }) => {
               className: `absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full ${meta.badge} text-white flex items-center justify-center text-[8px] ring-2 ring-white dark:ring-gray-800`,
               title: meta.label,
             },
-            e("i", { className: `${meta.icono} text-[8px]` }),
+            e(Icono, { ...meta.icono, className: "text-[8px]" }),
           ),
           modoManual &&
             e(
@@ -187,7 +188,7 @@ const InboxConversationRow = ({ conversacion, isActive, onClick }) => {
                 title: "Modo Manual activado",
                 "aria-label": "Modo Manual",
               },
-              e("i", { className: "fas fa-user-edit text-[7px]" }),
+              e(Icono, { nombre: "user-pen", className: "text-[7px]" }),
             ),
         ],
       ),
@@ -206,27 +207,27 @@ const InboxConversationRow = ({ conversacion, isActive, onClick }) => {
               },
               [
                 conversacion.requiereAtencion &&
-                  e("i", {
+                  e(Icono, {
                     key: "atencion",
-                    className: "fas fa-exclamation-circle text-amber-500 text-[10px] shrink-0",
-                    title: "Requiere atención",
+                    nombre: "circle-alert", className: "text-amber-500 text-[10px] shrink-0",
+                    titulo: "Requiere atención",
                   }),
                 e("span", { key: "name-text", className: "truncate" }, nombre),
                 conversacion.bloqueado &&
-                  e("i", {
+                  e(Icono, {
                     key: "bloqueado",
-                    className: "fas fa-user-slash text-red-500 text-[11px] shrink-0",
-                    title: "Usuario bloqueado",
+                    nombre: "user-x", className: "text-red-500 text-[11px] shrink-0",
+                    titulo: "Usuario bloqueado",
                   }),
-                // LOTE B7b · IG-24 — insignia verificada (`fa-check-circle`),
+                // LOTE B7b · IG-24 — insignia verificada (`circle-check`),
                 // paridad literal con InstagramSidebar.js:347-351. La alimenta
                 // `conversacion.perfil.verificado` (adaptador de Instagram).
                 estaVerificado &&
-                  e("i", {
+                  e(Icono, {
                     key: "verificado",
                     "data-testid": "ig-verificado",
-                    className: "fas fa-check-circle text-sky-500 text-[10px] shrink-0",
-                    title: "Cuenta verificada",
+                    nombre: "circle-check", className: "text-sky-500 text-[10px] shrink-0",
+                    titulo: "Cuenta verificada",
                     "aria-label": "Cuenta verificada",
                   }),
                 // LOTE B7a · WA-59 — indicador de lead estancado: punto rojo
@@ -234,10 +235,10 @@ const InboxConversationRow = ({ conversacion, isActive, onClick }) => {
                 // usaba un icono de reloj de arena, que no «late» y es más
                 // difícil de ver en la lista.
                 conversacion.origen === "anuncio" &&
-                  e("i", {
+                  e(Icono, {
                     key: "origen",
-                    className: "fas fa-bullhorn text-purple-500 text-[9px] shrink-0",
-                    title: "Vino de un anuncio",
+                    nombre: "megaphone", className: "text-purple-500 text-[9px] shrink-0",
+                    titulo: "Vino de un anuncio",
                   }),
               ],
             ),
@@ -302,7 +303,7 @@ const InboxConversationRow = ({ conversacion, isActive, onClick }) => {
                 className: `inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${meta.chip}`,
                 title: `Canal: ${meta.label}`,
               },
-              [e("i", { key: "ic", className: `${meta.icono} text-[8px]` }), meta.abrev],
+              [e(Icono, { key: "ic", ...meta.icono, className: "text-[8px]" }), meta.abrev],
             ),
             conversacion.pasoLabel
               ? e(
@@ -314,7 +315,7 @@ const InboxConversationRow = ({ conversacion, isActive, onClick }) => {
                     title: `Estado actual: ${conversacion.pasoLabel}`,
                   },
                   [
-                    e("i", { key: "ic", className: "fas fa-tag text-[8px]" }),
+                    e(Icono, { key: "ic", nombre: "tag", className: "text-[8px]" }),
                     e("span", { key: "txt", className: "truncate" }, conversacion.pasoLabel),
                   ],
                 )
@@ -329,7 +330,7 @@ const InboxConversationRow = ({ conversacion, isActive, onClick }) => {
                     title: `Pedido ${pedido.ultimoCorrelativo || ""} · ${pedido.ultimoEstado || ""}`,
                   },
                   [
-                    e("i", { key: "ic", className: "fas fa-shopping-bag text-[8px]" }),
+                    e(Icono, { key: "ic", nombre: "shopping-bag", className: "text-[8px]" }),
                     e(
                       "span",
                       { key: "txt", className: "truncate" },
@@ -347,7 +348,7 @@ const InboxConversationRow = ({ conversacion, isActive, onClick }) => {
                       "inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
                     title: "Conversación marcada por anti-spam",
                   },
-                  [e("i", { key: "ic", className: "fas fa-ban text-[8px]" }), "Bloqueado"],
+                  [e(Icono, { key: "ic", nombre: "ban", className: "text-[8px]" }), "Bloqueado"],
                 )
               : null,
           ]),

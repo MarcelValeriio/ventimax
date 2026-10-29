@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/whatsapp/components/MessageList.js
 import React from "https://cdn.skypack.dev/react";
 import MessageBubble from "./MessageBubble.js?v=5";
@@ -62,7 +63,7 @@ const MessageList = ({
               className: "bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-2 shadow-sm",
             },
             [
-              "👤 Modo Manual — El bot está pausado para este chat. Los mensajes del cliente no recibirán respuesta automática."
+              "Modo Manual — El bot está pausado para este chat. Los mensajes del cliente no recibirán respuesta automática."
             ]
           )
         ),
@@ -79,7 +80,7 @@ const MessageList = ({
               className: "text-[12px] bg-white border border-gray-200 px-4 py-1.5 rounded-full text-[#008069] shadow-sm hover:bg-gray-50 transition font-medium flex items-center gap-1.5",
             },
             [
-              e("i", { className: `fas ${loadingHistory ? "fa-spinner fa-spin" : "fa-history"} text-xs` }),
+              e(Icono, { nombre: loadingHistory ? "loader-circle" : "rotate-ccw-clock", girar: loadingHistory, className: "text-xs" }),
               loadingHistory ? "Cargando..." : "Cargar mensajes anteriores"
             ]
           )
@@ -115,10 +116,10 @@ const MessageList = ({
                 { className: "bg-[#e2f5fc] border border-[#b2dff2] rounded-xl p-3 max-w-[90%] md:max-w-md shadow-sm flex items-center gap-3" },
                 [
                   e("div", { className: "w-10 h-10 bg-[#027eb5] text-white rounded-full flex items-center justify-center shrink-0" }, 
-                    e("i", { className: "fas fa-shopping-bag" })
+                    e(Icono, { nombre: "shopping-bag" })
                   ),
                   e("div", null, [
-                    e("p", { className: "text-xs font-black text-[#015c85] uppercase tracking-tighter" }, `📦 Pedido Confirmado ${item.correlativo || "---"}`),
+                    e("p", { className: "text-xs font-black text-[#015c85] uppercase tracking-tighter" }, `Pedido Confirmado ${item.correlativo || "---"}`),
                     e("p", { className: "text-[10px] text-[#027eb5]" }, `Total: $${item.pago?.montoUSD || 0} / Bs. ${item.pago?.montoVES?.toLocaleString("es-VE") || "0"}`)
                   ])
                 ]

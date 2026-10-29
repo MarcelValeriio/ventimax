@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 /**
  * public/src/features/inbox/components/InboxChannelSettings.js
  * LOTE B6 — AJUSTES DEL CANAL (no de la conversación).
@@ -87,7 +88,7 @@ const InboxChannelSettings = ({
             className:
               "w-8 h-8 rounded-lg bg-[#008069]/10 text-[#008069] flex items-center justify-center shrink-0",
           },
-          e("i", { className: "fas fa-store text-sm" }),
+          e(Icono, { nombre: "store", className: "text-sm" }),
         ),
         e("span", { key: "txt", className: "flex flex-col min-w-0" }, [
           e(
@@ -135,7 +136,7 @@ const InboxChannelSettings = ({
                 : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
             }`,
           },
-          e("i", { className: "fas fa-robot text-sm" }),
+          e(Icono, { nombre: "bot", className: "text-sm" }),
         ),
         e("span", { key: "txt", className: "flex flex-col min-w-0 flex-1" }, [
           e(
@@ -209,7 +210,7 @@ const InboxChannelSettings = ({
               : "text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-gray-700/60"
           }`,
         },
-        e("i", { className: "fas fa-cog text-xs" }),
+        e(Icono, { nombre: "settings", className: "text-xs" }),
       ),
       abierto
         ? e(
@@ -251,7 +252,7 @@ const InboxChannelSettings = ({
                       className:
                         "w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer",
                     },
-                    e("i", { className: "fas fa-times text-[10px]" }),
+                    e(Icono, { nombre: "x", className: "text-[10px]" }),
                   ),
                 ],
               ),

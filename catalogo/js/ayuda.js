@@ -4,10 +4,13 @@
  * El número y los textos salen de GET /api/public/marca (campo `ayuda`); sin número no hay botón.
  */
 
-/** Vistas donde el botón estorba: el carrito y la confirmación ya tienen su propio botón de WhatsApp. */
+/**
+ * Vistas donde el botón estorba: el carrito y la confirmación ya tienen su propio botón de WhatsApp, y la ficha
+ * de producto tiene "Preguntar por WhatsApp" con el producto en el mensaje.
+ */
 export function debeMostrarAyuda(hash) {
   const h = typeof hash === "string" ? hash : "";
-  return !(h === "#/carrito" || h.startsWith("#/carrito?") || h.startsWith("#/confirmacion/"));
+  return !(h === "#/carrito" || h.startsWith("#/carrito?") || h.startsWith("#/confirmacion/") || h.startsWith("#/producto/"));
 }
 
 /** Texto prellenado: el del producto que se está mirando o el general. */

@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 /**
  * public/src/features/inbox/components/InboxManualOrderModal.js
  *
@@ -254,7 +255,7 @@ const InboxManualOrderModal = ({
 
     const isValidUrl = comprobanteAIUrl && (String(comprobanteAIUrl).startsWith("http") || String(comprobanteAIUrl).startsWith("/api/"));
     if (!comprobanteFile && !isValidUrl) {
-      window.showToast?.("⚠️ Debes adjuntar la foto del comprobante o de los billetes para procesar el pago.", "error");
+      window.showToast?.("Debes adjuntar la foto del comprobante o de los billetes para procesar el pago.", "error");
       setSaving(false);
       return;
     }
@@ -287,7 +288,7 @@ const InboxManualOrderModal = ({
 
     if (!isDigital && formData.pago.pagoCon !== "" && pagoConNum > 0) {
       if (pagoConNum < totalUSD) {
-        window.showToast?.("⚠️ El billete (Pago con) no puede ser menor al total del pedido.", "error");
+        window.showToast?.("El billete (Pago con) no puede ser menor al total del pedido.", "error");
         setSaving(false);
         return;
       }
@@ -329,16 +330,16 @@ const InboxManualOrderModal = ({
         headers: { "Content-Type": "multipart/form-data" },
       });
       if (res.data && res.data.success) {
-        window.showToast?.("✅ Venta manual generada");
+        window.showToast?.("Venta manual generada");
         if (typeof onSaved === "function") onSaved(res.data.data || null);
         if (typeof onClose === "function") onClose();
       } else {
-        window.showToast?.("❌ Error: " + (res.data && res.data.error), "error");
+        window.showToast?.("Error: " + (res.data && res.data.error), "error");
       }
     } catch (err) {
       const errorMsg =
         (err.response && err.response.data && err.response.data.error) || "Error de red";
-      window.showToast?.("❌ Error: " + errorMsg, "error");
+      window.showToast?.("Error: " + errorMsg, "error");
     } finally {
       setSaving(false);
     }
@@ -373,7 +374,7 @@ const InboxManualOrderModal = ({
           },
           [
             e("h2", { key: "titulo", className: "text-lg font-bold flex items-center gap-2" }, [
-              e("i", { className: "fas fa-robot text-[#00a884]" }),
+              e(Icono, { nombre: "bot", className: "text-[#00a884]" }),
               "Copiloto: Venta Manual",
             ]),
             e(
@@ -386,7 +387,7 @@ const InboxManualOrderModal = ({
                 "aria-label": "Cerrar copiloto",
                 className: "text-[#8696a0] hover:text-[#e9edef] transition cursor-pointer",
               },
-              e("i", { className: "fas fa-times text-xl" }),
+              e(Icono, { nombre: "x", className: "text-xl" }),
             ),
           ],
         ),
@@ -401,9 +402,9 @@ const InboxManualOrderModal = ({
                   "div",
                   { key: "analizando", className: "text-center py-12", "data-testid": "copiloto-analizando" },
                   [
-                    e("i", {
+                    e(Icono, {
                       key: "spinner",
-                      className: "fas fa-circle-notch fa-spin text-4xl text-[#00a884] mb-3",
+                      nombre: "loader-circle", girar: true, className: "text-4xl text-[#00a884] mb-3",
                     }),
                     e(
                       "p",
@@ -537,7 +538,7 @@ const InboxManualOrderModal = ({
                               "aria-label": `Quitar producto ${idx + 1}`,
                               className: "text-red-400 hover:text-red-300 px-3 transition cursor-pointer",
                             },
-                            e("i", { className: "fas fa-trash" }),
+                            e(Icono, { nombre: "trash" }),
                           ),
                         ]),
                       ),
@@ -711,7 +712,7 @@ const InboxManualOrderModal = ({
                                     className: "text-[#00a884] font-semibold flex items-center gap-1.5",
                                   },
                                   [
-                                    e("i", { key: "ic", className: "fas fa-check-circle" }),
+                                    e(Icono, { key: "ic", nombre: "circle-check" }),
                                     "Comprobante extraído del chat",
                                   ],
                                 ),
@@ -778,17 +779,14 @@ const InboxManualOrderModal = ({
                 {
                   key: "guardar",
                   type: "button",
-                  onClick: faltaComprobante ? () => window.showToast?.("⚠️ Adjunta la foto del comprobante o billetes primero.", "error") : handleSave,
+                  onClick: faltaComprobante ? () => window.showToast?.("Adjunta la foto del comprobante o billetes primero.", "error") : handleSave,
                   disabled: loading || saving,
                   "data-testid": "copiloto-guardar",
                   className:
                     `px-5 py-2.5 rounded-lg font-black transition flex items-center gap-2 ${faltaComprobante ? 'bg-gray-700 text-gray-500 cursor-not-allowed hover:bg-gray-700' : 'bg-[#00a884] text-[#111b21] hover:bg-[#008069] disabled:opacity-50 cursor-pointer'}`,
                 },
                 [
-                  e("i", {
-                    key: "ic",
-                    className: saving ? "fas fa-spinner fa-spin" : "fas fa-check",
-                  }),
+                  e(Icono, { key: "ic", nombre: saving ? "loader-circle" : "check", girar: saving }),
                   "Confirmar e Ingresar",
                 ],
               );

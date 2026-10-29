@@ -1,3 +1,4 @@
+import { Icono } from "../../components/Icono.js";
 // public/src/features/dashboard/QuickReplyManager.js
 import React, { useState, useEffect, useCallback } from "https://cdn.skypack.dev/react";
 import apiClient from "../../services/apiClient.js";
@@ -24,7 +25,7 @@ const QuickReplyManager = ({ onBack }) => {
       const res = await apiClient.get("/api/admin/quick-replies");
       if (res.data?.success) setReplies(res.data.data || []);
     } catch (err) {
-      window.showToast?.("❌ Error cargando respuestas rápidas", "error");
+      window.showToast?.("Error cargando respuestas rápidas", "error");
     } finally {
       setLoading(false);
     }
@@ -57,21 +58,21 @@ const QuickReplyManager = ({ onBack }) => {
 
   const handleSave = async () => {
     if (!form.text.trim()) {
-      return window.showToast?.("⚠️ El texto es obligatorio", "error");
+      return window.showToast?.("El texto es obligatorio", "error");
     }
     try {
       setSaving(true);
       if (editing) {
         await apiClient.put(`/api/admin/quick-replies/${editing._id}`, form);
-        window.showToast?.("✅ Respuesta actualizada", "success");
+        window.showToast?.("Respuesta actualizada", "success");
       } else {
         await apiClient.post("/api/admin/quick-replies", { ...form, order: replies.length });
-        window.showToast?.("✅ Respuesta creada", "success");
+        window.showToast?.("Respuesta creada", "success");
       }
       closeForm();
       fetchReplies();
     } catch (err) {
-      window.showToast?.("❌ Error al guardar: " + (err.response?.data?.error || err.message), "error");
+      window.showToast?.("Error al guardar: " + (err.response?.data?.error || err.message), "error");
     } finally {
       setSaving(false);
     }
@@ -82,7 +83,7 @@ const QuickReplyManager = ({ onBack }) => {
       await apiClient.put(`/api/admin/quick-replies/${reply._id}`, { active: !reply.active });
       fetchReplies();
     } catch (err) {
-      window.showToast?.("❌ Error al cambiar estado", "error");
+      window.showToast?.("Error al cambiar estado", "error");
     }
   };
 
@@ -91,7 +92,7 @@ const QuickReplyManager = ({ onBack }) => {
       await apiClient.put(`/api/admin/quick-replies/${reply._id}`, { isFavorite: !reply.isFavorite });
       fetchReplies();
     } catch (err) {
-      window.showToast?.("❌ Error al cambiar favorita", "error");
+      window.showToast?.("Error al cambiar favorita", "error");
     }
   };
 
@@ -103,10 +104,10 @@ const QuickReplyManager = ({ onBack }) => {
       onConfirm: async () => {
         try {
           await apiClient.delete(`/api/admin/quick-replies/${reply._id}`);
-          window.showToast?.("🗑️ Respuesta eliminada", "success");
+          window.showToast?.("Respuesta eliminada", "success");
           fetchReplies();
         } catch (err) {
-          window.showToast?.("❌ Error al eliminar: " + (err.response?.data?.error || err.message), "error");
+          window.showToast?.("Error al eliminar: " + (err.response?.data?.error || err.message), "error");
         }
       }
     });
@@ -138,8 +139,8 @@ const QuickReplyManager = ({ onBack }) => {
         key: "back",
         onClick: onBack,
         className: "text-gray-500 hover:text-[#008069] dark:hover:text-emerald-400 transition"
-      }, e("i", { className: "fas fa-arrow-left text-lg" })),
-      e("h2", { key: "title", className: "text-lg font-bold text-[#3b4a54] dark:text-gray-100" }, "💬 Respuestas Rápidas"),
+      }, e(Icono, { nombre: "arrow-left", className: "text-lg" })),
+      e("h2", { key: "title", className: "text-lg font-bold text-[#3b4a54] dark:text-gray-100" }, e(Icono, { nombre: "messages-square", className: "inline mr-2" }), " Respuestas Rápidas"),
       e("span", { key: "spacer", className: "flex-1" }),
       e("button", {
         key: "add",
@@ -151,7 +152,7 @@ const QuickReplyManager = ({ onBack }) => {
     // Buscador
     e("div", { key: "search-bar", className: "px-4 pt-3 pb-1" }, [
       e("div", { className: "relative flex items-center" }, [
-        e("i", { className: "fas fa-search absolute left-3 text-gray-400 text-xs" }),
+        e(Icono, { nombre: "search", className: "absolute left-3 text-gray-400 text-xs" }),
         e("input", {
           type: "text",
           value: searchQuery,
@@ -162,14 +163,14 @@ const QuickReplyManager = ({ onBack }) => {
         searchQuery && e("button", {
           onClick: () => setSearchQuery(""),
           className: "absolute right-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs font-bold"
-        }, "✕")
+        }, e(Icono, { nombre: "x" }))
       ])
     ]),
 
     // Lista
     e("div", { key: "list", className: "flex-1 overflow-y-auto px-4 py-3 space-y-2" },
       loading
-        ? e("div", { className: "text-center text-gray-400 py-8" }, e("i", { className: "fas fa-spinner fa-spin mr-2" }), "Cargando…")
+        ? e("div", { className: "text-center text-gray-400 py-8" }, e(Icono, { nombre: "loader-circle", girar: true, className: "mr-2" }), "Cargando…")
         : filteredReplies.length === 0
           ? e("div", { className: "text-center text-gray-400 py-8 text-xs italic" }, searchQuery ? "No se encontraron respuestas para la búsqueda." : "No hay respuestas rápidas. Crea la primera con '+ Nueva'.")
           : filteredReplies.map((reply, idx) =>
@@ -202,7 +203,7 @@ const QuickReplyManager = ({ onBack }) => {
                   onClick: () => handleToggleFavorite(reply),
                   title: reply.isFavorite ? "Quitar de Favoritas" : "Marcar como Favorita",
                   className: "text-sm hover:scale-110 transition p-0.5"
-                }, reply.isFavorite ? "⭐" : "☆"),
+                }, reply.isFavorite ? e(Icono, { nombre: "star", className: "fill-current text-amber-400" }) : e(Icono, { nombre: "star", className: "text-gray-400" })),
                 // Text
                 e("span", {
                   key: "text",
@@ -220,19 +221,19 @@ const QuickReplyManager = ({ onBack }) => {
                   onClick: () => handleToggleActive(reply),
                   title: reply.active ? "Desactivar" : "Activar",
                   className: `text-sm ${reply.active ? "text-emerald-500" : "text-gray-400"} hover:scale-110 transition`
-                }, reply.active ? "✅" : "⏸️"),
+                }, reply.active ? e(Icono, { nombre: "circle-check" }) : e(Icono, { nombre: "pause" })),
                 // Edit
                 e("button", {
                   key: "edit",
                   onClick: () => openEdit(reply),
                   className: "text-gray-400 hover:text-blue-500 transition"
-                }, e("i", { className: "fas fa-pen text-xs" })),
+                }, e(Icono, { nombre: "pen", className: "text-xs" })),
                 // Delete
                 e("button", {
                   key: "delete",
                   onClick: () => handleDelete(reply),
                   className: "text-gray-400 hover:text-red-500 transition"
-                }, e("i", { className: "fas fa-trash text-xs" })),
+                }, e(Icono, { nombre: "trash", className: "text-xs" })),
               ])
             )
     ),
@@ -279,7 +280,7 @@ const QuickReplyManager = ({ onBack }) => {
               onChange: (ev) => setForm({ ...form, isFavorite: ev.target.checked }),
               className: "accent-[#008069] rounded"
             }),
-            "⭐ Marcar como Favorita"
+            "Marcar como Favorita"
           ]),
           e("div", { className: "flex items-center gap-2" }, [
             e("label", { className: "text-xs font-semibold text-gray-500 dark:text-gray-400" }, "Activa:"),

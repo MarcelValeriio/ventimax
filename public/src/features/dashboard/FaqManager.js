@@ -1,3 +1,4 @@
+import { Icono } from "../../components/Icono.js";
 // public/src/features/dashboard/FaqManager.js
 import React, { useState, useEffect, useCallback } from "https://cdn.skypack.dev/react";
 import apiClient from "../../services/apiClient.js";
@@ -175,11 +176,11 @@ const FaqManager = ({ onBack }) => {
         onClick: onBack,
         "aria-label": "Volver a Configuración",
         className: "p-2 rounded-xl text-gray-500 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-gray-700 dark:hover:text-teal-400 transition active:scale-95",
-      }, e("i", { className: "fas fa-arrow-left text-base", "aria-hidden": "true" })),
+      }, e(Icono, { nombre: "arrow-left", className: "text-base", "aria-hidden": "true" })),
       e("div", { key: "title-wrap", className: "flex items-center gap-3" }, [
         e("div", {
           className: "w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400 flex items-center justify-center text-lg",
-        }, e("i", { className: "fas fa-question-circle", "aria-hidden": "true" })),
+        }, e(Icono, { nombre: "circle-question-mark", "aria-hidden": "true" })),
         e("div", null, [
           e("h2", { className: "text-lg font-black text-gray-800 dark:text-white tracking-tight" }, "Preguntas Frecuentes (FAQs)"),
           e("p", { className: "text-xs text-gray-500 dark:text-gray-400 font-medium" }, "Respuestas automáticas por palabras clave"),
@@ -191,7 +192,7 @@ const FaqManager = ({ onBack }) => {
         onClick: openNew,
         className: "bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition active:scale-95 shadow-md shadow-teal-600/20 flex items-center gap-2",
       }, [
-        e("i", { className: "fas fa-plus", "aria-hidden": "true" }),
+        e(Icono, { nombre: "plus", "aria-hidden": "true" }),
         "Nueva FAQ",
       ]),
     ]),
@@ -202,8 +203,8 @@ const FaqManager = ({ onBack }) => {
       className: "px-6 py-3 bg-white dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-800 flex items-center gap-4",
     }, [
       e("div", { className: "relative flex-1 max-w-md" }, [
-        e("i", {
-          className: "fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm",
+        e(Icono, {
+          nombre: "search", className: "absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm",
           "aria-hidden": "true",
         }),
         e("input", {
@@ -217,7 +218,7 @@ const FaqManager = ({ onBack }) => {
           onClick: () => setSearchQuery(""),
           "aria-label": "Limpiar búsqueda",
           className: "absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200",
-        }, e("i", { className: "fas fa-times-circle text-sm", "aria-hidden": "true" })),
+        }, e(Icono, { nombre: "circle-x", className: "text-sm", "aria-hidden": "true" })),
       ]),
       e("span", { className: "text-xs font-bold text-gray-400" }, `${filteredFaqs.length} ${filteredFaqs.length === 1 ? "FAQ" : "FAQs"}`),
     ]),
@@ -225,7 +226,7 @@ const FaqManager = ({ onBack }) => {
     // Content Area
     e("div", { key: "content", className: "flex-1 overflow-y-auto p-6" }, [
       loading && e("div", { className: "flex items-center justify-center h-48 text-gray-400 gap-3" }, [
-        e("i", { className: "fas fa-spinner fa-spin text-xl", "aria-hidden": "true" }),
+        e(Icono, { nombre: "loader-circle", girar: true, className: "text-xl", "aria-hidden": "true" }),
         e("span", { className: "text-sm font-medium" }, "Cargando preguntas frecuentes..."),
       ]),
 
@@ -234,7 +235,7 @@ const FaqManager = ({ onBack }) => {
       }, [
         e("div", {
           className: "w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 text-2xl mb-4",
-        }, e("i", { className: "fas fa-question-circle", "aria-hidden": "true" })),
+        }, e(Icono, { nombre: "circle-question-mark", "aria-hidden": "true" })),
         e("h3", { className: "text-base font-bold text-gray-800 dark:text-white mb-1" }, searchQuery ? "No se encontraron FAQs" : "No hay preguntas frecuentes registradas"),
         e("p", { className: "text-xs text-gray-500 dark:text-gray-400 mb-5 max-w-xs" }, searchQuery ? "Prueba con otros términos de búsqueda." : "Crea respuestas automáticas para responder dudas comunes de clientes al instante."),
         !searchQuery && e("button", {
@@ -256,7 +257,7 @@ const FaqManager = ({ onBack }) => {
               faq.type === "dinamica" && e("span", {
                 className: "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50 flex items-center gap-1",
               }, [
-                e("i", { className: "fas fa-sync-alt text-[9px]", "aria-hidden": "true" }),
+                e(Icono, { nombre: "refresh-cw", className: "text-[9px]", "aria-hidden": "true" }),
                 `Dinámica (${faq.dynamicKey || "inventario"})`,
               ]),
               e("span", {
@@ -266,7 +267,7 @@ const FaqManager = ({ onBack }) => {
             // Keywords
             e("div", { className: "flex items-center gap-1.5 flex-wrap" }, [
               e("span", { className: "text-[11px] font-bold text-gray-400 flex items-center gap-1 mr-1" }, [
-                e("i", { className: "fas fa-key text-[10px]", "aria-hidden": "true" }),
+                e(Icono, { nombre: "key", className: "text-[10px]", "aria-hidden": "true" }),
                 "Keywords:",
               ]),
               Array.isArray(faq.keywords) && faq.keywords.length > 0
@@ -282,7 +283,7 @@ const FaqManager = ({ onBack }) => {
             e("div", {
               className: "p-3 rounded-xl bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed",
             }, faq.type === "dinamica"
-              ? `⚡ [Respuesta en Tiempo Real]: Consultará los productos en stock del catálogo en el momento del mensaje.`
+              ? `[Respuesta en Tiempo Real]: Consultará los productos en stock del catálogo en el momento del mensaje.`
               : faq.respuesta
             ),
           ]),
@@ -294,19 +295,19 @@ const FaqManager = ({ onBack }) => {
               title: faq.activo !== false ? "Desactivar respuesta" : "Activar respuesta",
               "aria-label": faq.activo !== false ? "Desactivar respuesta" : "Activar respuesta",
               className: `w-9 h-9 rounded-xl flex items-center justify-center transition active:scale-95 ${faq.activo !== false ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 hover:bg-emerald-100' : 'bg-gray-100 text-gray-400 dark:bg-gray-700 hover:bg-gray-200'}`,
-            }, e("i", { className: `fas ${faq.activo !== false ? 'fa-toggle-on' : 'fa-toggle-off'} text-base`, "aria-hidden": "true" })),
+            }, e(Icono, { nombre: faq.activo !== false ? "toggle-right" : "toggle-left", className: "text-base", "aria-hidden": "true" })),
             e("button", {
               onClick: () => openEdit(faq),
               title: "Editar FAQ",
               "aria-label": "Editar FAQ",
               className: "w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center justify-center transition active:scale-95",
-            }, e("i", { className: "fas fa-edit text-sm", "aria-hidden": "true" })),
+            }, e(Icono, { nombre: "square-pen", className: "text-sm", "aria-hidden": "true" })),
             e("button", {
               onClick: () => handleDelete(faq),
               title: "Eliminar FAQ",
               "aria-label": "Eliminar FAQ",
               className: "w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 flex items-center justify-center transition active:scale-95",
-            }, e("i", { className: "fas fa-trash text-sm", "aria-hidden": "true" })),
+            }, e(Icono, { nombre: "trash", className: "text-sm", "aria-hidden": "true" })),
           ]),
         ])
       )),
@@ -333,7 +334,7 @@ const FaqManager = ({ onBack }) => {
             onClick: closeForm,
             "aria-label": "Cerrar modal",
             className: "w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 flex items-center justify-center transition active:scale-95",
-          }, e("i", { className: "fas fa-times", "aria-hidden": "true" })),
+          }, e(Icono, { nombre: "x", "aria-hidden": "true" })),
         ]),
 
         // Form Fields
@@ -404,7 +405,7 @@ const FaqManager = ({ onBack }) => {
           form.type === "dinamica" && e("div", {
             className: "p-4 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/40 text-xs text-teal-800 dark:text-teal-300 flex items-start gap-3",
           }, [
-            e("i", { className: "fas fa-info-circle text-sm mt-0.5", "aria-hidden": "true" }),
+            e(Icono, { nombre: "info", className: "text-sm mt-0.5", "aria-hidden": "true" }),
             e("span", null, "Esta respuesta se generará en tiempo real consultando los productos con stock activo en el inventario."),
           ]),
 

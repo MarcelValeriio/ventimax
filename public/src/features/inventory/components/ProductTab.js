@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 /**
  * public/src/features/inventory/components/ProductTab.js
  * Módulo de negocio para la visualización y gestión del inventario - Pure JS Version
@@ -46,10 +47,10 @@ const CategoriesModal = ({
       setNewCatName("");
       setNewCatParent("");
       fetchCategorias();
-      window.showToast?.("✅ Categoría creada");
+      window.showToast?.("Categoría creada");
     } catch (error) {
       window.showToast?.(
-        "❌ Error creando categoría: " + error.message,
+        "Error creando categoría: " + error.message,
         "error",
       );
     }
@@ -64,10 +65,10 @@ const CategoriesModal = ({
       });
       setEditingCatId(null);
       fetchCategorias();
-      window.showToast?.("✅ Categoría actualizada");
+      window.showToast?.("Categoría actualizada");
     } catch (error) {
       window.showToast?.(
-        "❌ Error actualizando categoría: " + error.message,
+        "Error actualizando categoría: " + error.message,
         "error",
       );
     }
@@ -78,15 +79,15 @@ const CategoriesModal = ({
       isOpen: true,
       title: "¿Eliminar Categoría?",
       message:
-        "⚠️ ¿Estás seguro de eliminar este menú/categoría?\n\nEsta acción no se puede deshacer y los productos asociados quedarán sin categoría.",
+        "¿Estás seguro de eliminar este menú/categoría?\n\nEsta acción no se puede deshacer y los productos asociados quedarán sin categoría.",
       onConfirm: async () => {
         try {
           await apiClient.delete(`/api/admin/categorias/${id}`);
           fetchCategorias();
-          window.showToast?.("🗑️ Categoría eliminada");
+          window.showToast?.("Categoría eliminada");
         } catch (error) {
           window.showToast?.(
-            "❌ Error eliminando categoría: " + error.message,
+            "Error eliminando categoría: " + error.message,
             "error",
           );
         }
@@ -129,7 +130,7 @@ const CategoriesModal = ({
                   className:
                     "w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-xs dark:text-gray-300",
                 },
-                e("option", { value: "" }, "📍 Convertir en Menú Principal"),
+                e("option", { value: "" }, "Convertir en Menú Principal"),
                 categorias
                   .filter((c) => c._id !== cat._id)
                   .map((c) =>
@@ -170,9 +171,8 @@ const CategoriesModal = ({
                 "div",
                 { className: "flex items-center gap-3" },
                 level > 0 &&
-                  e("i", {
-                    className:
-                      "fas fa-level-up-alt fa-rotate-90 text-gray-400 text-xs",
+                  e(Icono, {
+                    nombre: "corner-right-up", className: "rotate-90 text-gray-400 text-xs",
                   }),
                 e(
                   "div",
@@ -209,7 +209,7 @@ const CategoriesModal = ({
                     className:
                       "text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 p-2 rounded-lg transition",
                   },
-                  e("i", { className: "fas fa-edit" }),
+                  e(Icono, { nombre: "square-pen" }),
                 ),
                 e(
                   "button",
@@ -218,7 +218,7 @@ const CategoriesModal = ({
                     className:
                       "text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 p-2 rounded-lg transition",
                   },
-                  e("i", { className: "fas fa-trash-alt" }),
+                  e(Icono, { nombre: "trash" }),
                 ),
               ),
             ),
@@ -252,7 +252,7 @@ const CategoriesModal = ({
             className:
               "text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2",
           },
-          e("i", { className: "fas fa-tags text-emerald-500" }),
+          e(Icono, { nombre: "tags", className: "text-emerald-500" }),
           "Gestionar Categorías",
         ),
         e(
@@ -262,7 +262,7 @@ const CategoriesModal = ({
             className:
               "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition",
           },
-          e("i", { className: "fas fa-times" }),
+          e(Icono, { nombre: "x" }),
         ),
       ),
       // Body
@@ -283,7 +283,7 @@ const CategoriesModal = ({
               className:
                 "text-[10px] font-black text-emerald-600/70 dark:text-emerald-400 uppercase tracking-widest",
             },
-            "✨ CREAR NUEVA CATEGORÍA O SECCIÓN",
+            "CREAR NUEVA CATEGORÍA O SECCIÓN",
           ),
           e("input", {
             type: "text",
@@ -301,7 +301,7 @@ const CategoriesModal = ({
               className:
                 "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 outline-none text-sm shadow-sm cursor-pointer",
             },
-            e("option", { value: "" }, "📌 Es Categoría Principal"),
+            e("option", { value: "" }, "Es Categoría Principal"),
             categorias.map((c) =>
               e("option", { key: c._id, value: c._id }, `Hijo de: ${c.nombre}`),
             ),
@@ -526,10 +526,10 @@ const ProductTab = () => {
         setEditingProduct(updatedProduct);
       }
       fetchProducts();
-      window.showToast?.("✅ Imagen subida correctamente", "success");
+      window.showToast?.("Imagen subida correctamente", "success");
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.message || err.message;
-      window.showToast?.(`❌ ${msg}`, "error");
+      window.showToast?.(`${msg}`, "error");
     } finally {
       setUploadingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -549,10 +549,10 @@ const ProductTab = () => {
         setEditingProduct(updatedProduct);
       }
       fetchProducts();
-      window.showToast?.("🗑️ Imagen eliminada", "success");
+      window.showToast?.("Imagen eliminada", "success");
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.message || err.message;
-      window.showToast?.(`❌ ${msg}`, "error");
+      window.showToast?.(`${msg}`, "error");
     }
   };
 
@@ -569,10 +569,10 @@ const ProductTab = () => {
         setEditingProduct(updatedProduct);
       }
       fetchProducts();
-      window.showToast?.("⭐ Imagen marcada como principal", "success");
+      window.showToast?.("Imagen marcada como principal", "success");
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.message || err.message;
-      window.showToast?.(`❌ ${msg}`, "error");
+      window.showToast?.(`${msg}`, "error");
     }
   };
 
@@ -601,9 +601,9 @@ const ProductTab = () => {
       }
       handleCloseModal();
       fetchInventory();
-      window.showToast?.("✅ Producto guardado exitosamente");
+      window.showToast?.("Producto guardado exitosamente");
     } catch (err) {
-      window.showToast?.("❌ Error al guardar: " + err.message, "error");
+      window.showToast?.("Error al guardar: " + err.message, "error");
     }
   };
 
@@ -612,14 +612,14 @@ const ProductTab = () => {
       isOpen: true,
       title: "¿Eliminar Producto?",
       message:
-        "⚠️ ¿Estás seguro de que deseas eliminar este producto?\n\nEsta acción no se puede deshacer.",
+        "¿Estás seguro de que deseas eliminar este producto?\n\nEsta acción no se puede deshacer.",
       onConfirm: async () => {
         try {
           await apiClient.delete(`/api/admin/products/${id}`);
           fetchInventory();
-          window.showToast?.("🗑️ Producto eliminado");
+          window.showToast?.("Producto eliminado");
         } catch (err) {
-          window.showToast?.("❌ Error al eliminar: " + err.message, "error");
+          window.showToast?.("Error al eliminar: " + err.message, "error");
         }
       },
     });
@@ -633,7 +633,7 @@ const ProductTab = () => {
     return e(
       "div",
       { className: "p-10 text-center text-gray-400" },
-      e("i", { className: "fas fa-spinner fa-spin mr-2" }),
+      e(Icono, { nombre: "loader-circle", girar: true, className: "mr-2" }),
       "Cargando catálogo...",
     );
 
@@ -641,7 +641,7 @@ const ProductTab = () => {
     return e(
       "div",
       { className: "p-10 text-center text-red-500" },
-      e("i", { className: "fas fa-exclamation-triangle mr-2" }),
+      e(Icono, { nombre: "triangle-alert", className: "mr-2" }),
       error,
     );
 
@@ -668,7 +668,7 @@ const ProductTab = () => {
             className:
               "text-2xl font-bold text-emerald-800 dark:text-emerald-400 flex items-center gap-3",
           },
-          e("i", { className: "fas fa-box-open" }),
+          e(Icono, { nombre: "package-open" }),
           "Inventario",
         ),
         bcvRate > 0 &&
@@ -720,7 +720,7 @@ const ProductTab = () => {
               "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 p-2.5 rounded-xl border dark:border-gray-700 shadow-sm hover:bg-gray-50 transition flex items-center justify-center gap-2 text-sm font-bold active:scale-95",
             title: "Gestionar Categorías",
           },
-          e("i", { className: "fas fa-tags text-emerald-500" }),
+          e(Icono, { nombre: "tags", className: "text-emerald-500" }),
           e("span", { className: "hidden sm:inline" }, "Categorías"),
         ),
         e(
@@ -732,7 +732,7 @@ const ProductTab = () => {
               "flex-1 lg:flex-none bg-emerald-600 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition flex items-center justify-center gap-2 text-sm font-bold active:scale-95",
           },
           e("div", { className: "flex items-center gap-2" }, [
-            e("i", { className: "fas fa-plus" }),
+            e(Icono, { nombre: "plus" }),
             "Nuevo",
           ]),
         ),
@@ -777,9 +777,7 @@ const ProductTab = () => {
                   className:
                     "text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2",
                 },
-                e("i", {
-                  className: `fas ${editingProduct ? "fa-edit" : "fa-plus-circle"} text-emerald-500`,
-                }),
+                e(Icono, { nombre: editingProduct ? "square-pen" : "circle-plus", className: "text-emerald-500" }),
                 editingProduct ? "Editar Producto" : "Nuevo Producto",
               ),
               e(
@@ -789,7 +787,7 @@ const ProductTab = () => {
                   className:
                     "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition",
                 },
-                e("i", { className: "fas fa-times" }),
+                e(Icono, { nombre: "x" }),
               ),
             ),
             e(
@@ -885,7 +883,7 @@ const ProductTab = () => {
                         className:
                           "text-sm font-semibold text-gray-700 dark:text-gray-200",
                       },
-                      "🔒 Control de Stock",
+                      "Control de Stock",
                     ),
                     e(
                       "span",
@@ -1106,7 +1104,7 @@ const ProductTab = () => {
                         className:
                           "text-xs px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold rounded-lg hover:bg-emerald-500/20 transition flex items-center gap-1",
                       },
-                      e("i", { className: `fas ${uploadingImage ? "fa-spinner fa-spin" : "fa-upload"}` }),
+                      e(Icono, { nombre: uploadingImage ? "loader-circle" : "upload", girar: uploadingImage }),
                       uploadingImage ? "Subiendo..." : "Subir foto"
                     )
                 ),
@@ -1117,7 +1115,7 @@ const ProductTab = () => {
                         className:
                           "p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-dashed border-gray-200 dark:border-gray-700 text-xs text-gray-400 text-center",
                       },
-                      "💡 Guarda el producto para añadir fotos"
+                      "Guarda el producto para añadir fotos"
                     )
                   : e(
                       "div",
@@ -1137,7 +1135,7 @@ const ProductTab = () => {
                                 "p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-dashed border-gray-200 dark:border-gray-700 text-xs text-gray-400 text-center cursor-pointer hover:border-emerald-400 transition",
                               onClick: () => fileInputRef.current?.click(),
                             },
-                            "📷 No hay fotos. Haz clic en 'Subir foto' para agregar (máx 5)."
+                            "No hay fotos. Haz clic en 'Subir foto' para agregar (máx 5)."
                           )
                         : e(
                             "div",
@@ -1180,7 +1178,7 @@ const ProductTab = () => {
                                         className:
                                           "p-1 bg-emerald-600 text-white rounded text-[10px] hover:bg-emerald-700 w-full font-bold",
                                       },
-                                      "⭐ Principal"
+                                      e(Icono, { nombre: "star", className: "inline mr-1 fill-current" }), " Principal"
                                     ),
                                   e(
                                     "button",
@@ -1191,7 +1189,7 @@ const ProductTab = () => {
                                       className:
                                         "p-1 bg-red-600 text-white rounded text-[10px] hover:bg-red-700 w-full font-bold",
                                     },
-                                    "🗑️ Borrar"
+                                    "Borrar"
                                   )
                                 )
                               )
@@ -1260,7 +1258,7 @@ const ProductTab = () => {
                           className:
                             "text-2xl bg-gray-50 dark:bg-gray-900 w-12 h-12 flex items-center justify-center rounded-xl",
                         },
-                        p.emoji,
+                        e(Icono, { nombre: "package", className: "text-gray-400" }),
                       ),
                   e(
                     "div",
@@ -1353,9 +1351,9 @@ const ProductTab = () => {
                     { className: "text-xs font-bold text-blue-500" },
                     p.trackStock
                       ? p.stock > 0
-                        ? `📦 ${p.stock} disponibles`
-                        : `⚠️ Agotado`
-                      : "♾️ Ilimitado",
+                        ? `${p.stock} disponibles`
+                        : `Agotado`
+                      : "Ilimitado",
                   ),
                 ),
                 e(
@@ -1372,7 +1370,7 @@ const ProductTab = () => {
                   e(
                     "p",
                     { className: "text-xs font-bold text-blue-500" },
-                    p.activo !== false ? "✅ Activo" : "❌ Inactivo",
+                    p.activo !== false ? "Activo" : "Inactivo",
                   ),
                 ),
               ),
@@ -1386,7 +1384,7 @@ const ProductTab = () => {
                     className:
                       "flex-1 h-11 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center gap-2 font-bold text-sm active:scale-95 transition-all",
                   },
-                  e("i", { className: "fas fa-edit" }),
+                  e(Icono, { nombre: "square-pen" }),
                   "Editar",
                 ),
                 e(
@@ -1396,7 +1394,7 @@ const ProductTab = () => {
                     className:
                       "w-11 h-11 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-xl flex items-center justify-center active:scale-95 transition-all",
                   },
-                  e("i", { className: "fas fa-trash-alt" }),
+                  e(Icono, { nombre: "trash" }),
                 ),
               ),
             ),
@@ -1438,9 +1436,7 @@ const ProductTab = () => {
                 "div",
                 { className: "flex items-center gap-2" },
                 "ID",
-                e("i", {
-                  className: `fas fa-sort${sortDirection === "asc" ? "-up" : "-down"} ${sortDirection ? "text-emerald-500" : "opacity-20"} transition-all`,
-                }),
+                e(Icono, { nombre: sortDirection === "asc" ? "arrow-up" : "arrow-down", className: `${sortDirection ? "text-emerald-500" : "opacity-20"} transition-all` }),
               ),
             ),
             e("th", { className: "px-6 py-4" }, "Nombre"),
@@ -1484,7 +1480,7 @@ const ProductTab = () => {
                           className:
                             "w-7 h-7 object-cover rounded-lg inline-block mr-3 align-middle border border-gray-100 dark:border-gray-700",
                         })
-                      : e("span", { className: "mr-3 text-lg" }, p.emoji),
+                      : e("span", { className: "mr-3 text-lg" }, e(Icono, { nombre: "package", className: "text-gray-400" })),
                     p.name,
                   ),
                   e(
@@ -1526,8 +1522,8 @@ const ProductTab = () => {
                     p.trackStock
                       ? p.stock > 0
                         ? `${p.stock} uds`
-                        : "⚠️ Agotado"
-                      : "♾️",
+                        : "Agotado"
+                      : "∞",
                   ),
                   e(
                     "td",
@@ -1539,7 +1535,7 @@ const ProductTab = () => {
                         className:
                           "text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition",
                       },
-                      e("i", { className: "fas fa-edit" }),
+                      e(Icono, { nombre: "square-pen" }),
                     ),
                     e(
                       "button",
@@ -1548,7 +1544,7 @@ const ProductTab = () => {
                         className:
                           "text-red-500 hover:text-red-700 dark:hover:text-red-300 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition",
                       },
-                      e("i", { className: "fas fa-trash-alt" }),
+                      e(Icono, { nombre: "trash" }),
                     ),
                   ),
                 ),
@@ -1563,8 +1559,8 @@ const ProductTab = () => {
                     className:
                       "px-6 py-12 text-center text-gray-400 dark:text-gray-600 italic",
                   },
-                  e("i", {
-                    className: "fas fa-box-open text-4xl mb-3 block opacity-20",
+                  e(Icono, {
+                    nombre: "package-open", className: "text-4xl mb-3 block opacity-20",
                   }),
                   "No hay productos que coincidan con la búsqueda.",
                 ),

@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 /**
  * public/src/features/dashboard/components/EnvConfigModal.js
  * Modal de Administración de Variables de Entorno y Canales (Opción D Híbrida)
@@ -8,11 +9,11 @@ import apiClient from "../../../services/apiClient.js";
 const e = React.createElement;
 
 const TABS = [
-  { id: "whatsapp", label: "WhatsApp & Meta", icon: "fab fa-whatsapp" },
-  { id: "social", label: "Instagram & Messenger", icon: "fab fa-instagram" },
-  { id: "alerts", label: "Alertas & Teléfonos", icon: "fas fa-bell" },
-  { id: "tracking", label: "Tracking & CAPI", icon: "fas fa-chart-line" },
-  { id: "secrets", label: "Estado de Secretos", icon: "fas fa-shield-alt" },
+  { id: "whatsapp", label: "WhatsApp & Meta", icon: { marca: "whatsapp" } },
+  { id: "social", label: "Instagram & Messenger", icon: { marca: "instagram" } },
+  { id: "alerts", label: "Alertas & Teléfonos", icon: { nombre: "bell" } },
+  { id: "tracking", label: "Tracking & CAPI", icon: { nombre: "chart-line" } },
+  { id: "secrets", label: "Estado de Secretos", icon: { nombre: "shield" } },
 ];
 
 export const EnvConfigModal = ({ isOpen, onClose }) => {
@@ -86,13 +87,13 @@ export const EnvConfigModal = ({ isOpen, onClose }) => {
 
       const res = await apiClient.put("/api/admin/config", cleaned);
       if (res.data?.success) {
-        window.showToast?.("✅ Configuración guardada y actualizada en caliente", "success");
+        window.showToast?.("Configuración guardada y actualizada en caliente", "success");
         onClose();
       }
     } catch (err) {
       console.error("Error guardando configuración:", err);
       const msg = err.response?.data?.error || "Error al guardar la configuración";
-      window.showToast?.(`❌ ${msg}`, "error");
+      window.showToast?.(`${msg}`, "error");
     } finally {
       setSaving(false);
     }
@@ -152,14 +153,14 @@ export const EnvConfigModal = ({ isOpen, onClose }) => {
           disabled: testingWa,
           className: "px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-xs shadow-sm flex items-center gap-1 disabled:opacity-50",
         },
-          testingWa ? e("i", { className: "fas fa-spinner fa-spin" }) : e("i", { className: "fas fa-plug" }),
+          testingWa ? e(Icono, { nombre: "loader-circle", girar: true }) : e(Icono, { nombre: "plug" }),
           testingWa ? "Probando..." : "Probar Conexión"
         )
       ),
       waTestResult && e("div", {
         className: `p-3 rounded-lg text-xs font-medium ${waTestResult.success ? "bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-200 border border-green-300 dark:border-green-700" : "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-200 border border-red-300 dark:border-red-700"}`
       },
-        e("i", { className: `fas mr-1.5 ${waTestResult.success ? "fa-check-circle" : "fa-exclamation-triangle"}` }),
+        e(Icono, { nombre: waTestResult.success ? "circle-check" : "triangle-alert", className: "mr-1.5" }),
         waTestResult.message
       ),
       renderField("WHATSAPP_PHONE_NUMBER_ID", "Phone Number ID (Meta)", "1092837465...", "Identificador de teléfono asignado en Meta WhatsApp Cloud API."),
@@ -203,7 +204,7 @@ export const EnvConfigModal = ({ isOpen, onClose }) => {
 
     return e("div", { className: "space-y-4" },
       e("div", { className: "bg-amber-50 dark:bg-amber-950/50 p-3 rounded-lg border border-amber-200 dark:border-amber-700 text-xs text-amber-800 dark:text-amber-200" },
-        e("i", { className: "fas fa-info-circle mr-1.5" }),
+        e(Icono, { nombre: "info", className: "mr-1.5" }),
         "Por políticas estrictas de seguridad (SAIF/OWASP), los tokens y secretos no se envían a la web ni pueden editarse desde el panel. Solo se indica si están configurados en las variables de entorno de Render."
       ),
       e("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-80 overflow-y-auto pr-1" },
@@ -215,10 +216,10 @@ export const EnvConfigModal = ({ isOpen, onClose }) => {
             e("span", { className: "font-mono font-medium truncate max-w-[200px] text-gray-800 dark:text-gray-100" }, key),
             isConfigured
               ? e("span", { className: "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-200 gap-1" },
-                  e("i", { className: "fas fa-check text-[9px]" }), "Configurado"
+                  e(Icono, { nombre: "check", className: "text-[9px]" }), "Configurado"
                 )
               : e("span", { className: "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-200 gap-1" },
-                  e("i", { className: "fas fa-times text-[9px]" }), "No configurado"
+                  e(Icono, { nombre: "x", className: "text-[9px]" }), "No configurado"
                 )
           )
         )
@@ -241,7 +242,7 @@ export const EnvConfigModal = ({ isOpen, onClose }) => {
       e("div", { className: "px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-900" },
         e("div", { className: "flex items-center gap-3" },
           e("div", { className: "w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-300 flex items-center justify-center text-lg" },
-            e("i", { className: "fas fa-sliders-h" })
+            e(Icono, { nombre: "sliders-horizontal" })
           ),
           e("div", null,
             e("h3", { className: "text-base font-bold text-gray-900 dark:text-gray-100" }, "Variables de Entorno y Canales"),
@@ -254,7 +255,7 @@ export const EnvConfigModal = ({ isOpen, onClose }) => {
           disabled: saving,
           className: "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1"
         },
-          e("i", { className: "fas fa-times text-lg" })
+          e(Icono, { nombre: "x", className: "text-lg" })
         )
       ),
 
@@ -271,7 +272,7 @@ export const EnvConfigModal = ({ isOpen, onClose }) => {
                 : "border-transparent text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white"
             }`,
           },
-            e("i", { className: tab.icon }),
+            e(Icono, { ...tab.icon }),
             tab.label
           )
         )
@@ -281,7 +282,7 @@ export const EnvConfigModal = ({ isOpen, onClose }) => {
       e("div", { className: "p-6 overflow-y-auto flex-1" },
         loading
           ? e("div", { className: "py-12 flex flex-col items-center justify-center text-gray-400 gap-2" },
-              e("i", { className: "fas fa-circle-notch fa-spin text-2xl text-blue-500" }),
+              e(Icono, { nombre: "loader-circle", girar: true, className: "text-2xl text-blue-500" }),
               e("span", { className: "text-xs" }, "Cargando configuración...")
             )
           : (
@@ -296,7 +297,7 @@ export const EnvConfigModal = ({ isOpen, onClose }) => {
       // Pie de modal
       e("div", { className: "px-6 py-3.5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 flex items-center justify-between" },
         e("span", { className: "text-[11px] text-gray-400" },
-          "💾 Los cambios se aplican inmediatamente en MongoDB sin reiniciar Render"
+          "Los cambios se aplican inmediatamente en MongoDB sin reiniciar Render"
         ),
         e("div", { className: "flex items-center gap-2" },
           e("button", {
@@ -311,7 +312,7 @@ export const EnvConfigModal = ({ isOpen, onClose }) => {
             disabled: saving || loading,
             className: "px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
           },
-            saving && e("i", { className: "fas fa-circle-notch fa-spin text-xs" }),
+            saving && e(Icono, { nombre: "loader-circle", girar: true, className: "text-xs" }),
             saving ? "Guardando..." : "Guardar Cambios"
           )
         )

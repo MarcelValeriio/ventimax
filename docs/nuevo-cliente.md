@@ -64,7 +64,7 @@ mkdir -p public/assets/brand/<marca>
 | `contact.email`, `contact.website`, `contact.instagram` | Valor inicial del contacto, o `""`. Nunca inventarlos; lo normal es cargarlos en el panel (Datos del negocio) |
 | `sales.unitSingular`, `sales.unitPlural` | Unidad de venta ("unidad"/"unidades", "caja"/"cajas") |
 | `brandEmoji`, `categoryEmoji` | Emoji del negocio y de las categorías |
-| `theme.primaryColor`, `theme.secondaryColor` | Colores en hexadecimal (obligatorios) |
+| `theme.primaryColor`, `theme.secondaryColor` | Colores en hexadecimal (obligatorios). La tienda oscurece el primario para los botones (`DESIGN.md`); con un primario muy claro (amarillo, verde lima) el texto blanco puede quedar sin contraste: revisar los botones en la tienda antes de publicar y, si hace falta, usar un tono más oscuro de la marca |
 | `theme.logoUrl` | Logo del panel, p. ej. `/assets/brand/<marca>/logo.png` |
 | `theme.productBrandLogoUrl` | Logo de la marca de producto para el catálogo, o `""` |
 | `horarioAtencion` | Horario inicial: `dias` (0 = domingo … 6 = sábado), `apertura` y `cierre` en `HH:mm`, `zonaHoraria`. Después se cambia desde el panel |

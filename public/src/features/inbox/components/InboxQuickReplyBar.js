@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/inbox/components/InboxQuickReplyBar.js
 // LOTE B2 — Respuestas Rápidas en el inbox unificado (paridad §1.G: WA-107..WA-117 + IG-49).
 //
@@ -287,7 +288,7 @@ const InboxQuickReplyBar = ({ conversacion, onFillInput, onSend }) => {
           }`,
         },
         [
-          e("i", { className: "fas fa-list-ul text-[10px]", "aria-hidden": "true" }),
+          e(Icono, { nombre: "list", className: "text-[10px]", "aria-hidden": "true" }),
           e("span", null, "Respuestas Rapidas"),
         ],
       ),
@@ -311,10 +312,7 @@ const InboxQuickReplyBar = ({ conversacion, onFillInput, onSend }) => {
           }`,
         },
         [
-          e("i", {
-            className: `fas ${hayCarrito ? "fa-bolt" : "fa-edit"} text-[9px]`,
-            "aria-hidden": "true",
-          }),
+          e(Icono, { nombre: hayCarrito ? "zap" : "square-pen", className: "text-[9px]", "aria-hidden": "true" }),
           e("span", null, chipTexto),
         ],
       ),

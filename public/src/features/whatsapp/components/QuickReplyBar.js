@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/whatsapp/components/QuickReplyBar.js
 import React, {
   useState,
@@ -14,7 +15,7 @@ const e = React.createElement;
  *
  * - Una sola fila compacta (h-7/h-8) con botón principal "Ver respuestas" y hasta 3 accesos rápidos/favoritos.
  * - Al pulsar "Ver respuestas", abre el QuickReplyBottomSheet con búsqueda, categorías, favoritas y lista completa.
- * - Iconografía: 100% Font Awesome con aria-hidden="true" (sin emojis decorativos en controles).
+ * - Iconografía: 100% Lucide con aria-hidden="true" (sin emojis decorativos en controles).
  * - Temas: Soporte integral para Modo Claro (bg-[#f0f2f5]) y Modo Oscuro (dark:bg-gray-900).
  */
 const QuickReplyBar = ({
@@ -105,8 +106,8 @@ const QuickReplyBar = ({
                 "h-7 px-3 bg-[#008069] hover:bg-[#006e59] text-white rounded-full text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs cursor-pointer active:scale-95 transition",
             },
             [
-              e("i", {
-                className: "fas fa-list-ul text-[10px]",
+              e(Icono, {
+                nombre: "list", className: "text-[10px]",
                 "aria-hidden": "true",
               }),
               e("span", null, "Respuestas Rapidas"),

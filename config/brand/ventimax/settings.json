@@ -70,6 +70,13 @@
     "vigenciaHoras": 72,
     "activo": true
   },
+  "tienda": {
+    "preguntasFrecuentes": [
+      { "pregunta": "¿Los ventiladores tienen garantía?", "respuesta": "" },
+      { "pregunta": "¿Cuánto tarda la entrega?", "respuesta": "" },
+      { "pregunta": "¿Entregan factura o nota de entrega?", "respuesta": "" }
+    ]
+  },
   "messages": {
     "socialThanks": ["¡Con gusto! 🙌 Aquí estamos cuando lo necesites.", "¡A la orden! Si te surge otra duda, escríbenos 😊", "¡Gracias a ti! Cuando quieras tu ventilador, te atendemos por WhatsApp: {{waLink}}"],
     "socialOutsideZone": ["¡Llegamos a todo el país! 📦 Hacemos envíos nacionales por agencia. Escríbenos por WhatsApp y te decimos cómo llega a tu ciudad: {{waLink}}", "¡No hay problema! Enviamos a toda Venezuela por agencia de envíos. Cuéntanos tu ciudad por WhatsApp y te ayudamos: {{waLink}}"],

@@ -1,3 +1,4 @@
+import { Icono } from "../../components/Icono.js";
 import React, { useState, useEffect } from "https://cdn.skypack.dev/react";
 import apiClient from "../../services/apiClient.js";
 
@@ -95,20 +96,20 @@ const UserManagement = ({ onBack }) => {
         onBack && e("button", {
           onClick: onBack,
           className: "w-10 h-10 rounded-full bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-emerald-500 transition-all active:scale-90"
-        }, e("i", { className: "fas fa-arrow-left" })),
+        }, e(Icono, { nombre: "arrow-left" })),
         e("h2", { className: "text-2xl font-black text-gray-800 dark:text-white uppercase tracking-tighter" }, "Gestión de Personal")
       ]),
       e("button", {
         onClick: () => openModal(),
         className: "bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-6 rounded-xl transition-all shadow-lg active:scale-95 flex items-center gap-2"
-      }, e("i", { className: "fas fa-user-plus" }), "Nuevo Usuario")
+      }, e(Icono, { nombre: "user-plus" }), "Nuevo Usuario")
     ),
 
     e("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" },
       users.map(u => e("div", { key: u._id, className: `bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border ${u.activo ? 'border-gray-100 dark:border-gray-700' : 'border-red-200 dark:border-red-900/50 bg-red-50/10'}` },
         e("div", { className: "flex justify-between items-start mb-4" },
           e("div", { className: `w-12 h-12 rounded-2xl flex items-center justify-center text-xl ${u.role === 'admin' ? 'bg-purple-100 text-purple-600' : u.role === 'cajero' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}` },
-            e("i", { className: `fas ${u.role === 'admin' ? 'fa-user-shield' : u.role === 'cajero' ? 'fa-cash-register' : 'fa-truck'}` })
+            e(Icono, { nombre: u.role === 'admin' ? "shield-user" : u.role === 'cajero' ? "receipt" : "truck" })
           ),
           e("span", { className: `text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${u.activo ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}` }, 
             u.activo ? "Activo" : "Inactivo"

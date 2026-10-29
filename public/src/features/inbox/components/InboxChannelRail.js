@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/inbox/components/InboxChannelRail.js
 // Raíl lateral de canales del Inbox Unificado — LAYOUT V3 (§6.1 A-01).
 //
@@ -21,21 +22,21 @@ const CANALES = [
     valor: "todos",
     label: "Todos",
     corto: "Todos",
-    icono: "fas fa-layer-group",
+    icono: { nombre: "layers" },
     activo: "bg-[#008069] text-white shadow-md shadow-emerald-900/20",
   },
   {
     valor: "whatsapp",
     label: "WhatsApp",
     corto: "WhatsApp",
-    icono: "fab fa-whatsapp",
+    icono: { marca: "whatsapp" },
     activo: "bg-[#25D366] text-white shadow-md shadow-emerald-500/20",
   },
   {
     valor: "instagram",
     label: "Instagram",
     corto: "Instagram",
-    icono: "fab fa-instagram",
+    icono: { marca: "instagram" },
     activo:
       "bg-gradient-to-tr from-[#F77737] via-[#E1306C] to-[#833AB4] text-white shadow-md shadow-pink-500/20",
   },
@@ -43,7 +44,7 @@ const CANALES = [
     valor: "messenger",
     label: "Messenger",
     corto: "Messenger",
-    icono: "fab fa-facebook-messenger",
+    icono: { marca: "messenger" },
     activo: "bg-[#0084FF] text-white shadow-md shadow-sky-500/20",
   },
 ];
@@ -91,10 +92,7 @@ const InboxChannelRail = ({
         } ${deshabilitado ? "opacity-40 cursor-not-allowed" : ""}`,
       },
       [
-        e("i", {
-          key: "icono",
-          className: `${c.icono} text-base md:text-lg leading-none`,
-        }),
+        e(Icono, { key: "icono", ...c.icono, className: "text-base md:text-lg leading-none" }),
         e(
           "span",
           {
@@ -156,9 +154,7 @@ const InboxChannelRail = ({
               : "text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-gray-700/60"
           }`,
         },
-        e("i", {
-          className: `fas ${isMuted ? "fa-bell-slash" : "fa-bell"} text-sm`,
-        }),
+        e(Icono, { nombre: isMuted ? "bell-off" : "bell", className: "text-sm" }),
       ),
     );
   }

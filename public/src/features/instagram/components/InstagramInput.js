@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 /**
  * public/src/features/instagram/components/InstagramInput.js
  * Barra de entrada de texto para Instagram Direct
@@ -79,7 +80,7 @@ const InstagramInput = ({
               title: "Adjuntar foto",
               "aria-label": "Adjuntar imagen",
             },
-            e("i", { className: "far fa-image text-base sm:text-lg" }),
+            e(Icono, { nombre: "image", className: "text-base sm:text-lg" }),
           ),
 
           // Campo de texto (3 líneas de alto con soporte responsive)
@@ -113,7 +114,7 @@ const InstagramInput = ({
               title: "Enviar mensaje",
               "aria-label": "Enviar mensaje por Instagram",
             },
-            e("i", { className: "fas fa-paper-plane text-sm" }),
+            e(Icono, { nombre: "send", className: "text-sm" }),
           ),
         ],
       ),

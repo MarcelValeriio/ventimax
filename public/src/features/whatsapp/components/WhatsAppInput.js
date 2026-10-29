@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/whatsapp/components/WhatsAppInput.js
 import React, { useState, useRef, useEffect } from "https://cdn.skypack.dev/react";
 import apiClient from "../../../services/apiClient.js";
@@ -36,7 +37,7 @@ const EMOJIS = [
  * 
  * - Altura Inicial: rows=3 con min-h-[70px] en mobile / min-h-[64px] en desktop para mayor comodidad visual.
  * - Crecimiento Controlado: max-h-[140px] con scroll interno y resize-none.
- * - Iconografía: 100% Font Awesome con atributos de accesibilidad.
+ * - Iconografía: 100% Lucide con atributos de accesibilidad.
  * - Alineación: items-end para que los botones de acción se ubiquen ergonómicamente al pie del textarea.
  */
 const WhatsAppInput = ({
@@ -80,7 +81,7 @@ const WhatsAppInput = ({
 
     try {
       setIsUploading(true);
-      window.showToast("📎 Subiendo archivo...", "info");
+      window.showToast("Subiendo archivo...", "info");
 
       const formData = new FormData();
       formData.append("file", file);
@@ -107,14 +108,14 @@ const WhatsAppInput = ({
       });
 
       if (res.data && res.data.success) {
-        window.showToast("✅ Archivo enviado con éxito!");
+        window.showToast("Archivo enviado con éxito!");
         if (onCancelReply) onCancelReply();
       } else {
-        window.showToast("❌ Error al enviar el archivo.", "error");
+        window.showToast("Error al enviar el archivo.", "error");
       }
     } catch (err) {
       console.error("Upload error:", err);
-      window.showToast("❌ Falló la subida del archivo.", "error");
+      window.showToast("Falló la subida del archivo.", "error");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -139,7 +140,7 @@ const WhatsAppInput = ({
           },
           [
             e("div", { className: "flex items-center gap-2 truncate min-w-0" }, [
-              e("i", { className: "fas fa-reply text-[#008069] shrink-0 text-[11px]" }),
+              e(Icono, { nombre: "reply", className: "text-[#008069] shrink-0 text-[11px]" }),
               e("span", { className: "font-bold text-[#008069] shrink-0" }, "Respondiendo a:"),
               e(
                 "span",
@@ -157,7 +158,7 @@ const WhatsAppInput = ({
                 title: "Cancelar respuesta",
                 "aria-label": "Cancelar respuesta",
               },
-              e("i", { className: "fas fa-times text-xs" }),
+              e(Icono, { nombre: "x", className: "text-xs" }),
             ),
           ],
         ),
@@ -194,7 +195,7 @@ const WhatsAppInput = ({
           ),
         ),
 
-      // Botón Emoji con icono Font Awesome
+      // Botón Emoji con icono Lucide
       e(
         "button",
         {
@@ -205,10 +206,10 @@ const WhatsAppInput = ({
             "w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-[#008069] dark:hover:text-emerald-400 transition cursor-pointer self-end mb-0.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 active:scale-95 shrink-0",
           onClick: () => setShowEmojis(!showEmojis),
         },
-        e("i", { className: "far fa-smile text-lg sm:text-xl", "aria-hidden": "true" }),
+        e(Icono, { nombre: "face-slightly-smiling", className: "text-lg sm:text-xl", "aria-hidden": "true" }),
       ),
 
-      // Botón Adjuntar Archivo con icono Font Awesome
+      // Botón Adjuntar Archivo con icono Lucide
       e(
         "button",
         {
@@ -216,11 +217,11 @@ const WhatsAppInput = ({
           type: "button",
           "aria-label": "Adjuntar archivo o imagen",
           className: `w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center ${
-            isUploading ? "text-[#008069] fa-beat" : "text-gray-500 dark:text-gray-400"
+            isUploading ? "text-[#008069] animate-pulse" : "text-gray-500 dark:text-gray-400"
           } hover:text-[#008069] dark:hover:text-emerald-400 transition cursor-pointer self-end mb-0.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 active:scale-95 shrink-0`,
           onClick: handleAttachClick,
         },
-        e("i", { className: "fas fa-paperclip text-base sm:text-lg", "aria-hidden": "true" }),
+        e(Icono, { nombre: "paperclip", className: "text-base sm:text-lg", "aria-hidden": "true" }),
       ),
 
       // Input oculto para carga de archivos
@@ -264,7 +265,7 @@ const WhatsAppInput = ({
           className:
             "bg-[#008069] hover:bg-[#006e59] text-white w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition shadow-xs active:scale-95 disabled:opacity-40 self-end mb-0.5 shrink-0 cursor-pointer focus:ring-2 focus:ring-[#008069]",
         },
-        e("i", { className: "fas fa-paper-plane text-sm", "aria-hidden": "true" }),
+        e(Icono, { nombre: "send", className: "text-sm", "aria-hidden": "true" }),
       ),
     ]),
   ]);

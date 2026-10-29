@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/inbox/components/InboxSidebar.js
 // Col-C del LAYOUT V3: cabecera del canal activo + filtros + lista de
 // conversaciones de ESE canal. Los chips de canal ya no viven aquí (raíl).
@@ -45,7 +46,7 @@ const InboxSidebar = ({
   onBuscarChange,
   canalActivo = "todos",
   canalLabel = "Todos",
-  canalIcono = "fas fa-layer-group",
+  canalIcono = { nombre: "layers" },
   totales = {},
   totalesNoLeidos = {},
   loading = false,
@@ -106,7 +107,7 @@ const InboxSidebar = ({
                   className:
                     "w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 via-emerald-600 to-[#0084FF] flex items-center justify-center text-white shadow-sm shrink-0",
                 },
-                e("i", { className: "fas fa-inbox text-lg" }),
+                e(Icono, { nombre: "inbox", className: "text-lg" }),
               ),
               e("div", { key: "titles", className: "flex flex-col min-w-0" }, [
                 e(
@@ -154,7 +155,7 @@ const InboxSidebar = ({
                   title: `Canal activo: ${canalLabel} (se cambia en el raíl)`,
                 },
                 [
-                  e("i", { key: "ic", className: `${canalIcono} text-[9px]` }),
+                  e(Icono, { key: "ic", ...canalIcono, className: "text-[9px]" }),
                   canalLabel,
                 ],
               ),
@@ -211,7 +212,7 @@ const InboxSidebar = ({
                   "p-6 m-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-xs font-medium flex items-start gap-2",
               },
               [
-                e("i", { key: "icon", className: "fas fa-exclamation-triangle mt-0.5" }),
+                e(Icono, { key: "icon", nombre: "triangle-alert", className: "mt-0.5" }),
                 e("span", { key: "msg" }, error),
               ],
             )
@@ -223,7 +224,7 @@ const InboxSidebar = ({
                     "p-8 text-center flex flex-col items-center justify-center h-48 text-gray-400 dark:text-gray-500",
                 },
                 [
-                  e("i", { key: "ic", className: "fas fa-search text-3xl mb-2 opacity-30" }),
+                  e(Icono, { key: "ic", nombre: "search", className: "text-3xl mb-2 opacity-30" }),
                   e(
                     "p",
                     {

@@ -58,6 +58,21 @@ export async function obtenerCatalogo() {
 }
 
 /**
+ * Datos públicos para la sección de preguntas frecuentes: preguntas con respuesta, nombres de los métodos de
+ * pago, métodos de envío y horario de atención. Si falla, la tienda funciona igual sin esa sección.
+ */
+export async function obtenerInfo() {
+  const base = obtenerBaseUrl();
+  const res = await fetch(`${base}/api/public/info`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) {
+    throw new Error(`Error HTTP ${res.status} al consultar información`);
+  }
+  return res.json();
+}
+
+/**
  * Envía el carrito para generar el pedido web y obtener el enlace a WhatsApp.
  * Gestiona errores con mensajes amables sin exponer detalles técnicos [R13].
  */

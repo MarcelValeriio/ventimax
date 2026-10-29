@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/whatsapp/components/ImageLightboxModal.js
 import React, { useState, useEffect, useRef } from "https://cdn.skypack.dev/react";
 const e = React.createElement;
@@ -110,7 +111,7 @@ const ImageLightboxModal = ({
               className: "flex items-center gap-2 truncate pr-2",
             },
             [
-              e("i", { className: "fas fa-image text-emerald-400 text-sm" }),
+              e(Icono, { nombre: "image", className: "text-emerald-400 text-sm" }),
               e(
                 "span",
                 {
@@ -140,7 +141,7 @@ const ImageLightboxModal = ({
                   title: "Aumentar zoom",
                   "aria-label": "Aumentar zoom",
                 },
-                e("i", { className: "fas fa-search-plus" }),
+                e(Icono, { nombre: "zoom-in" }),
               ),
               // Botón Zoom -
               e(
@@ -153,7 +154,7 @@ const ImageLightboxModal = ({
                   title: "Reducir zoom",
                   "aria-label": "Reducir zoom",
                 },
-                e("i", { className: "fas fa-search-minus" }),
+                e(Icono, { nombre: "zoom-out" }),
               ),
               // Botón Reset Zoom (si tiene zoom)
               zoomLevel > 1 &&
@@ -181,7 +182,7 @@ const ImageLightboxModal = ({
                     "w-9 h-9 rounded-full bg-white/20 hover:bg-red-600 text-white flex items-center justify-center transition cursor-pointer ml-1 shadow-lg text-sm",
                   title: "Cerrar imagen (Escape)",
                 },
-                e("i", { className: "fas fa-times" }),
+                e(Icono, { nombre: "x" }),
               ),
             ],
           ),
@@ -232,8 +233,8 @@ const ImageLightboxModal = ({
                   onClick: (ev) => ev.stopPropagation(),
                 },
                 [
-                  e("i", {
-                    className: "fas fa-exclamation-triangle text-amber-400 text-3xl",
+                  e(Icono, {
+                    nombre: "triangle-alert", className: "text-amber-400 text-3xl",
                   }),
                   e(
                     "p",

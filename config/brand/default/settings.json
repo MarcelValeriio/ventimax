@@ -56,6 +56,13 @@
     "vigenciaHoras": 72,
     "activo": true
   },
+  "tienda": {
+    "preguntasFrecuentes": [
+      { "pregunta": "¿Los ventiladores tienen garantía?", "respuesta": "" },
+      { "pregunta": "¿Cuánto tarda la entrega?", "respuesta": "" },
+      { "pregunta": "¿Entregan factura o nota de entrega?", "respuesta": "" }
+    ]
+  },
   "messages": {
     "socialThanks": ["¡Con gusto! 🙌 Aquí estamos cuando lo necesites.", "¡A la orden! Si te surge otra duda, escríbenos 😊", "¡Gracias a ti! Cuando quieras hacer tu pedido, te esperamos por WhatsApp: {{waLink}}"],
     "socialOutsideZone": ["¡Llegamos a otras ciudades! 📦 Escríbenos por WhatsApp y te decimos cómo llega tu pedido: {{waLink}}", "¡No hay problema! Cuéntanos tu ciudad por WhatsApp y te decimos cómo hacértelo llegar: {{waLink}}"],

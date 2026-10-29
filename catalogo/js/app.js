@@ -1,7 +1,8 @@
 /**
  * catalogo/js/app.js
  * Aplicación cliente del catálogo web (SPA con renderizado seguro).
- * Conforme a F2-3 y las reglas de seguridad [R1, R7, R11, R13].
+ * Conforme a F2-3 y las reglas de seguridad [R1, R7, R11, R13]: todo dato se pinta con textContent
+ * o creando elementos; el total que vale es el del servidor.
  */
 
 import {
@@ -13,16 +14,21 @@ import {
   eliminarProducto,
   obtenerTotalUnidades,
   armarCuerpoPedido,
+  MAX_CANTIDAD_POR_LINEA,
 } from "./carrito.js";
 
 import {
   obtenerMarca,
   obtenerCatalogo,
+  obtenerInfo,
   enviarPedidoWeb,
   resolverUrlRecurso,
+  obtenerBaseUrl,
 } from "./api.js";
 
 import { el, limpiarElemento } from "./dom.js";
+
+import { icono } from "./iconos.js";
 
 import { debeMostrarAyuda, textoAyuda, armarEnlaceAyuda } from "./ayuda.js";
 
@@ -37,24 +43,92 @@ function esEnlaceWhatsApp(url) {
 const state = {
   marca: null,
   catalogo: null,
+  info: null,
+  cargando: true,
   carrito: cargarCarritoDesdeStorage(),
   busqueda: "",
   categoriaActiva: "todas",
+  orden: "relevancia",
   ultimoPedido: null,
+  vista: "",
 };
 
 const appRoot = document.getElementById("app-root");
 const cartBadge = document.getElementById("cart-badge");
 const brandTitle = document.getElementById("brand-title");
-const brandLogo = document.getElementById("brand-logo");
+const brandLink = document.getElementById("brand-link");
 const toastContainer = document.getElementById("toast-container");
+const buscadorForm = document.getElementById("buscador");
+const buscadorInput = document.getElementById("buscador-input");
+
+/* ------------------------------------------------------------------------------------------------
+ * Formatos
+ * ---------------------------------------------------------------------------------------------- */
+
+/**
+ * Formatea un monto en dólares estadounidenses.
+ */
+function formatearUsd(monto) {
+  const num = Math.round((Number(monto) || 0) * 100) / 100;
+  // Mismo formato en toda la tienda: separadores venezolanos (igual que los bolívares) y sin ",00" en montos enteros
+  const entero = Number.isInteger(num);
+  return `$${num.toLocaleString("es-VE", { minimumFractionDigits: entero ? 0 : 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * Formatea un monto en bolívares.
+ */
+function formatearBs(monto) {
+  if (monto === null || monto === undefined) return null;
+  const num = Number(monto) || 0;
+  return `Bs. ${num.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * Precio en dólares con los centavos en alto, como lo lee el comprador en las tiendas que ya conoce.
+ * Los lectores de pantalla reciben el monto completo en una sola lectura.
+ */
+function precioUsd(monto, clase = "") {
+  const [entero, centavos] = (Number(monto) || 0).toFixed(2).split(".");
+  return el(
+    "span",
+    { className: `precio ${clase}`.trim() },
+    el("span", { className: "sr-only" }, formatearUsd(monto)),
+    el(
+      "span",
+      { className: "precio-visual", "aria-hidden": "true" },
+      el("span", { className: "precio-signo" }, "$"),
+      Number(entero).toLocaleString("es-VE"),
+      centavos !== "00" ? el("sup", { className: "precio-centavos" }, centavos) : null
+    )
+  );
+}
+
+/** Línea de referencia en bolívares; null si el BCV no respondió (la tienda sigue en dólares). */
+function lineaBs(montoBs, clase = "") {
+  const texto = formatearBs(montoBs);
+  return texto ? el("span", { className: `precio-bs ${clase}`.trim() }, texto) : null;
+}
+
+/** Cantidad de un producto que ya está en el pedido. */
+function cantidadEnCarrito(productoId) {
+  return state.carrito.find((i) => i.productoId === productoId)?.cantidad || 0;
+}
+
+function productosDelCatalogo() {
+  return state.catalogo?.productos || [];
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * Avisos, contador y barra de pedido
+ * ---------------------------------------------------------------------------------------------- */
 
 /**
  * Notificaciones temporales en pantalla.
  */
 function mostrarToast(mensaje) {
   if (!toastContainer) return;
-  const toast = el("div", { className: "toast" }, "✓ ", mensaje);
+  const toast = el("div", { className: "aviso" }, icono("check", "aviso-icono"), el("span", {}, mensaje));
   toastContainer.appendChild(toast);
   setTimeout(() => {
     if (toast.parentNode) {
@@ -62,6 +136,69 @@ function mostrarToast(mensaje) {
     }
   }, 2500);
 }
+
+/**
+ * Actualiza el contador del carrito en el encabezado.
+ */
+function actualizarBadge() {
+  if (!cartBadge) return;
+  const total = obtenerTotalUnidades(state.carrito);
+  cartBadge.textContent = String(total);
+  cartBadge.classList.toggle("hidden", total === 0);
+  document.getElementById("cart-btn")?.setAttribute("aria-label", total ? `Ver tu pedido, ${total} productos` : "Ver tu pedido");
+}
+
+/** Total orientativo del pedido con los precios del catálogo; el que vale lo calcula el servidor. */
+function totalOrientativo() {
+  return state.carrito.reduce((suma, item) => {
+    const prod = productosDelCatalogo().find((p) => p.id === item.productoId);
+    return suma + (prod ? prod.precioUsd * item.cantidad : 0);
+  }, 0);
+}
+
+/**
+ * Barra fija inferior "Ver pedido": aparece en el catálogo y en la ficha cuando hay algo en el pedido.
+ * En el carrito y la confirmación no hace falta.
+ */
+let barraPedido = null;
+
+function actualizarBarraPedido() {
+  const unidades = obtenerTotalUnidades(state.carrito);
+  const visible = unidades > 0 && (state.vista === "catalogo" || state.vista === "producto");
+  if (!barraPedido) {
+    barraPedido = el("a", { className: "barra-pedido hidden", href: "#/carrito" });
+    document.body.appendChild(barraPedido);
+  }
+  limpiarElemento(barraPedido);
+  const total = formatearUsd(totalOrientativo());
+  barraPedido.setAttribute("aria-label", `Ver pedido: ${unidades === 1 ? "1 producto" : `${unidades} productos`}, ${total}`);
+  barraPedido.append(
+    el(
+      "span",
+      { className: "barra-pedido-resumen", "aria-hidden": "true" },
+      el("span", { className: "barra-pedido-carrito" }, icono("carrito"), el("span", { className: "barra-pedido-cuenta" }, String(unidades))),
+      el("span", { className: "barra-pedido-texto" }, unidades === 1 ? "1 producto" : `${unidades} productos`),
+      el("span", { className: "barra-pedido-total" }, total)
+    ),
+    el("span", { className: "barra-pedido-accion", "aria-hidden": "true" }, "Ver pedido", icono("siguiente"))
+  );
+  barraPedido.classList.toggle("hidden", !visible);
+  document.body.classList.toggle("con-barra", visible);
+  // Con la barra abajo, la ayuda queda como un círculo a su lado, sin tapar productos
+  if (visible) botonAyuda?.classList.add("ayuda-wa--compacto");
+}
+
+/** Guarda el pedido y refresca todo lo que lo muestra. */
+function guardarPedido(nuevo) {
+  state.carrito = nuevo;
+  guardarCarritoEnStorage(state.carrito);
+  actualizarBadge();
+  actualizarBarraPedido();
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * Botón flotante de ayuda por WhatsApp
+ * ---------------------------------------------------------------------------------------------- */
 
 /**
  * Botón flotante "¿Dudas? Escríbenos" (WhatsApp). Se crea una vez si la marca trae número de ayuda;
@@ -98,31 +235,15 @@ function actualizarBotonAyuda(nombreProducto) {
   if (enlace) botonAyuda.setAttribute("href", enlace);
 }
 
-/**
- * Actualiza el contador del carrito en el encabezado.
- */
-function actualizarBadge() {
-  if (!cartBadge) return;
-  const total = obtenerTotalUnidades(state.carrito);
-  cartBadge.textContent = String(total);
+/** Enlace "Preguntar por WhatsApp" de la ficha, con el producto en el mensaje. Null sin número de ayuda. */
+function enlaceAyudaProducto(nombreProducto) {
+  if (!state.marca?.ayuda) return null;
+  return armarEnlaceAyuda(state.marca.ayuda.whatsapp, textoAyuda(state.marca.ayuda, nombreProducto)) || null;
 }
 
-/**
- * Formatea un monto en dólares estadounidenses.
- */
-function formatearUsd(monto) {
-  const num = Number(monto) || 0;
-  return `$${num.toFixed(2)}`;
-}
-
-/**
- * Formatea un monto en bolívares.
- */
-function formatearBs(monto) {
-  if (monto === null || monto === undefined) return null;
-  const num = Number(monto) || 0;
-  return `Bs. ${num.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+/* ------------------------------------------------------------------------------------------------
+ * Identidad de la marca
+ * ---------------------------------------------------------------------------------------------- */
 
 /**
  * Aplica la identidad visual recibida de la marca a la página.
@@ -134,6 +255,8 @@ function aplicarIdentidadMarca(marca) {
   if (marca.brandName) {
     document.title = marca.brandName;
     if (brandTitle) brandTitle.textContent = marca.brandName;
+    const pie = document.getElementById("footer-brand");
+    if (pie) pie.textContent = marca.brandName;
   }
 
   const theme = marca.theme || {};
@@ -144,141 +267,57 @@ function aplicarIdentidadMarca(marca) {
     document.documentElement.style.setProperty("--secondary-color", theme.secondaryColor);
   }
 
-  const logoUrl = theme.productBrandLogoUrl || theme.logoUrl;
-  if (logoUrl && brandLogo) {
-    brandLogo.src = resolverUrlRecurso(logoUrl);
-    brandLogo.classList.remove("hidden");
-    if (brandTitle) brandTitle.classList.add("hidden");
+  // El logo se crea solo cuando hay uno: un <img> sin src se vería como imagen rota mientras carga la marca
+  const logoUrl = resolverUrlRecurso(theme.productBrandLogoUrl || theme.logoUrl);
+  if (logoUrl && brandLink && !brandLink.querySelector(".marca-logo")) {
+    const logo = el("img", { className: "marca-logo", src: logoUrl, alt: marca.brandName || "" });
+    // Si el logo no carga, queda el nombre de la marca en texto
+    logo.addEventListener("error", () => {
+      logo.remove();
+      brandTitle?.classList.remove("hidden");
+    }, { once: true });
+    brandLink.prepend(logo);
+    brandTitle?.classList.add("hidden");
   }
 }
 
-/**
- * Vista de Catálogo Principal / Filtrado por Categoría.
- */
-function renderizarCatalogo() {
-  limpiarElemento(appRoot);
-
-  if (!state.catalogo) {
-    appRoot.appendChild(el("div", { className: "empty-state" }, "Cargando catálogo..."));
-    return;
+/** Íconos fijos del encabezado y enlace a la política de privacidad del servidor. */
+function prepararMarco() {
+  document.getElementById("cart-icon")?.appendChild(icono("carrito"));
+  document.getElementById("buscador-icono")?.appendChild(icono("buscar"));
+  const privacidad = document.getElementById("footer-privacy");
+  const base = obtenerBaseUrl();
+  if (privacidad && base) {
+    privacidad.setAttribute("href", `${base}/privacidad`);
+    privacidad.setAttribute("rel", "noopener");
+    privacidad.classList.remove("hidden");
   }
 
-  const container = el("div", { className: "catalog-view" });
-
-  // 1. Barra de Búsqueda y Filtros
-  const searchInput = el("input", {
-    type: "search",
-    className: "search-input",
-    placeholder: "Buscar productos...",
-    value: state.busqueda,
-    oninput: (e) => {
-      state.busqueda = e.target.value.toLowerCase().trim();
-      actualizarGrillaProductos();
-    },
+  // "Saltar al contenido": mueve el foco sin tocar el hash (el enrutador lo tomaría como una ruta)
+  document.querySelector(".saltar")?.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    appRoot.focus();
   });
 
-  const searchWrap = el(
-    "div",
-    { className: "search-bar-wrap" },
-    el("span", { className: "search-icon" }, "🔍"),
-    searchInput
-  );
-
-  // Barra de Categorías
-  const categoriesBar = el("div", { className: "categories-bar" });
-  const pillTodas = el(
-    "button",
-    {
-      type: "button",
-      className: `category-pill ${state.categoriaActiva === "todas" ? "active" : ""}`,
-      onclick: () => {
-        state.categoriaActiva = "todas";
-        window.location.hash = "#/";
-      },
-    },
-    "Todas"
-  );
-  categoriesBar.appendChild(pillTodas);
-
-  for (const cat of state.catalogo.categorias || []) {
-    const isActiva = state.categoriaActiva === cat.slug;
-    const pill = el(
-      "button",
-      {
-        type: "button",
-        className: `category-pill ${isActiva ? "active" : ""}`,
-        onclick: () => {
-          state.categoriaActiva = cat.slug;
-          window.location.hash = `#/categoria/${encodeURIComponent(cat.slug)}`;
-        },
-      },
-      cat.nombre
-    );
-    categoriesBar.appendChild(pill);
-  }
-
-  const controls = el("div", { className: "catalog-controls" }, searchWrap, categoriesBar);
-  container.appendChild(controls);
-
-  // 2. Aviso de Tasa Oficial
-  if (state.catalogo.tasa) {
-    const textoTasa = `Tasa del día: ${formatearBs(state.catalogo.tasa)} / USD${
-      state.catalogo.fechaTasa ? ` (${state.catalogo.fechaTasa})` : ""
-    }`;
-    const rateNotice = el("div", { className: "rate-notice" }, "ℹ️ ", textoTasa);
-    container.appendChild(rateNotice);
-  }
-
-  // 3. Contenedor de Grilla
-  const gridContainer = el("div", { className: "products-grid" });
-  container.appendChild(gridContainer);
-  appRoot.appendChild(container);
-
-  // Función interna para refrescar productos según filtros
-  function actualizarGrillaProductos() {
-    limpiarElemento(gridContainer);
-
-    const filtrados = (state.catalogo.productos || []).filter((prod) => {
-      // Filtro por categoría
-      if (state.categoriaActiva !== "todas") {
-        const prodCats = Array.isArray(prod.categorias) ? prod.categorias : [];
-        if (!prodCats.includes(state.categoriaActiva)) {
-          return false;
-        }
-      }
-
-      // Filtro por búsqueda
-      if (state.busqueda) {
-        const nombre = (prod.nombre || "").toLowerCase();
-        const desc = (prod.descripcion || "").toLowerCase();
-        if (!nombre.includes(state.busqueda) && !desc.includes(state.busqueda)) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-
-    if (filtrados.length === 0) {
-      gridContainer.appendChild(
-        el(
-          "div",
-          { className: "empty-state", style: { gridColumn: "1 / -1" } },
-          el("div", { className: "empty-state-icon" }, "📦"),
-          "No se encontraron productos disponibles."
-        )
-      );
-      return;
+  // El buscador del encabezado filtra desde cualquier vista: si no estás en el catálogo, te lleva a él
+  buscadorInput?.addEventListener("input", () => {
+    state.busqueda = buscadorInput.value.toLowerCase().trim();
+    if (state.vista !== "catalogo") {
+      state.categoriaActiva = "todas";
+      window.location.hash = "#/";
+    } else {
+      renderizarCatalogo();
     }
-
-    for (const prod of filtrados) {
-      const card = crearTarjetaProducto(prod);
-      gridContainer.appendChild(card);
-    }
-  }
-
-  actualizarGrillaProductos();
+  });
+  buscadorForm?.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    buscadorInput?.blur();
+  });
 }
+
+/* ------------------------------------------------------------------------------------------------
+ * Piezas comunes
+ * ---------------------------------------------------------------------------------------------- */
 
 /**
  * Foto de un producto. Si no tiene foto, o si la foto no carga (p. ej. se borró en Cloudinary), muestra un
@@ -289,15 +328,396 @@ function imagenProducto(url, alt, className, extra = {}) {
     el(
       "div",
       { className: `${className} img-sin-foto`, role: "img", "aria-label": `${alt} (sin foto)` },
-      el("span", { className: "img-sin-foto-icono" }, "📷"),
+      icono("foto", "img-sin-foto-icono"),
       el("span", { className: "img-sin-foto-texto" }, "Sin foto")
     );
   const src = resolverUrlRecurso(url);
   if (!src) return recuadroSinFoto();
-  const img = el("img", { className, src, alt, ...extra });
+  const img = el("img", { className, src, alt, decoding: "async", ...extra });
   img.addEventListener("error", () => img.replaceWith(recuadroSinFoto()), { once: true });
   return img;
 }
+
+/** Selector − n + reutilizable. Devuelve el contenedor; `alCambiar` recibe la cantidad nueva. */
+function selectorCantidad(cantidad, alCambiar, { min = 1, etiqueta = "producto" } = {}) {
+  return el(
+    "div",
+    { className: "cantidad", role: "group", "aria-label": `Cantidad de ${etiqueta}` },
+    el(
+      "button",
+      {
+        type: "button",
+        className: "cantidad-boton",
+        "aria-label": cantidad <= 1 && min === 0 ? `Quitar ${etiqueta}` : "Restar uno",
+        disabled: cantidad <= min,
+        onclick: () => alCambiar(cantidad - 1),
+      },
+      icono(cantidad <= 1 && min === 0 ? "basura" : "menos")
+    ),
+    el("output", { className: "cantidad-valor", "aria-live": "polite" }, String(cantidad)),
+    el(
+      "button",
+      {
+        type: "button",
+        className: "cantidad-boton",
+        "aria-label": "Sumar uno",
+        disabled: cantidad >= MAX_CANTIDAD_POR_LINEA,
+        onclick: () => alCambiar(cantidad + 1),
+      },
+      icono("mas")
+    )
+  );
+}
+
+/**
+ * Botón de compra de la tarjeta: "Agregar" y, cuando ya está en el pedido, el selector de cantidad en su lugar.
+ * Se redibuja solo, sin repintar la cuadrícula.
+ */
+function controlCompraTarjeta(prod) {
+  const caja = el("div", { className: "tarjeta-compra" });
+  const pintar = () => {
+    limpiarElemento(caja);
+    if (!prod.disponible) {
+      caja.appendChild(el("button", { type: "button", className: "boton boton-bloque", disabled: true }, "Agotado"));
+      return;
+    }
+    const enPedido = cantidadEnCarrito(prod.id);
+    if (enPedido === 0) {
+      caja.appendChild(
+        el(
+          "button",
+          {
+            type: "button",
+            className: "boton boton-primario boton-bloque",
+            "aria-label": `Agregar ${prod.nombre} al pedido`,
+            onclick: () => {
+              guardarPedido(agregarProducto(state.carrito, prod.id, 1));
+              pintar();
+              caja.querySelector(".cantidad-boton:last-child")?.focus();
+            },
+          },
+          "Agregar"
+        )
+      );
+      return;
+    }
+    caja.appendChild(
+      selectorCantidad(
+        enPedido,
+        (n) => {
+          guardarPedido(n <= 0 ? eliminarProducto(state.carrito, prod.id) : actualizarCantidad(state.carrito, prod.id, n));
+          pintar();
+        },
+        { min: 0, etiqueta: prod.nombre }
+      )
+    );
+  };
+  pintar();
+  return caja;
+}
+
+/** Siluetas grises mientras llega el catálogo, en vez de una pantalla en blanco. */
+function siluetasCatalogo() {
+  return el(
+    "div",
+    { className: "cuadricula", "aria-hidden": "true" },
+    Array.from({ length: 6 }, () =>
+      el(
+        "div",
+        { className: "tarjeta tarjeta-silueta" },
+        el("div", { className: "tarjeta-foto" }),
+        el("div", { className: "tarjeta-cuerpo" }, el("span", { className: "silueta silueta-texto" }), el("span", { className: "silueta silueta-precio" }), el("span", { className: "silueta silueta-boton" }))
+      )
+    )
+  );
+}
+
+/** Estado vacío o de error con una acción clara. */
+function estadoVacio(iconoNombre, titulo, texto, accion) {
+  return el(
+    "div",
+    { className: "vacio" },
+    icono(iconoNombre, "vacio-icono"),
+    el("h2", { className: "vacio-titulo" }, titulo),
+    texto ? el("p", { className: "vacio-texto" }, texto) : null,
+    accion || null
+  );
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * Vista: catálogo (inicio, categoría y búsqueda)
+ * ---------------------------------------------------------------------------------------------- */
+
+/** Cómo se compra aquí: lo que ninguna otra tienda puede decir con verdad, en tres pasos cortos. */
+function pasosCompra() {
+  const paso = (nombreIcono, titulo, texto) =>
+    el("li", { className: "paso" }, el("span", { className: "paso-icono" }, icono(nombreIcono)), el("span", { className: "paso-texto" }, el("strong", {}, titulo), el("span", {}, texto)));
+  return el(
+    "section",
+    { className: "pasos", "aria-label": "Cómo comprar" },
+    el(
+      "ol",
+      { className: "pasos-lista" },
+      paso("carrito", "Arma tu pedido", "Agrega lo que quieras aquí."),
+      paso("etiqueta", "Recibe tu código", "Lo generamos con los precios del día."),
+      paso("mensaje", "Confírmalo por WhatsApp", "Te atendemos al instante.")
+    )
+  );
+}
+
+function productosFiltrados() {
+  const filtrados = productosDelCatalogo().filter((prod) => {
+    if (state.categoriaActiva !== "todas") {
+      const prodCats = Array.isArray(prod.categorias) ? prod.categorias : [];
+      if (!prodCats.includes(state.categoriaActiva)) return false;
+    }
+    if (state.busqueda) {
+      const nombre = (prod.nombre || "").toLowerCase();
+      const desc = (prod.descripcion || "").toLowerCase();
+      if (!nombre.includes(state.busqueda) && !desc.includes(state.busqueda)) return false;
+    }
+    return true;
+  });
+  if (state.orden === "menor") filtrados.sort((a, b) => a.precioUsd - b.precioUsd);
+  if (state.orden === "mayor") filtrados.sort((a, b) => b.precioUsd - a.precioUsd);
+  // Los agotados se ven, pero al final
+  return filtrados.sort((a, b) => Number(b.disponible) - Number(a.disponible));
+}
+
+/**
+ * Crea una tarjeta individual de producto para la grilla.
+ */
+function crearTarjetaProducto(prod) {
+  const enlace = `#/producto/${encodeURIComponent(prod.id)}`;
+  const imgUrl = Array.isArray(prod.imagenes) && prod.imagenes.length > 0 ? prod.imagenes[0] : "";
+
+  const foto = el(
+    "a",
+    { className: "tarjeta-foto", href: enlace, tabindex: "-1", "aria-hidden": "true" },
+    imagenProducto(imgUrl, prod.nombre, "tarjeta-imagen", { loading: "lazy" }),
+    prod.disponible ? null : el("span", { className: "sello-agotado" }, "Agotado")
+  );
+
+  return el(
+    "article",
+    { className: `tarjeta ${prod.disponible ? "" : "tarjeta-agotada"}`.trim() },
+    foto,
+    el(
+      "div",
+      { className: "tarjeta-cuerpo" },
+      el("h3", { className: "tarjeta-nombre" }, el("a", { href: enlace }, prod.nombre)),
+      el("div", { className: "tarjeta-precios" }, precioUsd(prod.precioUsd), lineaBs(prod.precioBs)),
+      controlCompraTarjeta(prod)
+    )
+  );
+}
+
+/**
+ * Vista de Catálogo Principal / Filtrado por Categoría.
+ */
+function renderizarCatalogo() {
+  limpiarElemento(appRoot);
+
+  if (!state.catalogo) {
+    if (state.cargando) {
+      appRoot.appendChild(siluetasCatalogo());
+      return;
+    }
+    appRoot.appendChild(
+      estadoVacio(
+        "alerta",
+        "No pudimos cargar los productos",
+        "Revisa tu conexión e inténtalo de nuevo.",
+        el("button", { type: "button", className: "boton boton-primario", onclick: () => cargarDatos() }, "Reintentar")
+      )
+    );
+    return;
+  }
+
+  const esInicio = state.categoriaActiva === "todas" && !state.busqueda;
+  const categorias = state.catalogo.categorias || [];
+  const categoria = categorias.find((c) => c.slug === state.categoriaActiva);
+
+  if (esInicio) appRoot.appendChild(pasosCompra());
+
+  // Categorías: enlaces (son navegación), desplazables en el celular
+  const pildora = (texto, href, activa) =>
+    el("a", { className: "pildora", href, "aria-current": activa ? "page" : null }, texto);
+  appRoot.appendChild(
+    el(
+      "nav",
+      { className: "categorias", "aria-label": "Categorías" },
+      pildora("Todo", "#/", state.categoriaActiva === "todas"),
+      categorias.map((c) => pildora(c.nombre, `#/categoria/${encodeURIComponent(c.slug)}`, c.slug === state.categoriaActiva))
+    )
+  );
+
+  // Enlace viejo a una categoría que ya no existe (la API oculta las categorías vacías)
+  if (state.categoriaActiva !== "todas" && !categoria) {
+    appRoot.appendChild(
+      estadoVacio(
+        "caja",
+        "Esta categoría no está disponible",
+        "Puede que ya no tenga productos. Mira el resto del catálogo.",
+        el("a", { className: "boton boton-primario", href: "#/" }, "Ver todos los productos")
+      )
+    );
+    return;
+  }
+
+  const lista = productosFiltrados();
+  const titulo = state.busqueda
+    ? `Resultados para “${buscadorInput?.value.trim() || state.busqueda}”`
+    : categoria
+      ? categoria.nombre
+      : "Todos los productos";
+
+  const selectorOrden = el(
+    "select",
+    {
+      id: "orden",
+      className: "orden-select",
+      onchange: (ev) => {
+        state.orden = ev.target.value;
+        renderizarCatalogo();
+      },
+    },
+    [
+      ["relevancia", "Más relevantes"],
+      ["menor", "Menor precio"],
+      ["mayor", "Mayor precio"],
+    ].map(([valor, texto]) => el("option", { value: valor, selected: state.orden === valor }, texto))
+  );
+
+  appRoot.appendChild(
+    el(
+      "div",
+      { className: "barra-listado" },
+      el("h1", { className: "listado-titulo" }, titulo),
+      el(
+        "div",
+        { className: "listado-fila" },
+        el("p", { className: "listado-cuenta" }, lista.length === 1 ? "1 producto" : `${lista.length} productos`),
+        el("div", { className: "orden" }, el("label", { for: "orden", className: "orden-etiqueta" }, "Ordenar por"), selectorOrden)
+      )
+    )
+  );
+
+  if (state.catalogo.tasa) {
+    appRoot.appendChild(
+      el(
+        "p",
+        { className: "nota-tasa" },
+        `Precios en dólares. Referencia en bolívares a la tasa BCV${state.catalogo.fechaTasa ? ` del ${state.catalogo.fechaTasa}` : " del día"}: `,
+        el("strong", {}, `${formatearBs(state.catalogo.tasa)} por dólar`)
+      )
+    );
+  }
+
+  if (lista.length === 0) {
+    appRoot.appendChild(
+      estadoVacio(
+        "buscar",
+        state.busqueda ? "No encontramos productos con esa búsqueda" : "Aún no hay productos en esta categoría",
+        state.busqueda ? "Prueba con otra palabra o mira todo el catálogo." : null,
+        el(
+          "a",
+          {
+            className: "boton boton-secundario",
+            href: "#/",
+            onclick: () => {
+              state.busqueda = "";
+              if (buscadorInput) buscadorInput.value = "";
+            },
+          },
+          "Ver todos los productos"
+        )
+      )
+    );
+  } else {
+    appRoot.appendChild(el("div", { className: "cuadricula" }, lista.map(crearTarjetaProducto)));
+  }
+
+  if (esInicio) {
+    seccionPreguntas = el("div", { className: "preguntas-hueco" });
+    appRoot.appendChild(seccionPreguntas);
+    pintarPreguntas();
+  }
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * Preguntas frecuentes (inicio)
+ * ---------------------------------------------------------------------------------------------- */
+
+let seccionPreguntas = null;
+
+function textoEnvio(envio) {
+  const partes = [envio.descripcion].filter(Boolean);
+  if (envio.aConvenir) partes.push("Costo a convenir.");
+  else if (envio.costo === 0) partes.push("Sin costo.");
+  else if (typeof envio.costo === "number") partes.push(`Costo: ${formatearUsd(envio.costo)}.`);
+  if (envio.direccion) partes.push(`Dirección: ${envio.direccion}.`);
+  if (envio.horario) partes.push(`Horario: ${envio.horario}.`);
+  return partes.join(" ");
+}
+
+/**
+ * Preguntas frecuentes: las que el dueño respondió en el panel y las que salen solas de lo configurado
+ * (pagos, envíos, horario). Sin datos de /api/public/info, la sección no aparece.
+ */
+function pintarPreguntas() {
+  if (!seccionPreguntas || !seccionPreguntas.isConnected) return;
+  limpiarElemento(seccionPreguntas);
+  const info = state.info;
+  if (!info) return;
+
+  const items = [];
+  const agregar = (pregunta, ...respuesta) => items.push({ pregunta, respuesta });
+
+  agregar(
+    "¿Cómo funciona el pedido por WhatsApp?",
+    el("p", {}, "Agregas los productos, tocas «Pedir por WhatsApp» y te damos un código. Al enviarlo, el asistente reconoce tu pedido con los precios del día y te guía con el envío y el pago.")
+  );
+  for (const p of info.preguntas || []) agregar(p.pregunta, el("p", {}, p.respuesta));
+  if ((info.pagos || []).length) {
+    agregar("¿Cómo puedo pagar?", el("p", {}, `Aceptamos ${info.pagos.join(", ")}. Los datos para pagar te los damos por WhatsApp al confirmar el pedido.`));
+  }
+  if ((info.envios || []).length) {
+    agregar(
+      "¿Hacen envíos?",
+      el(
+        "ul",
+        { className: "pregunta-lista" },
+        info.envios.map((e) => el("li", {}, el("strong", {}, e.nombre), textoEnvio(e) ? ` ${textoEnvio(e)}` : ""))
+      )
+    );
+  }
+  if (info.horario) agregar("¿Cuál es el horario de atención?", el("p", {}, info.horario));
+
+  seccionPreguntas.appendChild(
+    el(
+      "section",
+      { className: "preguntas", "aria-labelledby": "preguntas-titulo" },
+      el("h2", { id: "preguntas-titulo", className: "preguntas-titulo" }, "Preguntas frecuentes"),
+      el(
+        "div",
+        { className: "preguntas-lista" },
+        items.map(({ pregunta, respuesta }) =>
+          el(
+            "details",
+            { className: "pregunta" },
+            el("summary", { className: "pregunta-resumen" }, el("span", {}, pregunta), icono("siguiente", "pregunta-flecha")),
+            el("div", { className: "pregunta-respuesta" }, respuesta)
+          )
+        )
+      )
+    )
+  );
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * Vista: ficha de producto
+ * ---------------------------------------------------------------------------------------------- */
 
 /**
  * Carrusel de fotos del producto. La tira usa scroll-snap, así que deslizar con el dedo o el trackpad es nativo;
@@ -315,12 +735,13 @@ function crearGaleriaProducto(prod) {
       el(
         "div",
         { className: "carrusel-slide", "aria-roledescription": "foto", "aria-label": `${idx + 1} de ${total}` },
-        imagenProducto(url, `${prod.nombre}${total > 1 ? ` foto ${idx + 1}` : ""}`, "detail-main-img", idx > 0 ? { loading: "lazy" } : {})
+        imagenProducto(url, `${prod.nombre}${total > 1 ? ` foto ${idx + 1}` : ""}`, "ficha-imagen", idx > 0 ? { loading: "lazy" } : {})
       )
     )
   );
-  const visor = el("div", { className: "detail-main-img-wrap carrusel" }, tira);
-  const galeria = el("div", { className: "detail-gallery" }, visor);
+  const visor = el("div", { className: "ficha-visor carrusel" }, tira);
+  if (!prod.disponible) visor.appendChild(el("span", { className: "sello-agotado" }, "Agotado"));
+  const galeria = el("div", { className: "ficha-galeria" }, visor);
   if (total < 2) return galeria;
 
   const irA = (indice, suave = true) => {
@@ -331,12 +752,12 @@ function crearGaleriaProducto(prod) {
   const flechaAnterior = el(
     "button",
     { type: "button", className: "carrusel-flecha carrusel-flecha--anterior", "aria-label": "Foto anterior", onclick: () => irA(actual - 1) },
-    "‹"
+    icono("anterior")
   );
   const flechaSiguiente = el(
     "button",
     { type: "button", className: "carrusel-flecha carrusel-flecha--siguiente", "aria-label": "Foto siguiente", onclick: () => irA(actual + 1) },
-    "›"
+    icono("siguiente")
   );
   const puntos = el(
     "div",
@@ -349,12 +770,12 @@ function crearGaleriaProducto(prod) {
 
   const miniaturas = el(
     "div",
-    { className: "detail-thumbs-wrap" },
+    { className: "ficha-miniaturas" },
     imagenes.map((url, idx) =>
       el(
         "button",
-        { type: "button", className: "detail-thumb", "aria-label": `Ver foto ${idx + 1}`, onclick: () => irA(idx) },
-        imagenProducto(url, "", "detail-thumb-img", { loading: "lazy" })
+        { type: "button", className: "miniatura", "aria-label": `Ver foto ${idx + 1}`, onclick: () => irA(idx) },
+        imagenProducto(url, "", "miniatura-imagen", { loading: "lazy" })
       )
     )
   );
@@ -422,74 +843,14 @@ function crearGaleriaProducto(prod) {
   return galeria;
 }
 
-/**
- * Crea una tarjeta individual de producto para la grilla.
- */
-function crearTarjetaProducto(prod) {
-  const imgUrl =
-    Array.isArray(prod.imagenes) && prod.imagenes.length > 0 ? prod.imagenes[0] : "";
-
-  const imgEl = imagenProducto(imgUrl, prod.nombre, "product-card-img", { loading: "lazy" });
-
-  const imgWrap = el(
-    "div",
-    {
-      className: "product-card-img-wrap",
-      onclick: () => {
-        window.location.hash = `#/producto/${encodeURIComponent(prod.id)}`;
-      },
-    },
-    imgEl
-  );
-
-  if (!prod.disponible) {
-    imgWrap.appendChild(el("span", { className: "badge-agotado" }, "Agotado"));
-  }
-
-  const titleEl = el(
-    "a",
-    {
-      className: "product-card-title",
-      href: `#/producto/${encodeURIComponent(prod.id)}`,
-    },
-    prod.nombre
-  );
-
-  const descEl = el("p", { className: "product-card-desc" }, prod.descripcion || "");
-
-  const pricesEl = el(
-    "div",
-    { className: "product-card-prices" },
-    el("div", { className: "price-usd" }, formatearUsd(prod.precioUsd)),
-    prod.precioBs ? el("div", { className: "price-bs" }, `Ref: ${formatearBs(prod.precioBs)}`) : null
-  );
-
-  const addBtn = el(
-    "button",
-    {
-      type: "button",
-      className: "btn btn-primary",
-      disabled: !prod.disponible,
-      onclick: () => {
-        state.carrito = agregarProducto(state.carrito, prod.id, 1);
-        guardarCarritoEnStorage(state.carrito);
-        actualizarBadge();
-        mostrarToast(`${prod.nombre} agregado`);
-      },
-    },
-    prod.disponible ? "Agregar" : "Agotado"
-  );
-
-  const bodyEl = el(
-    "div",
-    { className: "product-card-body" },
-    titleEl,
-    descEl,
-    pricesEl,
-    addBtn
-  );
-
-  return el("div", { className: "product-card" }, imgWrap, bodyEl);
+/** La ficha viene como "18" (45,72 cm), 180 W, 3 aspas": cada parte separada por ", " es una característica. */
+function caracteristicas(descripcion) {
+  const partes = String(descripcion || "")
+    .split(/,\s+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (partes.length < 2) return descripcion ? el("p", { className: "ficha-descripcion" }, descripcion) : null;
+  return el("ul", { className: "ficha-caracteristicas" }, partes.map((p) => el("li", {}, icono("check", "ficha-check"), el("span", {}, p))));
 }
 
 /**
@@ -498,119 +859,133 @@ function crearTarjetaProducto(prod) {
 function renderizarDetalleProducto(productoId) {
   limpiarElemento(appRoot);
 
-  const prod = (state.catalogo?.productos || []).find((p) => p.id === productoId);
-  if (!prod) {
-    const errorBox = el(
-      "div",
-      { className: "empty-state" },
-      el("div", { className: "empty-state-icon" }, "❓"),
-      el("p", {}, "El producto solicitado no fue encontrado o ya no está disponible."),
-      el("a", { href: "#/", className: "btn btn-primary", style: { marginTop: "16px", maxWidth: "200px" } }, "Volver al catálogo")
-    );
-    appRoot.appendChild(errorBox);
+  if (!state.catalogo) {
+    renderizarCatalogo();
     return;
   }
 
-  const backLink = el(
-    "a",
-    { href: "#/", className: "back-link" },
-    "← Volver al catálogo"
+  const prod = productosDelCatalogo().find((p) => p.id === productoId);
+  if (!prod) {
+    appRoot.appendChild(
+      estadoVacio(
+        "caja",
+        "Este producto ya no está disponible",
+        "Puede que lo hayamos retirado del catálogo.",
+        el("a", { href: "#/", className: "boton boton-primario" }, "Ver el catálogo")
+      )
+    );
+    return;
+  }
+
+  // Ruta de navegación: Inicio › categoría principal
+  const categoria = (state.catalogo.categorias || []).find((c) => c.slug === (prod.categorias || [])[0]);
+  appRoot.appendChild(
+    el(
+      "nav",
+      { className: "migas", "aria-label": "Ruta" },
+      el("a", { href: "#/" }, "Inicio"),
+      categoria ? [icono("siguiente", "migas-separador"), el("a", { href: `#/categoria/${encodeURIComponent(categoria.slug)}` }, categoria.nombre)] : null
+    )
   );
 
   // Galería: carrusel con deslizamiento (táctil, trackpad o arrastrando con el mouse), flechas, puntos y miniaturas
   const galleryEl = crearGaleriaProducto(prod);
 
-  // Información y acción
-  const titleEl = el("h1", { className: "detail-title" }, prod.nombre);
-  const descEl = el("p", { className: "detail-desc" }, prod.descripcion || "");
-
-  const pricesEl = el(
-    "div",
-    { className: "detail-prices", style: { marginBottom: "20px" } },
-    el("div", { className: "price-usd", style: { fontSize: "1.6rem" } }, formatearUsd(prod.precioUsd)),
-    prod.precioBs ? el("div", { className: "price-bs", style: { fontSize: "0.95rem" } }, `Ref: ${formatearBs(prod.precioBs)}`) : null
-  );
-
   // Selector de cantidad
   let cantidadSeleccionada = 1;
-  const qtyInput = el("input", {
-    type: "text",
-    className: "qty-input",
-    value: "1",
-    readOnly: true,
-  });
-
-  const btnMinus = el(
-    "button",
-    {
-      type: "button",
-      className: "qty-btn",
-      onclick: () => {
-        if (cantidadSeleccionada > 1) {
-          cantidadSeleccionada--;
-          qtyInput.value = String(cantidadSeleccionada);
-          actualizarTextoAgregar();
-        }
-      },
-    },
-    "-"
-  );
-
-  const btnPlus = el(
-    "button",
-    {
-      type: "button",
-      className: "qty-btn",
-      onclick: () => {
-        if (cantidadSeleccionada < 50) {
-          cantidadSeleccionada++;
-          qtyInput.value = String(cantidadSeleccionada);
-          actualizarTextoAgregar();
-        }
-      },
-    },
-    "+"
-  );
-
-  const qtyControl = el("div", { className: "qty-control" }, btnMinus, qtyInput, btnPlus);
-  const qtyRow = el("div", { className: "detail-qty-row" }, el("span", {}, "Cantidad:"), qtyControl);
+  const cajaCantidad = el("div", { className: "ficha-cantidad-caja" });
 
   const addBtn = el(
     "button",
     {
       type: "button",
-      className: "btn btn-primary",
-      style: { maxWidth: "300px", padding: "14px" },
+      className: "boton boton-primario boton-grande boton-bloque",
       disabled: !prod.disponible,
       onclick: () => {
-        state.carrito = agregarProducto(state.carrito, prod.id, cantidadSeleccionada);
-        guardarCarritoEnStorage(state.carrito);
-        actualizarBadge();
-        mostrarToast(`${prod.nombre} agregado`);
+        guardarPedido(agregarProducto(state.carrito, prod.id, cantidadSeleccionada));
+        mostrarToast(cantidadSeleccionada === 1 ? "Agregado a tu pedido" : `${cantidadSeleccionada} agregados a tu pedido`);
+        cantidadSeleccionada = 1;
+        pintarCantidad();
+        actualizarTextoAgregar();
       },
     },
-    prod.disponible ? `Agregar al carrito (${cantidadSeleccionada})` : "Agotado"
+    prod.disponible ? `Agregar al pedido (${cantidadSeleccionada})` : "Agotado"
   );
 
   // El texto del botón sigue a la cantidad elegida con + y −
   function actualizarTextoAgregar() {
-    if (prod.disponible) addBtn.textContent = `Agregar al carrito (${cantidadSeleccionada})`;
+    if (prod.disponible) addBtn.textContent = `Agregar al pedido (${cantidadSeleccionada})`;
   }
 
-  const infoEl = el(
+  function pintarCantidad() {
+    limpiarElemento(cajaCantidad);
+    cajaCantidad.appendChild(
+      selectorCantidad(cantidadSeleccionada, (n) => {
+        cantidadSeleccionada = Math.min(Math.max(n, 1), MAX_CANTIDAD_POR_LINEA);
+        pintarCantidad();
+        actualizarTextoAgregar();
+      }, { etiqueta: prod.nombre })
+    );
+  }
+  pintarCantidad();
+
+  const enPedido = cantidadEnCarrito(prod.id);
+  const ayuda = enlaceAyudaProducto(prod.nombre);
+  const fechaTasa = state.catalogo.fechaTasa;
+
+  const compra = el(
     "div",
-    { className: "detail-info" },
-    titleEl,
-    descEl,
-    pricesEl,
-    prod.disponible ? qtyRow : null,
-    addBtn
+    { className: "ficha-compra" },
+    el("h1", { className: "ficha-nombre" }, prod.nombre),
+    el(
+      "div",
+      { className: "ficha-precios" },
+      precioUsd(prod.precioUsd, "precio-grande"),
+      prod.precioBs ? el("p", { className: "ficha-bs" }, formatearBs(prod.precioBs), fechaTasa ? el("span", {}, ` · tasa BCV del ${fechaTasa}`) : null) : null
+    ),
+    el(
+      "p",
+      { className: `ficha-disponibilidad ${prod.disponible ? "disponible" : "agotado"}` },
+      prod.disponible ? "Disponible" : "Agotado por ahora"
+    ),
+    prod.disponible
+      ? el("div", { className: "ficha-cantidad" }, el("span", { className: "ficha-cantidad-etiqueta" }, "Cantidad"), cajaCantidad)
+      : null,
+    addBtn,
+    enPedido > 0 ? el("a", { className: "ficha-en-pedido", href: "#/carrito" }, `Ya tienes ${enPedido} en tu pedido · Ver pedido`) : null,
+    ayuda
+      ? el(
+          "a",
+          { className: "boton boton-secundario boton-bloque", href: ayuda, target: "_blank", rel: "noopener noreferrer" },
+          icono("mensaje"),
+          "Preguntar por WhatsApp"
+        )
+      : null
   );
 
-  const layout = el("div", { className: "product-detail-layout" }, galleryEl, infoEl);
-  appRoot.appendChild(backLink);
-  appRoot.appendChild(layout);
+  const detalle = caracteristicas(prod.descripcion);
+  const envios = (state.info?.envios || []).map((e) => e.nombre);
+
+  const info = el(
+    "div",
+    { className: "ficha-info" },
+    detalle ? el("section", { className: "ficha-bloque" }, el("h2", { className: "ficha-subtitulo" }, "Características"), detalle) : null,
+    envios.length
+      ? el(
+          "section",
+          { className: "ficha-bloque" },
+          el("h2", { className: "ficha-subtitulo" }, "Entrega"),
+          el("p", { className: "ficha-entrega" }, icono("camion", "ficha-entrega-icono"), el("span", {}, `${envios.join(" · ")}. El costo y la fecha se acuerdan por WhatsApp.`))
+        )
+      : null
+  );
+
+  appRoot.appendChild(el("div", { className: "ficha" }, galleryEl, compra, info));
 }
+
+/* ------------------------------------------------------------------------------------------------
+ * Vista: pedido (carrito)
+ * ---------------------------------------------------------------------------------------------- */
 
 /**
  * Vista de Carrito de Compras (#/carrito).
@@ -618,173 +993,90 @@ function renderizarDetalleProducto(productoId) {
 function renderizarCarrito() {
   limpiarElemento(appRoot);
 
-  const backLink = el(
-    "a",
-    { href: "#/", className: "back-link" },
-    "← Seguir explorando"
-  );
-  appRoot.appendChild(backLink);
-
   if (!state.carrito || state.carrito.length === 0) {
-    const emptyBox = el(
-      "div",
-      { className: "empty-state" },
-      el("div", { className: "empty-state-icon" }, "🛒"),
-      el("h2", { style: { marginBottom: "8px" } }, "Tu carrito está vacío"),
-      el("p", { style: { marginBottom: "16px" } }, "Agrega productos desde el catálogo para iniciar tu pedido."),
-      el("a", { href: "#/", className: "btn btn-primary", style: { maxWidth: "220px", margin: "0 auto" } }, "Ver productos")
+    appRoot.appendChild(
+      estadoVacio(
+        "carrito",
+        "Tu pedido está vacío",
+        "Agrega productos desde el catálogo para armarlo.",
+        el("a", { href: "#/", className: "boton boton-primario" }, "Ver productos")
+      )
     );
-    appRoot.appendChild(emptyBox);
     return;
   }
 
-  const layout = el("div", { className: "cart-layout" });
-  layout.appendChild(el("h1", { style: { marginBottom: "20px", fontSize: "1.5rem" } }, "Tu Carrito"));
-
-  const itemsList = el("div", { className: "cart-items-list" });
-  let subtotalUsd = 0;
+  const filas = el("ul", { className: "pedido-lineas" });
 
   for (const item of state.carrito) {
-    const prod = (state.catalogo?.productos || []).find((p) => p.id === item.productoId);
+    const prod = productosDelCatalogo().find((p) => p.id === item.productoId);
     const nombre = prod ? prod.nombre : item.productoId;
     const precio = prod ? prod.precioUsd : 0;
-    const itemTotal = precio * item.cantidad;
-    subtotalUsd += itemTotal;
-
     const imgUrl = prod && Array.isArray(prod.imagenes) && prod.imagenes[0] ? prod.imagenes[0] : "";
-    const thumbImg = imagenProducto(imgUrl, nombre, "cart-item-thumb");
 
-    const info = el(
-      "div",
-      { className: "cart-item-info" },
-      el("div", { className: "cart-item-title" }, nombre),
-      el("div", { className: "cart-item-price" }, `${formatearUsd(precio)} c/u`)
+    const cambiar = (n) => {
+      guardarPedido(n <= 0 ? eliminarProducto(state.carrito, item.productoId) : actualizarCantidad(state.carrito, item.productoId, n));
+      renderizarCarrito();
+    };
+
+    filas.appendChild(
+      el(
+        "li",
+        { className: "linea" },
+        el("a", { className: "linea-foto", href: `#/producto/${encodeURIComponent(item.productoId)}`, tabindex: "-1", "aria-hidden": "true" }, imagenProducto(imgUrl, nombre, "linea-imagen")),
+        el(
+          "div",
+          { className: "linea-info" },
+          el("a", { className: "linea-nombre", href: `#/producto/${encodeURIComponent(item.productoId)}` }, nombre),
+          el("span", { className: "linea-unitario" }, `${formatearUsd(precio)} c/u`),
+          prod && !prod.disponible ? el("span", { className: "linea-aviso" }, "Agotado: quítalo para continuar") : null
+        ),
+        el(
+          "div",
+          { className: "linea-acciones" },
+          selectorCantidad(item.cantidad, cambiar, { etiqueta: nombre }),
+          el("span", { className: "linea-total" }, formatearUsd(precio * item.cantidad)),
+          el(
+            "button",
+            { type: "button", className: "boton-icono", "aria-label": `Quitar ${nombre} del pedido`, onclick: () => cambiar(0) },
+            icono("basura")
+          )
+        )
+      )
     );
-
-    // Controles de cantidad
-    const qtyInput = el("input", {
-      type: "text",
-      className: "qty-input",
-      value: String(item.cantidad),
-      readOnly: true,
-    });
-
-    const btnMinus = el(
-      "button",
-      {
-        type: "button",
-        className: "qty-btn",
-        onclick: () => {
-          state.carrito = actualizarCantidad(state.carrito, item.productoId, item.cantidad - 1);
-          guardarCarritoEnStorage(state.carrito);
-          actualizarBadge();
-          renderizarCarrito();
-        },
-      },
-      "-"
-    );
-
-    const btnPlus = el(
-      "button",
-      {
-        type: "button",
-        className: "qty-btn",
-        onclick: () => {
-          state.carrito = actualizarCantidad(state.carrito, item.productoId, item.cantidad + 1);
-          guardarCarritoEnStorage(state.carrito);
-          actualizarBadge();
-          renderizarCarrito();
-        },
-      },
-      "+"
-    );
-
-    const btnDel = el(
-      "button",
-      {
-        type: "button",
-        className: "btn-del",
-        title: "Eliminar producto",
-        onclick: () => {
-          state.carrito = eliminarProducto(state.carrito, item.productoId);
-          guardarCarritoEnStorage(state.carrito);
-          actualizarBadge();
-          renderizarCarrito();
-        },
-      },
-      "🗑"
-    );
-
-    const actions = el(
-      "div",
-      { className: "cart-item-actions" },
-      el("div", { className: "qty-control" }, btnMinus, qtyInput, btnPlus),
-      el("span", { style: { fontWeight: "700", minWidth: "60px", textAlign: "right" } }, formatearUsd(itemTotal)),
-      btnDel
-    );
-
-    itemsList.appendChild(el("div", { className: "cart-item-row" }, thumbImg, info, actions));
   }
 
-  layout.appendChild(itemsList);
+  const subtotalUsd = totalOrientativo();
+  const unidades = obtenerTotalUnidades(state.carrito);
+  const hayAgotados = state.carrito.some((i) => productosDelCatalogo().find((p) => p.id === i.productoId)?.disponible === false);
 
-  // Resumen del Carrito
-  const summary = el("div", { className: "cart-summary" });
-
-  const totalRowUsd = el(
-    "div",
-    { className: "cart-summary-row" },
-    el("span", { className: "cart-summary-total" }, "Total estimado:"),
-    el("span", { className: "cart-summary-total" }, formatearUsd(subtotalUsd))
-  );
-  summary.appendChild(totalRowUsd);
-
-  if (state.catalogo?.tasa) {
-    const totalBsEst = Math.round(subtotalUsd * state.catalogo.tasa * 100) / 100;
-    const totalRowBs = el(
-      "div",
-      { className: "cart-summary-row", style: { color: "var(--text-muted)", fontSize: "0.9rem" } },
-      el("span", {}, "Referencia en Bs:"),
-      el("span", {}, formatearBs(totalBsEst))
-    );
-    summary.appendChild(totalRowBs);
-  }
-
-  const note = el(
-    "p",
-    { className: "cart-note" },
-    "💡 Los precios finales y el costo de envío se confirmarán directamente en WhatsApp."
-  );
-  summary.appendChild(note);
-
-  // Campo trampa (honeypot) estricto [R6][R9]
+  // Campo trampa (honeypot) estricto [R6][R9]: invisible para personas, presente para robots
   const honeypotInput = el("input", {
     type: "text",
     name: "website",
     id: "honeypot-website",
     value: "",
-    tabIndex: -1,
+    tabindex: "-1",
     autocomplete: "off",
-    style: { display: "none !important", position: "absolute", left: "-9999px" },
-    ariaHidden: "true",
+    className: "campo-trampa",
+    "aria-hidden": "true",
   });
-  summary.appendChild(honeypotInput);
 
   // Caja de alertas para errores
-  const alertBox = el("div", { className: "alert-box alert-danger hidden" });
-  summary.appendChild(alertBox);
+  const alertBox = el("div", { className: "alerta hidden", role: "alert" });
 
   // Botón "Pedir por WhatsApp"
+  const textoBoton = "Pedir por WhatsApp";
   const submitBtn = el(
     "button",
     {
       type: "button",
-      className: "btn btn-whatsapp",
+      className: "boton boton-whatsapp boton-grande boton-bloque",
+      disabled: hayAgotados,
       onclick: async () => {
         alertBox.classList.add("hidden");
         submitBtn.disabled = true;
-        const textoOriginal = submitBtn.textContent;
-        submitBtn.textContent = "Procesando pedido...";
+        submitBtn.setAttribute("aria-busy", "true");
+        etiquetaBoton.textContent = "Preparando tu pedido…";
 
         const websiteVal = honeypotInput.value;
         const payload = armarCuerpoPedido(state.carrito, websiteVal);
@@ -792,10 +1084,10 @@ function renderizarCarrito() {
         const res = await enviarPedidoWeb(payload);
 
         if (res.ok && res.data) {
-          state.ultimoPedido = res.data;
-          state.carrito = [];
+          // Las cifras del servidor (las que valen) más la cantidad de productos, para la confirmación
+          state.ultimoPedido = { ...res.data, unidades: obtenerTotalUnidades(state.carrito) };
           limpiarCarritoEnStorage();
-          actualizarBadge();
+          guardarPedido([]);
 
           // Redirigir a vista de confirmación
           window.location.hash = `#/confirmacion/${encodeURIComponent(res.data.codigo)}`;
@@ -812,18 +1104,68 @@ function renderizarCarrito() {
           }
         } else {
           submitBtn.disabled = false;
-          submitBtn.textContent = textoOriginal;
-          alertBox.textContent = res.mensaje || "Error al procesar el pedido";
+          submitBtn.removeAttribute("aria-busy");
+          etiquetaBoton.textContent = textoBoton;
+          alertBox.textContent = res.mensaje || "No pudimos preparar tu pedido. Inténtalo de nuevo.";
           alertBox.classList.remove("hidden");
         }
       },
     },
-    "📱 Pedir por WhatsApp"
+    el("img", { src: "img/whatsapp.svg", alt: "", width: "22", height: "22", className: "boton-wa-icono" })
+  );
+  const etiquetaBoton = el("span", {}, textoBoton);
+  submitBtn.appendChild(etiquetaBoton);
+
+  const resumen = el(
+    "aside",
+    { className: "resumen", "aria-labelledby": "resumen-titulo" },
+    el("h2", { id: "resumen-titulo", className: "resumen-titulo" }, "Resumen"),
+    el(
+      "dl",
+      { className: "resumen-filas" },
+      el("div", { className: "resumen-fila" }, el("dt", {}, unidades === 1 ? "1 producto" : `${unidades} productos`), el("dd", {}, formatearUsd(subtotalUsd))),
+      el("div", { className: "resumen-fila" }, el("dt", {}, "Envío"), el("dd", {}, "Se acuerda por WhatsApp")),
+      el(
+        "div",
+        { className: "resumen-fila resumen-total" },
+        el("dt", {}, "Total"),
+        el("dd", {}, precioUsd(subtotalUsd, "precio-grande"), state.catalogo?.tasa ? lineaBs(Math.round(subtotalUsd * state.catalogo.tasa * 100) / 100) : null)
+      )
+    ),
+    honeypotInput,
+    alertBox,
+    hayAgotados ? el("p", { className: "alerta" }, "Hay un producto agotado en tu pedido. Quítalo para poder pedir.") : null,
+    submitBtn,
+    el(
+      "p",
+      { className: "resumen-nota" },
+      "Te daremos un código para enviar por WhatsApp. El asistente confirma el total con los precios del día y te ayuda con el envío y el pago."
+    )
   );
 
-  summary.appendChild(submitBtn);
-  layout.appendChild(summary);
-  appRoot.appendChild(layout);
+  appRoot.appendChild(
+    el(
+      "div",
+      { className: "pedido" },
+      el(
+        "div",
+        { className: "pedido-principal" },
+        el("div", { className: "pedido-cabecera" }, el("h1", { className: "listado-titulo" }, "Tu pedido"), el("a", { className: "enlace", href: "#/" }, "Seguir comprando")),
+        filas
+      ),
+      resumen
+    )
+  );
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * Vista: confirmación
+ * ---------------------------------------------------------------------------------------------- */
+
+function formatearFechaExpira(iso) {
+  const fecha = new Date(iso);
+  if (Number.isNaN(fecha.getTime())) return null;
+  return fecha.toLocaleDateString("es-VE", { weekday: "long", day: "numeric", month: "long" });
 }
 
 /**
@@ -833,144 +1175,162 @@ function renderizarConfirmacion(codigo) {
   limpiarElemento(appRoot);
 
   const orderData = state.ultimoPedido;
-  const codigoMostrar = codigo || orderData?.codigo || "PENDIENTE";
+  const codigoMostrar = codigo || orderData?.codigo || "";
+  const waLink = esEnlaceWhatsApp(orderData?.enlaceWhatsApp) ? orderData.enlaceWhatsApp : null;
+  const vence = orderData?.expira ? formatearFechaExpira(orderData.expira) : null;
 
-  const icon = el("div", { className: "confirm-icon" }, "🎉");
-  const headline = el("h1", { style: { fontSize: "1.6rem", marginBottom: "8px" } }, "¡Pedido Web Generado!");
-  const instructions = el(
-    "p",
-    { style: { color: "var(--text-muted)", marginBottom: "20px" } },
-    "Hemos preparado tu mensaje de confirmación para WhatsApp con el código de tu pedido. Si la aplicación no se abrió automáticamente, toca el botón de abajo."
+  const botonCopiar = el(
+    "button",
+    {
+      type: "button",
+      className: "boton boton-secundario",
+      onclick: async () => {
+        try {
+          await navigator.clipboard.writeText(codigoMostrar);
+          mostrarToast("Código copiado");
+        } catch (_e) {
+          mostrarToast(`Tu código: ${codigoMostrar}`);
+        }
+      },
+    },
+    icono("copiar"),
+    "Copiar"
   );
 
-  const codeBox = el(
-    "div",
-    { className: "confirm-code-box" },
-    el("span", {}, codigoMostrar),
+  appRoot.appendChild(
     el(
-      "button",
-      {
-        type: "button",
-        className: "btn-copy",
-        onclick: async () => {
-          try {
-            await navigator.clipboard.writeText(codigoMostrar);
-            mostrarToast("Código copiado al portapapeles");
-          } catch (_e) {
-            mostrarToast("Código: " + codigoMostrar);
-          }
-        },
-      },
-      "Copiar"
+      "div",
+      { className: "confirmacion" },
+      el("span", { className: "confirmacion-icono" }, icono("listo")),
+      el("h1", { className: "confirmacion-titulo" }, "Tu pedido está listo"),
+      el(
+        "p",
+        { className: "confirmacion-texto" },
+        waLink
+          ? "Te abrimos WhatsApp con tu código. Envía el mensaje y el asistente seguirá contigo. Si no se abrió, toca el botón."
+          : "Escribe este código en nuestro chat de WhatsApp y el asistente seguirá contigo."
+      ),
+      el(
+        "div",
+        { className: "codigo" },
+        el("span", { className: "codigo-etiqueta", id: "codigo-etiqueta" }, "Tu código de pedido"),
+        el("span", { className: "codigo-valor", "aria-labelledby": "codigo-etiqueta" }, codigoMostrar),
+        botonCopiar
+      ),
+      typeof orderData?.totalUsd === "number"
+        ? el(
+            "dl",
+            { className: "confirmacion-total" },
+            el(
+              "div",
+              { className: "resumen-fila" },
+              el("dt", {}, orderData.unidades === 1 ? "1 producto" : `${orderData.unidades || ""} productos`.trim()),
+              el("dd", {}, precioUsd(orderData.totalUsd), lineaBs(orderData.totalBs))
+            ),
+            el("p", { className: "confirmacion-total-nota" }, "Total con los precios de hoy. El envío se acuerda por WhatsApp.")
+          )
+        : null,
+      vence ? el("p", { className: "confirmacion-vence" }, `Válido hasta el ${vence}.`) : null,
+      waLink
+        ? el(
+            "a",
+            { href: waLink, className: "boton boton-whatsapp boton-grande boton-bloque", target: "_blank", rel: "noopener noreferrer" },
+            el("img", { src: "img/whatsapp.svg", alt: "", width: "22", height: "22", className: "boton-wa-icono" }),
+            "Abrir WhatsApp"
+          )
+        : null,
+      el("a", { href: "#/", className: "enlace confirmacion-volver" }, "Volver a la tienda")
     )
   );
-
-  const waLink = esEnlaceWhatsApp(orderData?.enlaceWhatsApp) ? orderData.enlaceWhatsApp : null;
-  const waBtn = waLink
-    ? el(
-        "a",
-        {
-          href: waLink,
-          className: "btn btn-whatsapp",
-          style: { marginBottom: "16px" },
-        },
-        "📱 Abrir WhatsApp"
-      )
-    : null;
-
-  const backCatalog = el(
-    "a",
-    {
-      href: "#/",
-      className: "btn btn-secondary",
-    },
-    "Volver a la tienda"
-  );
-
-  const card = el(
-    "div",
-    { className: "confirm-card" },
-    icon,
-    headline,
-    instructions,
-    codeBox,
-    waBtn,
-    backCatalog
-  );
-
-  appRoot.appendChild(card);
 }
+
+/* ------------------------------------------------------------------------------------------------
+ * Enrutador y arranque
+ * ---------------------------------------------------------------------------------------------- */
 
 /**
  * Enrutador principal de la aplicación.
  */
 function enrutar() {
   const hash = window.location.hash || "#/";
+  const vistaAnterior = state.vista;
   let productoEnVista = null;
 
   if (hash === "#/" || hash === "" || hash.startsWith("#/?")) {
     state.categoriaActiva = "todas";
+    state.vista = "catalogo";
     renderizarCatalogo();
   } else if (hash.startsWith("#/categoria/")) {
     const slug = decodeURIComponent(hash.replace("#/categoria/", "")).split("?")[0];
     state.categoriaActiva = slug || "todas";
+    state.vista = "catalogo";
     renderizarCatalogo();
   } else if (hash.startsWith("#/producto/")) {
     const pid = decodeURIComponent(hash.replace("#/producto/", "")).split("?")[0];
-    productoEnVista = (state.catalogo?.productos || []).find((p) => p.id === pid)?.nombre || null;
+    productoEnVista = productosDelCatalogo().find((p) => p.id === pid)?.nombre || null;
+    state.vista = "producto";
     renderizarDetalleProducto(pid);
   } else if (hash === "#/carrito") {
+    state.vista = "carrito";
     renderizarCarrito();
   } else if (hash.startsWith("#/confirmacion/")) {
     const cod = decodeURIComponent(hash.replace("#/confirmacion/", "")).split("?")[0];
+    state.vista = "confirmacion";
     renderizarConfirmacion(cod);
   } else {
     // Ruta desconocida: fallback al catálogo
     window.location.hash = "#/";
+    return;
   }
+
   actualizarBotonAyuda(productoEnVista);
+  actualizarBarraPedido();
+
+  // Al cambiar de vista: arriba de la página y el foco en el contenido (salvo mientras se escribe en el buscador)
+  if (document.activeElement !== buscadorInput) {
+    window.scrollTo(0, 0);
+    if (vistaAnterior && vistaAnterior !== state.vista) appRoot.focus({ preventScroll: true });
+  }
+}
+
+/** Carga el catálogo (y, sin bloquear, las preguntas frecuentes). */
+async function cargarDatos() {
+  state.cargando = true;
+  enrutar();
+  state.catalogo = await obtenerCatalogo().catch((err) => {
+    console.error("[Catálogo] No se pudo cargar el catálogo:", err);
+    return null;
+  });
+  state.cargando = false;
+  enrutar();
+
+  if (state.catalogo && !state.info) {
+    obtenerInfo()
+      .then((info) => {
+        state.info = info;
+        pintarPreguntas();
+      })
+      .catch((err) => console.warn("[Catálogo] No se pudo cargar la información de la tienda:", err));
+  }
 }
 
 /**
  * Inicialización al cargar la página.
  */
 async function iniciar() {
+  prepararMarco();
   actualizarBadge();
   window.addEventListener("hashchange", enrutar);
 
-  try {
-    // 1. Cargar marca y catálogo en paralelo
-    const [marcaData, catalogoData] = await Promise.all([
-      obtenerMarca().catch((err) => {
-        console.warn("⚠️ No se pudo cargar marca:", err);
-        return null;
-      }),
-      obtenerCatalogo().catch((err) => {
-        console.error("❌ No se pudo cargar catálogo:", err);
-        return null;
-      }),
-    ]);
-
-    if (marcaData) {
+  obtenerMarca()
+    .then((marcaData) => {
       aplicarIdentidadMarca(marcaData);
       crearBotonAyuda();
-    }
-    state.catalogo = catalogoData;
+      enrutar();
+    })
+    .catch((err) => console.warn("[Catálogo] No se pudo cargar la marca:", err));
 
-    // 2. Renderizar ruta actual
-    enrutar();
-  } catch (err) {
-    console.error("❌ Error inicializando catálogo:", err);
-    limpiarElemento(appRoot);
-    appRoot.appendChild(
-      el(
-        "div",
-        { className: "empty-state" },
-        el("div", { className: "empty-state-icon" }, "⚠️"),
-        el("p", {}, "No fue posible cargar el catálogo en este momento. Por favor intenta recargar la página.")
-      )
-    );
-  }
+  await cargarDatos();
 }
 
 // Arranque

@@ -1,3 +1,4 @@
+import { Icono } from "../../components/Icono.js";
 /**
  * public/src/features/whatsapp/WhatsAppConsole.js
  * Centro de Mensajes - UX Mobile Optimized & Lazy Loading Integration
@@ -932,7 +933,7 @@ const WhatsAppConsole = ({ socket }) => {
           className:
             "hidden md:flex flex-1 flex-col items-center justify-center text-gray-400 dark:text-gray-600 bg-[#f0f2f5] dark:bg-gray-900 border-l dark:border-gray-700",
         },
-        e("i", { className: "fas fa-comments text-6xl mb-4 opacity-20" }),
+        e(Icono, { nombre: "messages-square", className: "text-6xl mb-4 opacity-20" }),
         e("p", null, "Selecciona un chat para comenzar"),
       );
     }
@@ -978,9 +979,7 @@ const WhatsAppConsole = ({ socket }) => {
                 className:
                   "w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white py-2.5 px-4 rounded-lg text-xs sm:text-sm font-bold shadow-sm transition flex items-center justify-center gap-2 active:scale-[0.99] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
               },
-              e("i", {
-                className: `fas ${loadingHistory ? "fa-spinner fa-spin" : "fa-check-double"} text-sm`,
-              }),
+              e(Icono, { nombre: loadingHistory ? "loader-circle" : "check-check", girar: loadingHistory, className: "text-sm" }),
               "Confirmar Pago y Enviar Comandas",
             ),
           );
@@ -1000,9 +999,7 @@ const WhatsAppConsole = ({ socket }) => {
                 className:
                   "w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white py-2.5 px-4 rounded-lg text-xs sm:text-sm font-bold shadow-sm transition flex items-center justify-center gap-2 active:scale-[0.99] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
               },
-              e("i", {
-                className: `fas ${loadingHistory ? "fa-spinner fa-spin" : "fa-motorcycle"} text-sm`,
-              }),
+              e(Icono, { nombre: loadingHistory ? "loader-circle" : "motorbike", girar: loadingHistory, className: "text-sm" }),
               "Despachar Pedido (En Ruta)",
             ),
           );
@@ -1022,9 +1019,7 @@ const WhatsAppConsole = ({ socket }) => {
                 className:
                   "w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white py-2.5 px-4 rounded-lg text-xs sm:text-sm font-bold shadow-sm transition flex items-center justify-center gap-2 active:scale-[0.99] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
               },
-              e("i", {
-                className: `fas ${loadingHistory ? "fa-spinner fa-spin" : "fa-flag-checkered"} text-sm`,
-              }),
+              e(Icono, { nombre: loadingHistory ? "loader-circle" : "flag", girar: loadingHistory, className: "text-sm" }),
               "Marcar como Entregado",
             ),
           );

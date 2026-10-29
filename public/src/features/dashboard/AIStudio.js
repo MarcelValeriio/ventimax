@@ -1,3 +1,4 @@
+import { Icono } from "../../components/Icono.js";
 import React, { useState, useEffect } from "https://cdn.skypack.dev/react";
 import apiClient from "../../services/apiClient.js";
 
@@ -142,12 +143,12 @@ const AIStudio = () => {
           ),
           e("div", { className: "space-y-2" }, 
             destinations.map(d => e("div", { key: d._id, className: "flex items-center gap-3 bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm" },
-              e("div", { className: "w-8 h-8 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-xs" }, e("i", { className: "fab fa-whatsapp" })),
+              e("div", { className: "w-8 h-8 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-xs" }, e(Icono, { marca: "whatsapp" })),
               e("div", { className: "flex-1" },
                 e("p", { className: "text-[10px] font-black dark:text-gray-200" }, d.name),
                 e("p", { className: "text-[9px] text-gray-400 font-medium" }, d.phone)
               ),
-              e("button", { onClick: () => deleteDestination(d._id), className: "text-red-400 hover:text-red-600 w-6 h-6 rounded-full hover:bg-red-50 flex items-center justify-center transition-colors" }, e("i", { className: "fas fa-trash-alt text-[10px]" }))
+              e("button", { onClick: () => deleteDestination(d._id), className: "text-red-400 hover:text-red-600 w-6 h-6 rounded-full hover:bg-red-50 flex items-center justify-center transition-colors" }, e(Icono, { nombre: "trash", className: "text-[10px]" }))
             ))
           )
         ),
@@ -163,7 +164,7 @@ const AIStudio = () => {
           e("button", { 
             onClick: generateImage, disabled: isGeneratingImg || !imagePrompt,
             className: "w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100" 
-          }, e("i", { className: `fas ${isGeneratingImg ? 'fa-spinner fa-spin' : 'fa-image'} mr-2` }), isGeneratingImg ? "Generando..." : "Generar Arte")
+          }, e(Icono, { nombre: isGeneratingImg ? "loader-circle" : "image", girar: isGeneratingImg, className: "mr-2" }), isGeneratingImg ? "Generando..." : "Generar Arte")
         )
       ),
 
@@ -178,8 +179,8 @@ const AIStudio = () => {
               onClick: () => setSelectedGenId(item._id),
               className: `flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden cursor-pointer transition-all border-2 ${selectedGen?._id === item._id ? 'ring-2 ring-emerald-500 ring-offset-4 border-white dark:border-gray-800' : 'opacity-50 grayscale hover:opacity-100 hover:grayscale-0 border-transparent'}`
             }, 
-              item.status === 'pending' ? e("div", { className: "w-full h-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center animate-pulse" }, e("i", { className: "fas fa-spinner fa-spin text-gray-400" })) :
-              item.status === 'failed' ? e("div", { className: "w-full h-full bg-red-100 flex items-center justify-center text-red-500" }, e("i", { className: "fas fa-exclamation-triangle" })) :
+              item.status === 'pending' ? e("div", { className: "w-full h-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center animate-pulse" }, e(Icono, { nombre: "loader-circle", girar: true, className: "text-gray-400" })) :
+              item.status === 'failed' ? e("div", { className: "w-full h-full bg-red-100 flex items-center justify-center text-red-500" }, e(Icono, { nombre: "triangle-alert" })) :
               e("img", { src: item.imageUrl, className: "w-full h-full object-cover" })
             ))
           )
@@ -191,7 +192,7 @@ const AIStudio = () => {
             e("div", { className: "w-full max-w-md aspect-square bg-white dark:bg-gray-800 rounded-[3rem] shadow-2xl overflow-hidden relative border-4 border-white dark:border-gray-800" },
               selectedGen?.imageUrl ? e("img", { src: selectedGen.imageUrl, className: "w-full h-full object-cover" }) :
               e("div", { className: "w-full h-full flex flex-col items-center justify-center text-gray-400 gap-4" },
-                e("i", { className: "fas fa-image text-4xl" }),
+                e(Icono, { nombre: "image", className: "text-4xl" }),
                 e("span", { className: "text-xs font-bold uppercase tracking-widest" }, selectedGen?.status === 'pending' ? "Procesando..." : "Esperando Generación")
               )
             )
@@ -214,7 +215,7 @@ const AIStudio = () => {
                 e("button", { 
                   onClick: generateCopy, disabled: !selectedGen || selectedGen.status !== 'completed' || isGeneratingCopy,
                   className: "w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100" 
-                }, e("i", { className: `fas ${isGeneratingCopy ? 'fa-spinner fa-spin' : 'fa-pen-nib'}` }), isGeneratingCopy ? "Escribiendo..." : "Escribir Texto")
+                }, e(Icono, { nombre: isGeneratingCopy ? "loader-circle" : "pen-tool", girar: isGeneratingCopy }), isGeneratingCopy ? "Escribiendo..." : "Escribir Texto")
               ),
 
               e("hr", { className: "border-gray-100 dark:border-gray-700 my-4 border-dashed" }),
@@ -227,7 +228,7 @@ const AIStudio = () => {
                     e("button", { 
                       onClick: () => { navigator.clipboard.writeText(selectedGen.copyText); window.showToast("Copiado al portapapeles"); },
                       className: "text-gray-400 hover:text-emerald-500 transition-colors" 
-                    }, e("i", { className: "fas fa-copy" }))
+                    }, e(Icono, { nombre: "copy" }))
                   )
                 ),
                 e("div", { className: `p-4 rounded-xl text-sm italic overflow-y-auto max-h-32 ${isCopyTooLong ? 'bg-red-50 dark:bg-red-900/10 text-red-700 dark:text-red-400 border border-red-200' : 'bg-emerald-50 dark:bg-emerald-900/10 text-gray-700 dark:text-gray-300'}` },
@@ -239,7 +240,7 @@ const AIStudio = () => {
                 e("button", { 
                   onClick: broadcast, disabled: isBroadcasting || !selectedGen || !selectedGen.imageUrl || isCopyTooLong,
                   className: "w-full bg-gray-900 dark:bg-emerald-500 hover:bg-black dark:hover:bg-emerald-400 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100" 
-                }, e("i", { className: `fab ${isBroadcasting ? 'fa-spinner fa-spin' : 'fa-whatsapp'} text-lg` }), isBroadcasting ? "Enviando..." : "Enviar a WhatsApp"),
+                }, e(Icono, isBroadcasting ? { nombre: "loader-circle", girar: true, className: "text-lg" } : { marca: "whatsapp", className: "text-lg" }), isBroadcasting ? "Enviando..." : "Enviar a WhatsApp"),
                 e("p", { className: "text-center text-[9px] text-gray-400 mt-2 font-bold uppercase" }, isCopyTooLong ? "El texto excede el límite de WhatsApp" : "Distribuir a todos los destinatarios")
               )
             )

@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 /**
  * public/src/features/instagram/components/InstagramHeader.js
  * Encabezado de la conversación de Instagram Direct
@@ -43,7 +44,7 @@ const InstagramHeader = ({
               title: "Volver a la lista de chats",
               "aria-label": "Volver",
             },
-            e("i", { className: "fas fa-arrow-left text-lg" }),
+            e(Icono, { nombre: "arrow-left", className: "text-lg" }),
           ),
 
           // Avatar con foto real o iniciales sobre gradiente
@@ -78,10 +79,10 @@ const InstagramHeader = ({
                     contact.fullName || contact.username,
                   ),
                   contact.verified &&
-                    e("i", {
+                    e(Icono, {
                       key: "verified-icon",
-                      className: "fas fa-check-circle text-sky-200 text-xs",
-                      title: "Cuenta verificada",
+                      nombre: "circle-check", className: "text-sky-200 text-xs",
+                      titulo: "Cuenta verificada",
                     }),
                 ],
               ),
@@ -100,7 +101,7 @@ const InstagramHeader = ({
                     "span",
                     { key: "channel", className: "flex items-center gap-1 opacity-90 text-[10px]" },
                     [
-                      e("i", { key: "ig-icon", className: "fab fa-instagram text-[10px]" }),
+                      e(Icono, { key: "ig-icon", marca: "instagram", className: "text-[10px]" }),
                       "Instagram",
                     ],
                   ),
@@ -135,9 +136,7 @@ const InstagramHeader = ({
                 : "Modo Manual: Clic para activar Bot Automático",
             },
             [
-              e("i", {
-                className: isAutoMode ? "fas fa-robot text-xs" : "fas fa-user-tie text-xs",
-              }),
+              e(Icono, { nombre: isAutoMode ? "bot" : "user-round", className: "text-xs" }),
               e("span", null, isAutoMode ? "Bot Activo" : "Modo Manual"),
             ],
           ),
@@ -151,7 +150,7 @@ const InstagramHeader = ({
                 "hidden md:flex items-center gap-1.5 bg-black/20 backdrop-blur-md px-2.5 py-1 rounded-full text-xs text-white/90 font-semibold border border-white/15",
             },
             [
-              e("i", { key: "ig-brand", className: "fab fa-instagram text-sm" }),
+              e(Icono, { key: "ig-brand", marca: "instagram", className: "text-sm" }),
               e("span", { key: "ig-text" }, "Direct"),
             ],
           ),
@@ -170,7 +169,7 @@ const InstagramHeader = ({
               title: isInfoOpen ? "Ocultar información del perfil" : "Ver información del perfil",
               "aria-label": "Información del perfil de Instagram",
             },
-            e("i", { className: "fas fa-info" }),
+            e(Icono, { nombre: "info" }),
           ),
         ],
       ),

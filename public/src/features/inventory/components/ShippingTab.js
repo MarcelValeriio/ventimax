@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 /**
  * public/src/features/inventory/components/ShippingTab.js
  * Módulo de gestión de métodos de envío y despacho - Pure JS Version
@@ -9,10 +10,10 @@ import ConfirmModal from "./ConfirmModal.js";
 const e = React.createElement;
 
 const TIPOS_ENVIO = [
-  { value: "delivery_local", label: "Delivery Local", icon: "fa-motorcycle" },
-  { value: "envio_nacional", label: "Envío Nacional", icon: "fa-shipping-fast" },
-  { value: "retiro", label: "Retiro en persona / tienda", icon: "fa-store" },
-  { value: "otro", label: "Otro / Especial", icon: "fa-truck" },
+  { value: "delivery_local", label: "Delivery Local", icon: "motorbike" },
+  { value: "envio_nacional", label: "Envío Nacional", icon: "truck" },
+  { value: "retiro", label: "Retiro en persona / tienda", icon: "store" },
+  { value: "otro", label: "Otro / Especial", icon: "truck" },
 ];
 
 const ShippingTab = () => {
@@ -44,7 +45,7 @@ const ShippingTab = () => {
       }
     } catch (err) {
       console.error("❌ Error cargando métodos de envío:", err.message);
-      window.showToast?.("❌ Error cargando métodos de envío", "error");
+      window.showToast?.("Error cargando métodos de envío", "error");
     } finally {
       setLoading(false);
     }
@@ -98,28 +99,28 @@ const ShippingTab = () => {
         activo: nuevoEstado,
       });
       fetchMethods();
-      window.showToast?.(`✅ Método ${nuevoEstado ? "activado" : "desactivado"}`);
+      window.showToast?.(`Método ${nuevoEstado ? "activado" : "desactivado"}`);
     } catch (err) {
-      window.showToast?.("❌ Error al cambiar estado: " + err.message, "error");
+      window.showToast?.("Error al cambiar estado: " + err.message, "error");
     }
   };
 
   const handleSave = async (ev) => {
     if (ev) ev.preventDefault();
     if (!formData.nombre.trim()) {
-      window.showToast?.("⚠️ El nombre del método es obligatorio", "error");
+      window.showToast?.("El nombre del método es obligatorio", "error");
       return;
     }
 
     const isRetiro = formData.tipo === "retiro";
     if (isRetiro) {
       if (!formData.direccion || !formData.direccion.trim()) {
-        window.showToast?.("⚠️ La dirección es obligatoria para el método de retiro", "error");
+        window.showToast?.("La dirección es obligatoria para el método de retiro", "error");
         return;
       }
     } else {
       if (formData.costoTipo === "fijo" && Number(formData.costo) < 0) {
-        window.showToast?.("⚠️ El costo no puede ser negativo", "error");
+        window.showToast?.("El costo no puede ser negativo", "error");
         return;
       }
     }
@@ -142,10 +143,10 @@ const ShippingTab = () => {
       }
       handleCloseModal();
       fetchMethods();
-      window.showToast?.("✅ Método de envío guardado");
+      window.showToast?.("Método de envío guardado");
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.message || err.message;
-      window.showToast?.("❌ Error al guardar: " + msg, "error");
+      window.showToast?.("Error al guardar: " + msg, "error");
     }
   };
 
@@ -153,15 +154,15 @@ const ShippingTab = () => {
     setConfirmConfig({
       isOpen: true,
       title: "¿Eliminar Método de Envío?",
-      message: `⚠️ ¿Estás seguro de eliminar "${method.nombre}"?\n\nSi hay pedidos asociados, no se podrá borrar.`,
+      message: `¿Estás seguro de eliminar "${method.nombre}"?\n\nSi hay pedidos asociados, no se podrá borrar.`,
       onConfirm: async () => {
         try {
           await apiClient.delete(`/api/admin/shipping/${method._id}`);
           fetchMethods();
-          window.showToast?.("🗑️ Método de envío eliminado");
+          window.showToast?.("Método de envío eliminado");
         } catch (err) {
           const msg = err.response?.data?.error || err.response?.data?.message || err.message;
-          window.showToast?.("❌ " + msg, "error");
+          window.showToast?.("" + msg, "error");
         }
       },
     });
@@ -169,7 +170,7 @@ const ShippingTab = () => {
 
   const getTipoIcon = (tipo) => {
     const item = TIPOS_ENVIO.find((t) => t.value === tipo);
-    return item ? item.icon : "fa-truck";
+    return item ? item.icon : "truck";
   };
 
   const getTipoLabel = (tipo) => {
@@ -181,7 +182,7 @@ const ShippingTab = () => {
     return e(
       "div",
       { className: "p-10 text-center text-gray-400" },
-      e("i", { className: "fas fa-spinner fa-spin mr-2" }),
+      e(Icono, { nombre: "loader-circle", girar: true, className: "mr-2" }),
       "Cargando métodos de envío...",
     );
   }
@@ -200,7 +201,7 @@ const ShippingTab = () => {
         e(
           "h2",
           { className: "text-2xl font-bold text-emerald-800 dark:text-emerald-400 flex items-center gap-3" },
-          e("i", { className: "fas fa-truck" }),
+          e(Icono, { nombre: "truck" }),
           "Métodos de Envío",
         ),
         e(
@@ -216,7 +217,7 @@ const ShippingTab = () => {
           className:
             "bg-emerald-600 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition flex items-center gap-2 text-sm font-bold active:scale-95 cursor-pointer",
         },
-        e("i", { className: "fas fa-plus" }),
+        e(Icono, { nombre: "plus" }),
         "Añadir Método",
       ),
     ),
@@ -226,7 +227,7 @@ const ShippingTab = () => {
       ? e(
           "div",
           { className: "text-center py-16 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-8" },
-          e("i", { className: "fas fa-truck text-4xl text-gray-300 dark:text-gray-600 mb-3" }),
+          e(Icono, { nombre: "truck", className: "text-4xl text-gray-300 dark:text-gray-600 mb-3" }),
           e("p", { className: "text-gray-500 font-medium" }, "No hay métodos de envío configurados."),
           e(
             "button",
@@ -263,7 +264,7 @@ const ShippingTab = () => {
                         className:
                           "w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600",
                       },
-                      e("i", { className: `fas ${getTipoIcon(m.tipo)}` }),
+                      e(Icono, { nombre: getTipoIcon(m.tipo) }),
                     ),
                     e(
                       "div",
@@ -389,7 +390,7 @@ const ShippingTab = () => {
                     className:
                       "p-2 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-xl hover:bg-red-100 transition cursor-pointer",
                   },
-                  e("i", { className: "fas fa-trash-alt" }),
+                  e(Icono, { nombre: "trash" }),
                 ),
               ),
             ),
@@ -420,7 +421,7 @@ const ShippingTab = () => {
             e(
               "h3",
               { className: "text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2" },
-              e("i", { className: "fas fa-truck text-emerald-500" }),
+              e(Icono, { nombre: "truck", className: "text-emerald-500" }),
               editingMethod ? "Editar Método de Envío" : "Nuevo Método de Envío",
             ),
             e(
@@ -429,7 +430,7 @@ const ShippingTab = () => {
                 onClick: handleCloseModal,
                 className: "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer",
               },
-              e("i", { className: "fas fa-times" }),
+              e(Icono, { nombre: "x" }),
             ),
           ),
 

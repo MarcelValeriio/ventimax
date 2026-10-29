@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 /**
  * public/src/features/instagram/components/InstagramQuickReplyBar.js
  * Barra compacta de Respuestas Rápidas para Instagram Direct:
@@ -84,9 +85,9 @@ const InstagramQuickReplyBar = ({
           "aria-label": "Ver respuestas rápidas",
         },
         [
-          e("i", {
+          e(Icono, {
             key: "icon-replies",
-            className: "fas fa-list-ul text-[10px]",
+            nombre: "list", className: "text-[10px]",
             "aria-hidden": "true",
           }),
           e("span", { key: "txt-replies" }, "Respuestas Rápidas"),

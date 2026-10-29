@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 /**
  * public/src/features/instagram/components/InstagramMessageList.js
  * Área de mensajes con diseño e identidad visual de Instagram Direct
@@ -110,10 +111,9 @@ const InstagramMessageList = ({
               "inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xs text-xs text-gray-500 dark:text-gray-400 font-medium",
           },
           [
-            e("i", {
+            e(Icono, {
               key: "banner-icon",
-              className:
-                "fab fa-instagram text-transparent bg-clip-text bg-gradient-to-r from-[#833AB4] via-[#E1306C] to-[#F77737] text-sm",
+              marca: "instagram", className: "text-transparent bg-clip-text bg-gradient-to-r from-[#833AB4] via-[#E1306C] to-[#F77737] text-sm",
             }),
             e("span", { key: "banner-text" }, "Conversación de Instagram Direct"),
           ],
@@ -230,10 +230,10 @@ const InstagramMessageList = ({
                     [
                       e("span", { key: "time" }, formatTime(msg.timestamp)),
                       !isClient &&
-                        e("i", {
+                        e(Icono, {
                           key: "status",
-                          className: "fas fa-check-double text-[9px] text-white/90 ml-0.5",
-                          title: "Entregado por Instagram Direct",
+                          nombre: "check-check", className: "text-[9px] text-white/90 ml-0.5",
+                          titulo: "Entregado por Instagram Direct",
                         }),
                     ],
                   ),

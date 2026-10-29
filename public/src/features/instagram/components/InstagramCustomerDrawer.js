@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 /**
  * public/src/features/instagram/components/InstagramCustomerDrawer.js
  * Panel lateral de información y perfil del cliente de Instagram Direct
@@ -38,7 +39,7 @@ const InstagramCustomerDrawer = ({
             "div",
             { key: "header-title", className: "flex items-center gap-2" },
             [
-              e("i", { className: "fab fa-instagram text-[#E1306C] text-lg" }),
+              e(Icono, { marca: "instagram", className: "text-[#E1306C] text-lg" }),
               e(
                 "h3",
                 { className: "font-bold text-sm text-gray-900 dark:text-white" },
@@ -56,7 +57,7 @@ const InstagramCustomerDrawer = ({
               title: "Cerrar panel",
               "aria-label": "Cerrar",
             },
-            e("i", { className: "fas fa-times" }),
+            e(Icono, { nombre: "x" }),
           ),
         ],
       ),
@@ -93,9 +94,9 @@ const InstagramCustomerDrawer = ({
                     contact.fullName || contact.username,
                   ),
                   contact.verified &&
-                    e("i", {
-                      className: "fas fa-check-circle text-sky-500 text-sm",
-                      title: "Cuenta verificada",
+                    e(Icono, {
+                      nombre: "circle-check", className: "text-sky-500 text-sm",
+                      titulo: "Cuenta verificada",
                     }),
                 ],
               ),
@@ -154,9 +155,7 @@ const InstagramCustomerDrawer = ({
                               : "bg-amber-500 text-white shadow-amber-500/20"
                           }`,
                         },
-                        e("i", {
-                          className: isAutoMode ? "fas fa-robot" : "fas fa-user-tie",
-                        }),
+                        e(Icono, { nombre: isAutoMode ? "bot" : "user-round" }),
                       ),
                       e("div", null, [
                         e(
@@ -239,7 +238,7 @@ const InstagramCustomerDrawer = ({
                 "aria-label": "Vino de un anuncio",
               },
               [
-                e("i", { className: "fas fa-bullhorn text-purple-600 dark:text-purple-400 text-xs" }),
+                e(Icono, { nombre: "megaphone", className: "text-purple-600 dark:text-purple-400 text-xs" }),
                 e("span", null, "Vino de un anuncio"),
               ],
             ),
@@ -269,7 +268,7 @@ const InstagramCustomerDrawer = ({
                     "span",
                     { className: "text-xs font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-1" },
                     [
-                      e("i", { className: "fab fa-instagram text-xs text-[#E1306C]" }),
+                      e(Icono, { marca: "instagram", className: "text-xs text-[#E1306C]" }),
                       "Direct (Meta)",
                     ],
                   ),
@@ -327,7 +326,7 @@ const InstagramCustomerDrawer = ({
                     "w-full py-2.5 px-4 bg-gradient-to-r from-[#833AB4] via-[#E1306C] to-[#F77737] hover:opacity-95 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-98",
                 },
                 [
-                  e("i", { className: "fab fa-instagram" }),
+                  e(Icono, { marca: "instagram" }),
                   "Ver perfil en Instagram",
                 ],
               ),
@@ -343,7 +342,7 @@ const InstagramCustomerDrawer = ({
                     "w-full py-2.5 px-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs font-bold rounded-xl flex items-center justify-center gap-2 border border-transparent dark:border-gray-700 transition-all active:scale-98",
                 },
                 [
-                  e("i", { className: "fas fa-shopping-bag text-gray-500 dark:text-gray-400" }),
+                  e(Icono, { nombre: "shopping-bag", className: "text-gray-500 dark:text-gray-400" }),
                   "Crear Pedido desde Chat",
                 ],
               ),

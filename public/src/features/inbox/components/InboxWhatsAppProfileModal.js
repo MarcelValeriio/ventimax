@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 /**
  * public/src/features/inbox/components/InboxWhatsAppProfileModal.js
  * LOTE B6 — Administrador del Perfil de WhatsApp Business (WA-39 · disparador WA-45).
@@ -134,7 +135,7 @@ const InboxWhatsAppProfileModal = ({ isOpen, onClose }) => {
         vertical,
       });
       if (res.data && res.data.success) {
-        window.showToast?.("✅ Perfil de WhatsApp Business actualizado", "success");
+        window.showToast?.("Perfil de WhatsApp Business actualizado", "success");
         if (typeof onClose === "function") onClose();
       } else {
         throw new Error((res.data && res.data.error) || "Error al actualizar perfil");
@@ -173,7 +174,7 @@ const InboxWhatsAppProfileModal = ({ isOpen, onClose }) => {
       if (res.data && res.data.success) {
         if (payload.profile_picture_url) setProfilePictureUrl(payload.profile_picture_url);
         else setProfilePictureUrl(URL.createObjectURL(file));
-        window.showToast?.("✅ Foto de perfil de WhatsApp Business actualizada", "success");
+        window.showToast?.("Foto de perfil de WhatsApp Business actualizada", "success");
       } else {
         throw new Error((res.data && res.data.error) || "Error al subir foto de perfil");
       }
@@ -246,7 +247,7 @@ const InboxWhatsAppProfileModal = ({ isOpen, onClose }) => {
                     className:
                       "w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white",
                   },
-                  e("i", { className: "fab fa-whatsapp text-lg" }),
+                  e(Icono, { marca: "whatsapp", className: "text-lg" }),
                 ),
                 e("div", { key: "texts" }, [
                   e(
@@ -272,7 +273,7 @@ const InboxWhatsAppProfileModal = ({ isOpen, onClose }) => {
                   className:
                     "w-8 h-8 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer",
                 },
-                e("i", { className: "fas fa-times" }),
+                e(Icono, { nombre: "x" }),
               ),
             ],
           ),
@@ -294,7 +295,7 @@ const InboxWhatsAppProfileModal = ({ isOpen, onClose }) => {
                         "flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400 gap-3",
                     },
                     [
-                      e("i", { className: "fas fa-spinner fa-spin text-3xl text-[#008069]" }),
+                      e(Icono, { nombre: "loader-circle", girar: true, className: "text-3xl text-[#008069]" }),
                       e("p", { className: "text-sm font-medium" }, "Cargando información desde Meta..."),
                     ],
                   ),
@@ -333,7 +334,7 @@ const InboxWhatsAppProfileModal = ({ isOpen, onClose }) => {
                                   className:
                                     "absolute inset-0 bg-black/60 flex items-center justify-center text-white",
                                 },
-                                e("i", { className: "fas fa-spinner fa-spin text-xl" }),
+                                e(Icono, { nombre: "loader-circle", girar: true, className: "text-xl" }),
                               )
                             : null,
                         ],
@@ -371,7 +372,7 @@ const InboxWhatsAppProfileModal = ({ isOpen, onClose }) => {
                                 "px-3 py-1.5 rounded-lg bg-[#008069] hover:bg-[#00705c] text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50",
                             },
                             [
-                              e("i", { key: "i", className: "fas fa-camera text-xs" }),
+                              e(Icono, { key: "i", nombre: "camera", className: "text-xs" }),
                               e("span", { key: "s" }, uploadingPic ? "Subiendo a Meta..." : "Cambiar Foto"),
                             ],
                           ),
@@ -488,7 +489,7 @@ const InboxWhatsAppProfileModal = ({ isOpen, onClose }) => {
                 },
                 [
                   saving
-                    ? e("i", { key: "spin", className: "fas fa-spinner fa-spin text-xs" })
+                    ? e(Icono, { key: "spin", nombre: "loader-circle", girar: true, className: "text-xs" })
                     : null,
                   e("span", { key: "txt" }, saving ? "Guardando..." : "Guardar Cambios"),
                 ],

@@ -1,3 +1,4 @@
+import { Icono } from "../../../components/Icono.js";
 // public/src/features/whatsapp/components/MessageBubble.js
 import React, { useState, useRef } from "https://cdn.skypack.dev/react";
 import ImageLightboxModal from "./ImageLightboxModal.js";
@@ -8,14 +9,14 @@ const getFileIconInfo = (name, mime) => {
   const m = (mime || "").toLowerCase();
 
   if (ext === "pdf" || m.includes("pdf")) {
-    return { icon: "fa-file-pdf", color: "text-red-500", label: "PDF" };
+    return { icon: "file-text", color: "text-red-500", label: "PDF" };
   }
   if (
     ["doc", "docx", "rtf", "odt"].includes(ext) ||
     m.includes("word") ||
     m.includes("document")
   ) {
-    return { icon: "fa-file-word", color: "text-blue-500", label: "DOC" };
+    return { icon: "file-text", color: "text-blue-500", label: "DOC" };
   }
   if (
     ["xls", "xlsx", "csv", "ods"].includes(ext) ||
@@ -23,19 +24,19 @@ const getFileIconInfo = (name, mime) => {
     m.includes("excel") ||
     m.includes("csv")
   ) {
-    return { icon: "fa-file-excel", color: "text-green-500", label: "XLS" };
+    return { icon: "file-spreadsheet", color: "text-green-500", label: "XLS" };
   }
   if (
     ["zip", "rar", "7z", "tar", "gz"].includes(ext) ||
     m.includes("zip") ||
     m.includes("compressed")
   ) {
-    return { icon: "fa-file-archive", color: "text-amber-500", label: "ZIP" };
+    return { icon: "file-archive", color: "text-amber-500", label: "ZIP" };
   }
   if (["txt", "md"].includes(ext) || m.includes("text/plain")) {
-    return { icon: "fa-file-alt", color: "text-gray-500", label: "TXT" };
+    return { icon: "file-text", color: "text-gray-500", label: "TXT" };
   }
-  return { icon: "fa-file", color: "text-gray-500", label: "ARCHIVO" };
+  return { icon: "file", color: "text-gray-500", label: "ARCHIVO" };
 };
 
 const MessageBubble = ({
@@ -145,19 +146,19 @@ const MessageBubble = ({
           className: "text-[#8696a0] text-[10px] ml-1 inline-flex items-center",
           title: "Enviando mensaje...",
         },
-        "⏱️",
+        e(Icono, { nombre: "clock", className: "text-xs" }),
       );
     }
     if (s === "read" || s === "visto") {
-      return e("i", {
-        className: "fas fa-check-double text-[#53bdeb] text-[10px] ml-1 select-none",
-        title: "Leído por el cliente",
+      return e(Icono, {
+        nombre: "check-check", className: "text-[#53bdeb] text-[10px] ml-1 select-none",
+        titulo: "Leído por el cliente",
       });
     }
     if (s === "delivered" || s === "entregado") {
-      return e("i", {
-        className: "fas fa-check-double text-white text-[10px] ml-1 select-none drop-shadow-sm",
-        title: "Entregado al dispositivo",
+      return e(Icono, {
+        nombre: "check-check", className: "text-white text-[10px] ml-1 select-none drop-shadow-sm",
+        titulo: "Entregado al dispositivo",
       });
     }
     if (s === "failed" || s === "error" || s === "fallido") {
@@ -175,7 +176,7 @@ const MessageBubble = ({
           title: "Error al enviar por WhatsApp. Clic para reintentar.",
         },
         [
-          e("span", { className: "text-xs leading-none" }, "⚠️"),
+          e(Icono, { nombre: "triangle-alert", className: "text-xs leading-none" }),
           e(
             "span",
             { className: "text-[9px] leading-none font-bold" },
@@ -186,9 +187,9 @@ const MessageBubble = ({
     }
 
     // Default: 'sent' / 'enviado' (Entregado a los servidores de Meta)
-    return e("i", {
-      className: "fas fa-check text-white text-[10px] ml-1 select-none drop-shadow-sm",
-      title: "Enviado a Meta",
+    return e(Icono, {
+      nombre: "check", className: "text-white text-[10px] ml-1 select-none drop-shadow-sm",
+      titulo: "Enviado a Meta",
     });
   };
 
@@ -215,7 +216,7 @@ const MessageBubble = ({
             title: "Citar y responder",
             "aria-label": "Responder a este mensaje",
           },
-          e("i", { className: "fas fa-reply" }),
+          e(Icono, { nombre: "reply" }),
         ),
       e(
         "div",
@@ -243,9 +244,8 @@ const MessageBubble = ({
                   "mb-1.5 p-1.5 px-2.5 rounded bg-black/5 dark:bg-black/20 border-l-4 border-[#008069] text-xs text-gray-700 dark:text-gray-300 truncate max-w-full flex items-center gap-1.5 select-none",
               },
               [
-                e("i", {
-                  className:
-                    "fas fa-reply text-[10px] text-[#008069] dark:text-emerald-400 shrink-0",
+                e(Icono, {
+                  nombre: "reply", className: "text-[10px] text-[#008069] dark:text-emerald-400 shrink-0",
                 }),
                 e(
                   "span",
@@ -272,7 +272,7 @@ const MessageBubble = ({
                       "flex items-center gap-2 mb-1 text-[11px] text-[#54656f] font-medium",
                   },
                   [
-                    e("i", { className: "fas fa-microphone text-[#00a884]" }),
+                    e(Icono, { nombre: "mic", className: "text-[#00a884]" }),
                     e("span", null, "Nota de voz"),
                   ],
                 ),
@@ -332,8 +332,8 @@ const MessageBubble = ({
                         "flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-500",
                     },
                     [
-                      e("i", {
-                        className: "fas fa-image text-gray-400 text-base",
+                      e(Icono, {
+                        nombre: "image", className: "text-gray-400 text-base",
                       }),
                       e("span", null, "No se pudo cargar la imagen."),
                     ],
@@ -373,7 +373,7 @@ const MessageBubble = ({
                   {
                     className: `w-10 h-10 rounded-lg bg-white shadow-xs flex items-center justify-center shrink-0 ${fileIconInfo.color}`,
                   },
-                  [e("i", { className: `fas ${fileIconInfo.icon} text-lg` })],
+                  [e(Icono, { nombre: fileIconInfo.icon, className: "text-lg" })],
                 ),
                 e("div", { className: "flex-1 min-w-0 pr-2" }, [
                   e(
@@ -401,7 +401,7 @@ const MessageBubble = ({
                       "text-gray-400 group-hover:text-gray-700 transition-colors p-1 shrink-0",
                     title: "Descargar",
                   },
-                  [e("i", { className: "fas fa-arrow-down text-xs" })],
+                  [e(Icono, { nombre: "arrow-down", className: "text-xs" })],
                 ),
               ],
             ),
@@ -425,9 +425,8 @@ const MessageBubble = ({
                       className:
                         "w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-800 flex items-center justify-center shrink-0",
                     },
-                    e("i", {
-                      className:
-                        "fas fa-map-marker-alt text-blue-500 dark:text-blue-300",
+                    e(Icono, {
+                      nombre: "map-pin", className: "text-blue-500 dark:text-blue-300",
                     }),
                   ),
                   e("div", { className: "flex flex-col" }, [

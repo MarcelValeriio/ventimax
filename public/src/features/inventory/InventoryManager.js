@@ -1,3 +1,4 @@
+import { Icono } from "../../components/Icono.js";
 /**
  * public/src/features/inventory/InventoryManager.js
  * Componente contenedor para la gestión de inventario, métodos de pago y envíos
@@ -29,7 +30,7 @@ const InventoryManager = () => {
               : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
           }`
         },
-        e("i", { className: "fas fa-box mr-2" }),
+        e(Icono, { nombre: "package", className: "mr-2" }),
         "Productos"
       ),
       e(
@@ -42,7 +43,7 @@ const InventoryManager = () => {
               : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
           }`
         },
-        e("i", { className: "fas fa-credit-card mr-2" }),
+        e(Icono, { nombre: "credit-card", className: "mr-2" }),
         "Métodos de Pago"
       ),
       e(
@@ -55,7 +56,7 @@ const InventoryManager = () => {
               : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
           }`
         },
-        e("i", { className: "fas fa-truck mr-2" }),
+        e(Icono, { nombre: "truck", className: "mr-2" }),
         "Envíos"
       )
     ),
