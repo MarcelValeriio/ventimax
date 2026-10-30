@@ -95,6 +95,7 @@ export interface IPedido {
     codigo?: string;
   };
   pago?: IPagoPedido;
+  stockDescontado?: { producto: string; cantidad: number }[];
   ctwaClid?: string | null;
   idFormateado?: string;
   correlativo?: string;

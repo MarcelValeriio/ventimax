@@ -2556,10 +2556,22 @@ const deleteOrder = async (req, res, io) => {
       tipoRecurso: "pedido",
       accion: "eliminado",
       anterior: pedido.estado,
-      detalles: `Pedido eliminado manualmente (prueba): ${pedido.cliente?.nombre || "Sin nombre"} - Total $${pedido.pago?.montoUSD || 0} USD`,
+      detalles: `Pedido eliminado manualmente (prueba): ${pedido.cliente?.nombre || "Sin nombre"} - Total $${pedido.pago?.montoUSD || 0} USD${
+        Array.isArray(pedido.stockDescontado) && pedido.stockDescontado.length
+          ? ` - Stock repuesto: ${pedido.stockDescontado.map((i) => `${i.producto} +${i.cantidad}`).join(", ")}`
+          : ""
+      }`,
     });
 
     await Pedido.findByIdAndDelete(id);
+
+    // Reponer a stock lo que el pedido había descontado
+    let stockRepuesto = [];
+    try {
+      stockRepuesto = await orderService.reponerStockPedido(pedido);
+    } catch (stockErr) {
+      console.error("⚠️ Error reponiendo stock (deleteOrder):", stockErr.message);
+    }
 
     // Liberar correlativo para ser reutilizado por el próximo pedido entrante
     const rawCorrelativo = pedido.correlativo || pedido.idFormateado;
@@ -2610,7 +2622,7 @@ const deleteOrder = async (req, res, io) => {
 
     return res.json({
       success: true,
-      data: { id, whatsappId: pedido.whatsappId },
+      data: { id, whatsappId: pedido.whatsappId, stockRepuesto },
       message: "Pedido eliminado correctamente",
     });
   } catch (error) {
@@ -3568,6 +3580,7 @@ const postManualSale = async (req, res, io) => {
     }
 
     // Descontamos stock de forma atómica para los que tienen trackStock
+    const stockDescontado: { producto: string; cantidad: number }[] = [];
     for (const item of items) {
       if (typeof Producto.findOneAndUpdate === "function") {
         const decResult = await Producto.findOneAndUpdate(
@@ -3580,6 +3593,7 @@ const postManualSale = async (req, res, io) => {
           { returnDocument: "after" },
         );
         if (decResult) {
+          stockDescontado.push({ producto: item.producto, cantidad: Number(item.cantidad) });
           console.log(
             `✅ [Venta Manual] Stock descontado para "${item.producto}": -${item.cantidad} (Restante: ${decResult.stock})`,
           );
@@ -3589,6 +3603,7 @@ const postManualSale = async (req, res, io) => {
         const prod = await Producto.findOne({ name: item.producto });
         if (prod && prod.trackStock) {
           prod.stock = (prod.stock || 0) - item.cantidad;
+          stockDescontado.push({ producto: item.producto, cantidad: Number(item.cantidad) });
           if (process.env.NODE_ENV === "test") {
             const dbLocal = require("../services/dbLocal");
             const dbData = dbLocal.read();
@@ -3731,6 +3746,7 @@ const postManualSale = async (req, res, io) => {
         vuelto: pago?.vuelto || 0,
       },
       ...(envioSanitizado ? { envio: envioSanitizado } : {}),
+      stockDescontado,
       notas: notas || "",
       ctwaClid: ctwaClid,
       idFormateado: correlativo,

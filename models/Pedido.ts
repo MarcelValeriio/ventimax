@@ -50,6 +50,14 @@ const PedidoSchema = new Schema<IPedido>({
     pagoEfectivo: { type: Number, default: 0 },
     pagoDigitalVES: { type: Number, default: 0 }
   },
+  // Lo que se descontó de stock al crear/confirmar el pedido; sirve para reponerlo si se elimina
+  stockDescontado: [
+    {
+      _id: false,
+      producto: { type: String, required: true },
+      cantidad: { type: Number, required: true }
+    }
+  ],
   ctwaClid: { type: String, default: null },
   idFormateado: { type: String },
   correlativo: { type: String },

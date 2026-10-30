@@ -376,6 +376,15 @@ class DbLocal {
         this.write(data);
         return data.pedidos[idx];
       },
+      findByIdAndDelete: async (id) => {
+        const data = this.read();
+        data.pedidos = data.pedidos || [];
+        const idx = data.pedidos.findIndex(p => String(p._id) === String(id));
+        if (idx === -1) return null;
+        const [deleted] = data.pedidos.splice(idx, 1);
+        this.write(data);
+        return deleted;
+      },
       findById: async (id) => {
         const data = self.read();
         data.pedidos = data.pedidos || [];

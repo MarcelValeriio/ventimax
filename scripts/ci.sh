@@ -20,6 +20,7 @@ SUITES=(
   test-seguridad.ts
   test-flujo-no-laborable.ts
   test-envios.ts
+  test-stock-eliminar.ts
   test-retiro.ts
   test-datos-negocio.ts
   test-imagenes-producto.ts

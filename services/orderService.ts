@@ -60,6 +60,28 @@ class OrderService {
   calcularTotalCarrito(carrito: any): number {
     return calcularTotalCarrito(carrito);
   }
+
+  // Devuelve a stock lo que el pedido descontó (solo lo registrado en stockDescontado).
+  // Pedidos anteriores a este registro no tienen la lista y no se tocan.
+  async reponerStockPedido(pedido: any): Promise<{ producto: string; cantidad: number }[]> {
+    const lista = Array.isArray(pedido?.stockDescontado) ? pedido.stockDescontado : [];
+    const repuestos: { producto: string; cantidad: number }[] = [];
+    for (const it of lista) {
+      const cantidad = Number(it?.cantidad) || 0;
+      if (!it?.producto || cantidad <= 0) continue;
+      const res = await Producto.findOneAndUpdate(
+        { name: it.producto, trackStock: true },
+        { $inc: { stock: cantidad } },
+      );
+      if (res) {
+        repuestos.push({ producto: it.producto, cantidad });
+        console.log(`📦 Stock repuesto: "${it.producto}" +${cantidad}`);
+      } else {
+        console.warn(`⚠️ [Stock] No se pudo reponer "${it.producto}" (producto borrado o sin control de stock)`);
+      }
+    }
+    return repuestos;
+  }
   async getEstado(tel) {
     try {
       let doc = await Etiqueta.findOne({ telefono: tel });
@@ -762,6 +784,7 @@ class OrderService {
       // 5. DESCONTAR STOCK de productos con trackStock activo
       try {
         const items = doc.items || [];
+        const descontados: { producto: string; cantidad: number }[] = [];
         for (const item of items) {
           const prodName = item.producto || item.name || "";
           const cantidad = item.cantidad || 1;
@@ -771,11 +794,15 @@ class OrderService {
               { $inc: { stock: -cantidad } },
             );
             if (result) {
+              descontados.push({ producto: prodName, cantidad });
               console.log(
                 `📦 Stock descontado: "${prodName}" -${cantidad} (${result.stock - cantidad} restantes)`,
               );
             }
           }
+        }
+        if (descontados.length > 0) {
+          await Pedido.findByIdAndUpdate(doc._id, { $set: { stockDescontado: descontados } });
         }
       } catch (stockError) {
         console.error("⚠️ Error descontando stock:", stockError.message);

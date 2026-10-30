@@ -401,27 +401,48 @@ const ProductTable = () => {
   };
 
   const handleUploadImage = async (ev) => {
-    const file = ev.target.files?.[0];
-    if (!file || !editingProduct) return;
+    const seleccion = Array.from(ev.target.files || []);
+    if (seleccion.length === 0 || !editingProduct) return;
+    const cupo = Math.max(0, 5 - productImages.length);
+    const archivos = seleccion.slice(0, cupo);
+    if (archivos.length < seleccion.length) {
+      window.showToast?.(
+        `Solo caben ${cupo} foto(s) más (máx 5). Se subirán las primeras ${archivos.length}.`,
+        "warning"
+      );
+    }
+    let subidas = 0;
+    let ultimoError = "";
     try {
       setUploadingImage(true);
-      const data = new FormData();
-      data.append("imagen", file);
-      const res = await apiClient.post(
-        `/api/admin/products/${editingProduct.id}/imagenes`,
-        data,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-      const updatedProduct = res.data?.data;
-      if (updatedProduct) {
-        setProductImages(updatedProduct.imagenes || []);
-        setEditingProduct(updatedProduct);
+      // De una en una: el servidor valida el límite de 5 por cada foto
+      for (const file of archivos) {
+        try {
+          const data = new FormData();
+          data.append("imagen", file);
+          const res = await apiClient.post(
+            `/api/admin/products/${editingProduct.id}/imagenes`,
+            data,
+            { headers: { "Content-Type": "multipart/form-data" } }
+          );
+          const updatedProduct = res.data?.data;
+          if (updatedProduct) {
+            setProductImages(updatedProduct.imagenes || []);
+            setEditingProduct(updatedProduct);
+          }
+          subidas++;
+        } catch (err) {
+          ultimoError = err.response?.data?.error || err.response?.data?.message || err.message;
+          window.showToast?.(`${file.name}: ${ultimoError}`, "error");
+        }
       }
-      fetchInventory();
-      window.showToast?.("Imagen subida correctamente", "success");
-    } catch (err) {
-      const msg = err.response?.data?.error || err.response?.data?.message || err.message;
-      window.showToast?.(`${msg}`, "error");
+      if (subidas > 0) {
+        fetchInventory();
+        window.showToast?.(
+          subidas === 1 ? "Imagen subida correctamente" : `${subidas} imágenes subidas correctamente`,
+          "success"
+        );
+      }
     } finally {
       setUploadingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -1026,7 +1047,7 @@ const ProductTable = () => {
                           "text-xs px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold rounded-lg hover:bg-emerald-500/20 transition flex items-center gap-1",
                       },
                       e(Icono, { nombre: uploadingImage ? "loader-circle" : "upload", girar: uploadingImage }),
-                      uploadingImage ? "Subiendo..." : "Subir foto"
+                      uploadingImage ? "Subiendo..." : "Subir fotos"
                     )
                 ),
                 !editingProduct
@@ -1045,6 +1066,7 @@ const ProductTable = () => {
                         type: "file",
                         ref: fileInputRef,
                         accept: "image/jpeg,image/png,image/webp",
+                        multiple: true,
                         onChange: handleUploadImage,
                         className: "hidden",
                       }),
@@ -1056,7 +1078,7 @@ const ProductTable = () => {
                                 "p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-dashed border-gray-200 dark:border-gray-700 text-xs text-gray-400 text-center cursor-pointer hover:border-emerald-400 transition",
                               onClick: () => fileInputRef.current?.click(),
                             },
-                            "No hay fotos. Haz clic en 'Subir foto' para agregar (máx 5)."
+                            "No hay fotos. Haz clic en 'Subir fotos' y elige hasta 5 a la vez."
                           )
                         : e(
                             "div",
