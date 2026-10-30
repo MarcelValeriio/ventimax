@@ -677,14 +677,14 @@ const ProductTable = () => {
           {
             "data-blendy-to": "product-modal-morph",
             className:
-              "bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden",
+              "bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]",
           },
-          e("div", { className: "w-full" }, [
+          e("div", { className: "w-full flex flex-col min-h-0 flex-1" }, [
             e(
               "div",
               {
                 className:
-                  "p-6 border-b dark:border-gray-700 border-gray-100 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50",
+                  "p-6 border-b dark:border-gray-700 border-gray-100 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50 shrink-0",
               },
               e(
                 "h3",
@@ -707,7 +707,7 @@ const ProductTable = () => {
             ),
             e(
               "form",
-              { onSubmit: handleSave, className: "p-6 space-y-4" },
+              { onSubmit: handleSave, className: "p-6 space-y-4 overflow-y-auto min-h-0 flex-1" },
               // ID Field
               e(
                 "div",
