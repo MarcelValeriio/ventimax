@@ -188,7 +188,7 @@ async function run() {
       const res = await fetch(`${baseUrl}/api/public/info`);
       assert.strictEqual(res.status, 200);
       const json: any = await res.json();
-      assert.deepStrictEqual(Object.keys(json), ["preguntas", "pagos", "envios", "horario", "banner"]);
+      assert.deepStrictEqual(Object.keys(json), ["preguntas", "pagos", "envios", "horario", "banner", "bannerLateral", "instagram"]);
       assert.deepStrictEqual(json.preguntas, [
         { pregunta: "Pregunta A primera", respuesta: "A" },
         { pregunta: "Pregunta C tercera", respuesta: "C" },

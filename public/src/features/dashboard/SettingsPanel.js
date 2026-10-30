@@ -1,10 +1,11 @@
 import { Icono } from "../../components/Icono.js";
+import { ListaImagenesOrdenable } from "../../components/ListaImagenesOrdenable.js";
 /**
  * public/src/features/dashboard/SettingsPanel.js
  * Panel de Configuración: navegación por secciones (lateral en escritorio, pestañas en móvil)
  * y cada ajuste en una sola ubicación.
  */
-import React, { useState, useEffect } from "https://cdn.skypack.dev/react";
+import React, { useState, useEffect, useRef } from "https://cdn.skypack.dev/react";
 import apiClient from "../../services/apiClient.js";
 import {
   isPushSupported,
@@ -16,6 +17,14 @@ import {
 import EnvConfigModal from "./components/EnvConfigModal.js";
 
 const e = React.createElement;
+
+// Banner lateral (imágenes verticales): solo lo que el panel necesita del servidor
+const normalizarBannerLateral = (b) => ({
+  activo: Boolean(b && b.activo),
+  imagenes: Array.isArray(b?.imagenes)
+    ? b.imagenes.map((img) => ({ url: img.url || "", productoId: img.productoId || null }))
+    : [],
+});
 
 // Días de la semana ordenados de Lunes a Domingo para una mejor UX
 const DAYS_OF_WEEK = [
@@ -356,6 +365,14 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
   const [bannerSaving, setBannerSaving] = useState(false);
   const [productosBanner, setProductosBanner] = useState([]);
 
+  // Banner lateral de la tienda (imágenes verticales)
+  const [bannerLat, setBannerLat] = useState({ activo: false, imagenes: [] });
+  const [bannerLatLoading, setBannerLatLoading] = useState(false);
+  const [bannerLatSaving, setBannerLatSaving] = useState(false);
+  const [bannerLatUploading, setBannerLatUploading] = useState(false);
+  const [bannerLatProductoNuevo, setBannerLatProductoNuevo] = useState("");
+  const bannerLatFileRef = useRef(null);
+
   const [abusoLoading, setAbusoLoading] = useState(false);
 
   const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
@@ -563,6 +580,25 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
 
     fetchBanner();
     fetchProductosBanner();
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const fetchBannerLateral = async () => {
+      try {
+        setBannerLatLoading(true);
+        const client = window.apiClient || apiClient;
+        const res = await client.get("/api/admin/config/banner-lateral");
+        if (res.data?.success && res.data?.banner) {
+          setBannerLat(normalizarBannerLateral(res.data.banner));
+        }
+      } catch (err) {
+        console.warn("No se pudo cargar el banner lateral:", err);
+      } finally {
+        setBannerLatLoading(false);
+      }
+    };
+    fetchBannerLateral();
   }, [isAdmin]);
 
   const toast = (msg, type) => {
@@ -827,6 +863,82 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       toast(err.response?.data?.error || err.message || "Error al guardar el cintillo", "error");
     } finally {
       setBannerSaving(false);
+    }
+  };
+
+  const setBannerLatEnlace = (indice, productoId) => {
+    setBannerLat((prev) => ({
+      ...prev,
+      imagenes: prev.imagenes.map((img, i) => (i === indice ? { ...img, productoId: productoId || null } : img)),
+    }));
+  };
+
+  const handleUploadBannerLat = async (archivo) => {
+    setBannerLatUploading(true);
+    try {
+      const client = window.apiClient || apiClient;
+      const data = new FormData();
+      data.append("imagen", archivo);
+      if (bannerLatProductoNuevo) data.append("productoId", bannerLatProductoNuevo);
+      const res = await client.post("/api/admin/config/banner-lateral/imagenes", data, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (res.data?.success && res.data?.banner) {
+        setBannerLat(normalizarBannerLateral(res.data.banner));
+        setBannerLatProductoNuevo("");
+        toast("Imagen subida al banner lateral", "success");
+      }
+    } catch (err) {
+      console.error("Error subiendo imagen del banner lateral:", err);
+      // El error del servidor se muestra tal cual (formato, tamaño, límite, Cloudinary no configurado)
+      toast(err.response?.data?.error || err.message || "Error al subir la imagen", "error");
+    } finally {
+      setBannerLatUploading(false);
+    }
+  };
+
+  const handleDeleteBannerLat = async (indice) => {
+    if (!window.confirm("¿Seguro que deseas quitar esta imagen del banner lateral?")) return;
+    try {
+      const client = window.apiClient || apiClient;
+      const res = await client.delete(`/api/admin/config/banner-lateral/imagenes/${indice}`);
+      if (res.data?.success && res.data?.banner) {
+        setBannerLat(normalizarBannerLateral(res.data.banner));
+        toast("Imagen quitada del banner lateral", "success");
+      }
+    } catch (err) {
+      console.error("Error quitando imagen del banner lateral:", err);
+      toast(err.response?.data?.error || err.message || "Error al quitar la imagen", "error");
+    }
+  };
+
+  const handleSaveBannerLat = async () => {
+    setBannerLatSaving(true);
+    try {
+      const client = window.apiClient || apiClient;
+      const res = await client.put("/api/admin/config/banner-lateral", {
+        activo: bannerLat.activo,
+        enlaces: bannerLat.imagenes.map((img) => img.productoId || null),
+      });
+      if (res.data?.success && res.data?.banner) {
+        setBannerLat(normalizarBannerLateral(res.data.banner));
+        toast("Banner lateral guardado correctamente", "success");
+      }
+    } catch (err) {
+      console.error("Error guardando el banner lateral:", err);
+      toast(err.response?.data?.error || err.message || "Error al guardar el banner lateral", "error");
+    } finally {
+      setBannerLatSaving(false);
+    }
+  };
+
+  const handleReorderBannerLat = async (orden) => {
+    const client = window.apiClient || apiClient;
+    const res = await client.put("/api/admin/config/banner-lateral/orden", { orden });
+    if (res.data?.success) {
+      // Se reordena la lista local para no perder los enlaces a producto que todavía no se han guardado
+      setBannerLat((prev) => ({ ...prev, imagenes: orden.map((i) => prev.imagenes[i]) }));
+      toast("Orden del banner guardado", "success");
     }
   };
 
@@ -1464,6 +1576,121 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
           },
             bannerSaving && e(Icono, { nombre: "loader-circle", girar: true }),
             bannerSaving ? "Guardando..." : "Guardar cintillo"
+          )
+        )
+      )
+    ),
+    e("section", { key: "banner-lateral", className: "space-y-3" },
+      e("h3", { className: "text-[11px] font-black uppercase tracking-widest text-gray-400 px-1" }, "Banner lateral"),
+      e("div", { className: "bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-6 space-y-6" },
+        e("div", { className: "flex items-start justify-between gap-4" },
+          e("div", { className: "flex items-center gap-3" },
+            e("div", { className: `w-10 h-10 rounded-2xl flex items-center justify-center text-sm ${ICON_TONES.teal}` },
+              e(Icono, { nombre: "image" })
+            ),
+            e("div", null,
+              e("h4", { className: "text-sm font-bold text-gray-800 dark:text-gray-100" }, "Mostrar banner lateral en la tienda"),
+              e("p", { className: "text-xs text-gray-500 dark:text-gray-400 mt-0.5" },
+                bannerLat.activo
+                  ? "Activo: la tienda muestra las imágenes en la columna lateral."
+                  : "Desactivado: la tienda no muestra el banner lateral."
+              ),
+              e("p", { className: "text-xs text-gray-500 dark:text-gray-400 mt-1" },
+                "Imágenes verticales, recomendado 3:4 (ej. 900x1200). Hasta 5 imágenes."
+              )
+            )
+          ),
+          e("label", { className: "relative inline-flex items-center cursor-pointer" },
+            e("input", {
+              type: "checkbox",
+              checked: bannerLat.activo,
+              onChange: (ev) => setBannerLat({ ...bannerLat, activo: ev.target.checked }),
+              className: "sr-only peer",
+            }),
+            e("div", {
+              className: "w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600",
+            })
+          )
+        ),
+        e("div", { className: "flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700" },
+          e("p", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Imágenes"),
+          e("span", { className: "text-[11px] text-gray-400" }, `${bannerLat.imagenes.length}/5`)
+        ),
+        bannerLat.imagenes.length > 0
+          ? e(ListaImagenesOrdenable, {
+              imagenes: bannerLat.imagenes,
+              onReordenar: handleReorderBannerLat,
+              alt: (i) => `Banner ${i + 1}`,
+              className: "grid grid-cols-2 sm:grid-cols-5 gap-4",
+              aspecto: "3 / 4",
+              renderDebajo: (img, i) => e("div", { className: "space-y-2" },
+                  e("select", {
+                    value: img.productoId || "",
+                    onChange: (ev) => setBannerLatEnlace(i, ev.target.value),
+                    "aria-label": `Enlaza a producto la imagen ${i + 1}`,
+                    className: "w-full px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-[11px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
+                  },
+                    e("option", { key: "sin-enlace", value: "" }, "Sin enlace"),
+                    ...(img.productoId && !productosBanner.some((p) => p.id === img.productoId)
+                      ? [e("option", { key: "no-disponible", value: img.productoId }, "(producto no disponible)")]
+                      : []),
+                    ...productosBanner.map((p) => e("option", { key: p.id, value: p.id }, p.name))
+                  ),
+                  e("button", {
+                    type: "button",
+                    onClick: () => handleDeleteBannerLat(i),
+                    className: "w-full px-2 py-1.5 rounded-lg text-[11px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 dark:text-rose-400 transition flex items-center justify-center gap-1",
+                  },
+                    e(Icono, { nombre: "trash" }),
+                    "Borrar"
+                  )
+              ),
+            })
+          : e("p", { className: "text-xs text-gray-500 dark:text-gray-400" }, "Todavía no hay imágenes en el banner lateral."),
+        e("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100 dark:border-gray-700" },
+          e("div", { className: "space-y-1" },
+            e("label", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Enlaza a producto (para la próxima imagen):"),
+            e("select", {
+              value: bannerLatProductoNuevo,
+              onChange: (ev) => setBannerLatProductoNuevo(ev.target.value),
+              className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
+            },
+              e("option", { key: "nuevo-sin", value: "" }, "Sin enlace"),
+              ...productosBanner.map((p) => e("option", { key: `nuevo-${p.id}`, value: p.id }, p.name))
+            )
+          ),
+          e("div", { className: "flex items-end" },
+            e("input", {
+              ref: bannerLatFileRef,
+              type: "file",
+              accept: "image/jpeg,image/png,image/webp",
+              className: "hidden",
+              onChange: (ev) => {
+                const archivo = ev.target.files && ev.target.files[0];
+                ev.target.value = "";
+                if (archivo) handleUploadBannerLat(archivo);
+              },
+            }),
+            e("button", {
+              type: "button",
+              onClick: () => bannerLatFileRef.current && bannerLatFileRef.current.click(),
+              disabled: bannerLatUploading || bannerLatLoading || bannerLat.imagenes.length >= 5,
+              className: "px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 transition disabled:opacity-50 flex items-center gap-2",
+            },
+              e(Icono, { nombre: bannerLatUploading ? "loader-circle" : "upload", girar: bannerLatUploading }),
+              bannerLatUploading ? "Subiendo..." : "Subir imagen"
+            )
+          )
+        ),
+        e("div", { className: "flex justify-end pt-2" },
+          e("button", {
+            type: "button",
+            onClick: handleSaveBannerLat,
+            disabled: bannerLatSaving || bannerLatLoading,
+            className: "px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 transition disabled:opacity-50 flex items-center gap-2",
+          },
+            bannerLatSaving && e(Icono, { nombre: "loader-circle", girar: true }),
+            bannerLatSaving ? "Guardando..." : "Guardar banner lateral"
           )
         )
       )

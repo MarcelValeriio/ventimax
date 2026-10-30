@@ -28,7 +28,7 @@ import {
 
 import { el, limpiarElemento } from "./dom.js";
 
-import { icono } from "./iconos.js";
+import { icono, iconoInstagram } from "./iconos.js";
 
 import { debeMostrarAyuda, textoAyuda, armarEnlaceAyuda } from "./ayuda.js";
 
@@ -302,6 +302,20 @@ function aplicarIdentidadMarca(marca) {
     brandLink.prepend(logo);
     brandTitle?.classList.add("hidden");
   }
+}
+
+/** Botón de Instagram del encabezado: solo aparece si el servidor envía un usuario y un enlace de instagram.com. */
+function pintarInstagram(instagram) {
+  const boton = document.getElementById("ig-btn");
+  if (!boton || !instagram || typeof instagram.usuario !== "string" || typeof instagram.url !== "string") return;
+  if (!instagram.url.startsWith("https://www.instagram.com/")) return;
+  boton.setAttribute("href", instagram.url);
+  boton.setAttribute("aria-label", `Instagram @${instagram.usuario}`);
+  boton.setAttribute("title", `Síguenos en Instagram @${instagram.usuario}`);
+  document.getElementById("ig-text").textContent = `@${instagram.usuario}`;
+  const contenedor = document.getElementById("ig-icon");
+  if (contenedor && !contenedor.firstChild) contenedor.appendChild(iconoInstagram());
+  boton.classList.remove("hidden");
 }
 
 /** Íconos fijos del encabezado y enlace a la política de privacidad del servidor. */
@@ -633,6 +647,30 @@ function crearTarjetaProducto(prod) {
 }
 
 /**
+ * Banner lateral: imágenes verticales tipo anuncio que configura el negocio. Cada una enlaza a su producto si lo tiene.
+ * Una imagen que no carga se quita para no dejar un hueco roto.
+ */
+function crearBannerLateral(imagenes) {
+  if (!Array.isArray(imagenes) || imagenes.length === 0) return null;
+  const items = imagenes
+    .map((img) => {
+      const src = resolverUrlRecurso(img && img.url);
+      if (!src) return null;
+      const conEnlace = typeof img.productoId === "string" && img.productoId !== "";
+      const foto = el("img", { className: "banner-lateral-imagen", src, alt: "Promoción", loading: "lazy" });
+      const contenido = conEnlace
+        ? el("a", { className: "banner-lateral-enlace", href: `#/producto/${encodeURIComponent(img.productoId)}`, "aria-label": "Ver el producto de la promoción" }, foto)
+        : foto;
+      const li = el("li", { className: "banner-lateral-item" }, contenido);
+      foto.addEventListener("error", () => li.remove(), { once: true });
+      return li;
+    })
+    .filter(Boolean);
+  if (items.length === 0) return null;
+  return el("aside", { className: "banner-lateral", "aria-label": "Promociones" }, el("ul", { className: "banner-lateral-lista" }, items));
+}
+
+/**
  * Vista de Catálogo Principal / Filtrado por Categoría.
  */
 function renderizarCatalogo() {
@@ -713,7 +751,8 @@ function renderizarCatalogo() {
     ].map(([valor, texto]) => el("option", { value: valor, selected: state.orden === valor }, texto))
   );
 
-  appRoot.appendChild(
+  const principal = el("div", { className: "catalogo-principal" });
+  principal.appendChild(
     el(
       "div",
       { className: "barra-listado" },
@@ -728,7 +767,7 @@ function renderizarCatalogo() {
   );
 
   if (state.catalogo.tasa) {
-    appRoot.appendChild(
+    principal.appendChild(
       el(
         "p",
         { className: "nota-tasa" },
@@ -739,7 +778,7 @@ function renderizarCatalogo() {
   }
 
   if (lista.length === 0) {
-    appRoot.appendChild(
+    principal.appendChild(
       estadoVacio(
         "buscar",
         state.busqueda ? "No encontramos productos con esa búsqueda" : "Aún no hay productos en esta categoría",
@@ -759,8 +798,12 @@ function renderizarCatalogo() {
       )
     );
   } else {
-    appRoot.appendChild(el("div", { className: "cuadricula" }, lista.map(crearTarjetaProducto)));
+    principal.appendChild(el("div", { className: "cuadricula" }, lista.map(crearTarjetaProducto)));
   }
+
+  // Banner lateral: columna de anuncios verticales a un lado en escritorio, carrusel arriba en el celular
+  const banner = crearBannerLateral(state.info?.bannerLateral);
+  appRoot.appendChild(banner ? el("div", { className: "catalogo-layout" }, banner, principal) : principal);
 
   if (esInicio) {
     seccionPreguntas = el("div", { className: "preguntas-hueco" });
@@ -1749,6 +1792,7 @@ async function cargarDatos() {
     obtenerInfo()
       .then((info) => {
         state.info = info;
+        pintarInstagram(info?.instagram);
         // El cintillo (F2g) llega con esta información: si el catálogo está en pantalla, se vuelve a pintar
         if (state.vista === "catalogo") renderizarCatalogo();
         else pintarPreguntas();

@@ -249,6 +249,39 @@ module.exports = function (io) {
     authorize(["config:manage"]),
     configAdminController.updateBannerTiendaConfig,
   );
+  // Banner lateral de la tienda (imágenes verticales, solo Admin con config:manage)
+  // La subida usa el mismo multer de 5 MB (JPG, PNG, WebP) que las fotos de producto
+  router.get(
+    "/config/banner-lateral",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.getBannerLateralConfig,
+  );
+  router.put(
+    "/config/banner-lateral",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.updateBannerLateralConfig,
+  );
+  router.put(
+    "/config/banner-lateral/orden",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.reorderBannerLateralImagenes,
+  );
+  router.post(
+    "/config/banner-lateral/imagenes",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    handleUploadProductoImagen,
+    configAdminController.postBannerLateralImagen,
+  );
+  router.delete(
+    "/config/banner-lateral/imagenes/:indice",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.deleteBannerLateralImagen,
+  );
   router.get(
     "/config/catalogo/abuso",
     isAuthenticated,
@@ -385,6 +418,12 @@ module.exports = function (io) {
     isAuthenticated,
     authorize(["product:edit"]),
     adminController.deleteProductImage,
+  );
+  router.put(
+    "/products/:id/imagenes/orden",
+    isAuthenticated,
+    authorize(["product:edit"]),
+    adminController.reorderProductImages,
   );
   router.put(
     "/products/:id/imagenes/principal",

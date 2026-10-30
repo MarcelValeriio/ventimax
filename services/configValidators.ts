@@ -497,3 +497,64 @@ export function validarBannerTienda(val: unknown): ResultadoValidacionBanner {
   // Activo sin texto ni producto es válido: el servidor muestra los productos con descuento (F2g)
   return { ok: true, value: { activo, texto, productoId } };
 }
+
+// ==========================================
+// Banner lateral de la tienda: imágenes verticales con enlace opcional a un producto
+// ==========================================
+
+export interface BannerLateralImagen {
+  url: string;
+  publicId: string;
+  productoId: string | null;
+}
+
+export interface BannerLateral {
+  activo: boolean;
+  imagenes: BannerLateralImagen[];
+}
+
+export type ResultadoValidacionBannerLateral =
+  | { ok: true; value: BannerLateral }
+  | { ok: false; error: string };
+
+export function validarBannerLateral(val: unknown): ResultadoValidacionBannerLateral {
+  if (!val || typeof val !== "object") {
+    return { ok: false, error: "Datos del banner lateral inválidos." };
+  }
+
+  const v = val as Record<string, unknown>;
+  if (v.activo !== undefined && typeof v.activo !== "boolean") {
+    return { ok: false, error: "El interruptor del banner lateral debe ser verdadero o falso." };
+  }
+  const activo = v.activo === true;
+
+  if (!Array.isArray(v.imagenes)) {
+    return { ok: false, error: "Las imágenes del banner lateral deben ser una lista." };
+  }
+  if (v.imagenes.length > 5) {
+    return { ok: false, error: "El banner lateral admite como máximo 5 imágenes." };
+  }
+
+  const imagenes: BannerLateralImagen[] = [];
+  for (const raw of v.imagenes as unknown[]) {
+    const img = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+
+    if (typeof img.url !== "string" || img.url.length > 500 || !/^https:\/\/\S+$/.test(img.url)) {
+      return { ok: false, error: "La dirección de cada imagen del banner debe ser https y tener como máximo 500 caracteres." };
+    }
+    if (typeof img.publicId !== "string" || img.publicId.length > 200) {
+      return { ok: false, error: "El identificador de cada imagen del banner no es válido." };
+    }
+    let productoId: string | null = null;
+    if (img.productoId !== undefined && img.productoId !== null && img.productoId !== "") {
+      if (typeof img.productoId !== "string" || img.productoId.length > 60) {
+        return { ok: false, error: "El producto enlazado al banner no es válido." };
+      }
+      productoId = img.productoId;
+    }
+
+    imagenes.push({ url: img.url, publicId: img.publicId, productoId });
+  }
+
+  return { ok: true, value: { activo, imagenes } };
+}

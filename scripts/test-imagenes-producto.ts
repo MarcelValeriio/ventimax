@@ -491,12 +491,101 @@ async function runTests() {
 
   console.log("  ✅ Envío condicional de imagen por WhatsApp y resiliencia validados");
 
+  // --------------------------------------------------------------------------
+  // TEST 10: Reordenar imágenes por arrastre (PUT /products/:id/imagenes/orden)
+  // --------------------------------------------------------------------------
+  console.log("\n▶ Test 10: Reordenar imágenes (PUT /products/:id/imagenes/orden)...");
+
+  const productoOrden = await Producto.create({
+    id: "fortunne-orden-test",
+    name: 'Fortunne Orden Test 10"',
+    price: 30,
+    description: "Prueba de orden de fotos",
+    imagenes: [
+      { url: "https://res.cloudinary.com/x/a.jpg", publicId: "pa" },
+      { url: "https://res.cloudinary.com/x/b.jpg", publicId: "pb" },
+      { url: "https://res.cloudinary.com/x/c.jpg", publicId: "pc" },
+    ],
+  });
+  const publicIdsOrden = async () => ((await Producto.findOne({ id: productoOrden.id })).imagenes || []).map((img: any) => img.publicId);
+
+  // 10.1 Permutación válida: la imagen 2 pasa a la principal
+  const { req: reqOrd, res: resOrd } = mockReqRes({
+    params: { id: productoOrden.id },
+    body: { orden: [2, 0, 1] },
+  });
+  await adminController.reorderProductImages(reqOrd, resOrd);
+  assert.strictEqual(resOrd.getStatus(), 200, "Orden válido debe responder 200");
+  assert.deepStrictEqual(
+    resOrd.getData().data.imagenes.map((img: any) => img.publicId),
+    ["pc", "pa", "pb"],
+    "orden[i] = índice actual que pasa a la posición i",
+  );
+  const persistidoOrden = await Producto.findOne({ id: productoOrden.id });
+  assert.deepStrictEqual(
+    persistidoOrden.imagenes.map((img: any) => img.publicId),
+    ["pc", "pa", "pb"],
+    "el nuevo orden queda guardado",
+  );
+
+  // 10.2 Orden inválido: repetido, longitud distinta, fuera de rango, no numérico, sin body
+  for (const orden of [[0, 0, 1], [0, 1], [0, 1, 3], ["0", "1", "2"], undefined]) {
+    const { req: reqBad, res: resBad } = mockReqRes({
+      params: { id: productoOrden.id },
+      body: { orden },
+    });
+    await adminController.reorderProductImages(reqBad, resBad);
+    assert.strictEqual(resBad.getStatus(), 400, `Orden ${JSON.stringify(orden)} debe dar 400`);
+    assert.strictEqual(resBad.getData().error, "Orden invalido");
+  }
+  assert.deepStrictEqual(await publicIdsOrden(), ["pc", "pa", "pb"], "un orden inválido no cambia las fotos");
+
+  // 10.3 Producto inexistente
+  const { req: reqOrd404, res: resOrd404 } = mockReqRes({
+    params: { id: "prod-que-no-existe" },
+    body: { orden: [0] },
+  });
+  await adminController.reorderProductImages(reqOrd404, resOrd404);
+  assert.strictEqual(resOrd404.getStatus(), 404, "Producto inexistente -> 404");
+
+  // 10.4 Auditoría: solo el cambio real queda registrado; el orden identidad no
+  const { req: reqId, res: resId } = mockReqRes({
+    params: { id: productoOrden.id },
+    body: { orden: [0, 1, 2] },
+  });
+  await adminController.reorderProductImages(reqId, resId);
+  assert.strictEqual(resId.getStatus(), 200, "Orden identidad responde 200");
+  const audOrden = await Auditoria.find({ accion: "reordenar_imagenes_producto" });
+  assert.strictEqual(audOrden.length, 1, "Un único registro de auditoría por el reordenado real");
+
+  // 10.5 Permiso product:edit y ruta registrada con PUT (sin conflicto con /imagenes/:indice)
+  const { authorize } = require("../middlewares/auth");
+  const pasa = (user: any) => {
+    let paso = false;
+    let estado = 200;
+    const r: any = { status: (c: number) => { estado = c; return r; }, json: () => r };
+    authorize("product:edit")({ user }, r, () => { paso = true; });
+    return { paso, estado };
+  };
+  assert.strictEqual(pasa({ role: "admin", permissions: PERMISSIONS.admin }).paso, true);
+  assert.strictEqual(pasa({ role: "cajero", permissions: PERMISSIONS.cajero }).paso, true);
+  assert.strictEqual(pasa({ role: "repartidor", permissions: PERMISSIONS.repartidor }).estado, 403, "repartidor sin product:edit -> 403");
+  assert.strictEqual(pasa(undefined).estado, 401, "sin sesión -> 401");
+
+  const crearRouter = require("../routes/adminRoutes");
+  const io: any = { on() {}, emit() {}, to() { return io; }, use() {} };
+  const rutas = (crearRouter(io).stack || []).filter((layer: any) => layer.route);
+  const ruta = rutas.find((layer: any) => layer.route.path === "/products/:id/imagenes/orden");
+  assert.ok(ruta && ruta.route.methods.put, "PUT /products/:id/imagenes/orden registrada");
+
+  console.log("  ✅ Reordenado, orden inválido, 404, auditoría y permisos verificados");
+
   // Limpieza final
   await Producto.deleteMany({});
   await Etiqueta.deleteMany({});
 
   console.log("\n================================================================================");
-  console.log("🎉 TODOS LOS CASOS DE PRUEBA DE IMÁGENES DE PRODUCTO PASARON EXITOSAMENTE (9/9)");
+  console.log("🎉 TODOS LOS CASOS DE PRUEBA DE IMÁGENES DE PRODUCTO PASARON EXITOSAMENTE (10/10)");
   console.log("================================================================================");
 }
 

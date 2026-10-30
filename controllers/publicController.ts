@@ -11,6 +11,7 @@ const { formatearHorarioAtencion } = require("../services/horarioService");
 const { normalizarEmpresas, nombresEmpresas } = require("../services/empresasEnvio");
 const { precioVigente, descuentoVigente } = require("../services/precios");
 const { getBannerTiendaSync } = require("../services/bannerTiendaService");
+const { getBannerLateralSync } = require("../services/bannerLateralService");
 
 let Producto = require("../models/Producto");
 let Categoria = require("../models/Categoria");
@@ -39,6 +40,22 @@ export function generarCodigoRandom(prefijo: string): string {
     chars += ALFABETO_CODIGO[idx];
   }
   return `${prefijo}-${chars}`;
+}
+
+/**
+ * Instagram del negocio para el encabezado de la tienda: sale de Datos del negocio (panel) o de la marca.
+ * Acepta "@usuario", "usuario" o un enlace de instagram.com; solo se publica el usuario y un enlace armado aquí.
+ */
+function obtenerInstagramPublico(): { usuario: string; url: string } | null {
+  try {
+    const bruto = String(getDatosNegocioSync()?.contacto?.instagram || "").trim();
+    const coincide = bruto.match(/^(?:https?:\/\/)?(?:www\.)?(?:instagram\.com\/)?@?([A-Za-z0-9._]{1,30})\/?(?:\?.*)?$/i);
+    if (!coincide) return null;
+    const usuario = coincide[1];
+    return { usuario, url: `https://www.instagram.com/${usuario}/` };
+  } catch (_e) {
+    return null;
+  }
 }
 
 /**
@@ -280,6 +297,28 @@ async function resolverEntrega(entrega: any): Promise<{ ok: true; value: any } |
 /** Item del cintillo: texto para el cliente, producto al que lleva (o null) y descuento vigente. */
 type ItemBannerTienda = { texto: string; productoId: string | null; descuentoPct: number };
 
+
+/**
+ * Banner lateral (imágenes verticales). Lista blanca: solo url y, si el producto existe y está activo, su id de texto.
+ * Nunca publicId. Devuelve null si está inactivo o sin imágenes.
+ */
+async function resolverBannerLateral(): Promise<{ url: string; productoId: string | null }[] | null> {
+  const cfg = getBannerLateralSync();
+  if (!cfg || cfg.activo !== true || !Array.isArray(cfg.imagenes) || cfg.imagenes.length === 0) return null;
+
+  const salida: { url: string; productoId: string | null }[] = [];
+  for (const img of cfg.imagenes) {
+    let productoId: string | null = null;
+    if (img.productoId) {
+      // Búsqueda por id de texto (nunca _id, para evitar CastError)
+      const prod: any = await Producto.findOne({ id: img.productoId });
+      if (prod && prod.activo !== false) productoId = String(prod.id);
+    }
+    salida.push({ url: img.url, productoId });
+  }
+  return salida;
+}
+
 const MAX_ITEMS_BANNER = 20;
 
 /**
@@ -384,8 +423,9 @@ export async function getInfo(req: any, res: any) {
       });
 
     const banner = await resolverBannerTienda();
+    const bannerLateral = await resolverBannerLateral();
 
-    return res.status(200).json({ preguntas, pagos, envios, horario, banner });
+    return res.status(200).json({ preguntas, pagos, envios, horario, banner, bannerLateral, instagram: obtenerInstagramPublico() });
   } catch (error: any) {
     console.error("❌ Error en getInfo público:", error);
     return res.status(500).json({ error: "Error al obtener la información de la tienda" });

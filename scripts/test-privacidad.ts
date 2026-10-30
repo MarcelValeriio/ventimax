@@ -44,10 +44,17 @@ prueba("No promete que CANCELAR borra los datos", () => {
 });
 
 prueba("Sin datos legales ni contacto: usa la marca y no inventa nada", () => {
-  const html = generarPaginaPrivacidad();
-  assert(!html.includes("RIF"), "sin RIF configurado no debe aparecer");
-  assert(!html.includes("Última actualización"), "sin fecha no debe aparecer");
-  assert(html.includes("Escríbenos por el mismo chat"), "sin contactos debe indicar el chat");
+  // La marca puede traer su Instagram; esta prueba necesita el caso sin ningún contacto
+  const contactOriginal = settings.contact;
+  settings.contact = { email: "", website: "", instagram: "" };
+  try {
+    const html = generarPaginaPrivacidad();
+    assert(!html.includes("RIF"), "sin RIF configurado no debe aparecer");
+    assert(!html.includes("Última actualización"), "sin fecha no debe aparecer");
+    assert(html.includes("Escríbenos por el mismo chat"), "sin contactos debe indicar el chat");
+  } finally {
+    settings.contact = contactOriginal;
+  }
 });
 
 prueba("Con datos legales y contacto: los muestra", () => {

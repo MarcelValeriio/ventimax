@@ -24,6 +24,8 @@ const ACCIONES = {
   subir_imagen_producto: "Imagen subida",
   eliminar_imagen_producto: "Imagen eliminada",
   marcar_imagen_principal_producto: "Imagen principal",
+  reordenar_imagenes_producto: "Imágenes reordenadas",
+  reordenar_imagenes_banner_lateral: "Banner reordenado",
   update: "Actualizado",
   eliminado: "Eliminado",
 };

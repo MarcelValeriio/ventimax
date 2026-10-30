@@ -67,6 +67,7 @@ const { formatBs, formatUsd } = require("../utils/helpers");
 const { filtroPorCategoria } = require("../services/catalogQuery");
 const { precioVigente, descuentoVigente } = require("../services/precios");
 const { getPasoLabel } = require("../utils/pasoEmbudo");
+const { esOrdenValido } = require("../utils/ordenImagenes");
 // Definición ÚNICA de `requiereAtencion` (§6.2.1 del contrato del Inbox Unificado).
 // `normalizar` no requiere modelos ni controladores: no genera ciclos.
 const { computarRequiereAtencion } = require("../services/inbox/normalizar");
@@ -717,6 +718,58 @@ const setPrimaryProductImage = async (req, res) => {
   } catch (error: any) {
     console.error("❌ Error en setPrimaryProductImage:", error.message);
     return res.status(500).json({ success: false, error: "Error al marcar la imagen principal" });
+  }
+};
+
+/** PUT /products/:id/imagenes/orden  body { orden: number[] }: orden[i] = índice actual de la imagen que pasa a i. */
+const reorderProductImages = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { orden } = req.body || {};
+
+    const producto = await Producto.findOne({
+      $or: [{ id: id }, ...(mongoose.Types.ObjectId.isValid(id) ? [{ _id: id }] : [])],
+    });
+    if (!producto) {
+      return res.status(404).json({ success: false, error: "Producto no encontrado" });
+    }
+
+    const actuales = Array.isArray(producto.imagenes)
+      ? producto.imagenes.map((img) => ({ url: img.url, publicId: img.publicId || "" }))
+      : [];
+    if (!esOrdenValido(orden, actuales.length)) {
+      return res.status(400).json({ success: false, error: "Orden invalido" });
+    }
+
+    const cambio = orden.some((valor, i) => valor !== i);
+    if (cambio) {
+      const nuevas = orden.map((i) => actuales[i]);
+      producto.imagenes = nuevas;
+
+      if (typeof producto.save === "function") {
+        await producto.save();
+      } else {
+        await Producto.findOneAndUpdate({ id: producto.id }, { $set: { imagenes: nuevas } });
+      }
+
+      await registrarAuditoria(req, {
+        recursoId: producto._id ? producto._id.toString() : producto.id,
+        tipoRecurso: "producto",
+        accion: "reordenar_imagenes_producto",
+        detalles: `Orden de fotos cambiado para el producto ${producto.name}`,
+        anterior: actuales,
+        nuevo: nuevas,
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: producto,
+      message: "Orden de imágenes guardado",
+    });
+  } catch (error: any) {
+    console.error("❌ Error en reorderProductImages:", error.message);
+    return res.status(500).json({ success: false, error: "Error al reordenar las imágenes" });
   }
 };
 
@@ -4528,6 +4581,7 @@ module.exports = {
   postProductImage,
   deleteProductImage,
   setPrimaryProductImage,
+  reorderProductImages,
   getBCVRate,
   getCategorias,
   postCategoria,

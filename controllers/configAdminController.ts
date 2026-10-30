@@ -2,12 +2,15 @@ import { Request, Response } from "express";
 const axios = require("axios");
 const { configStore, EDITABLE_KEYS, SECRET_KEYS, getConfig, setConfig } = require("../services/configStore");
 const { registrarAuditoria } = require("../services/auditService");
-const { validarValorConfig, validarHorarioAtencion, validarFlujoNoLaborable, validarDatosNegocio, validarConfigCatalogo, validarBannerTienda } = require("../services/configValidators");
+const { validarValorConfig, validarHorarioAtencion, validarFlujoNoLaborable, validarDatosNegocio, validarConfigCatalogo, validarBannerTienda, validarBannerLateral } = require("../services/configValidators");
 const { getHorario, setHorario, formatearHorarioAtencion } = require("../services/horarioService");
 const { getFlujoNoLaborable, setFlujoNoLaborable } = require("../services/flujoNoLaborableService");
 const { getDatosNegocio, setDatosNegocio } = require("../services/datosNegocioService");
 const { getConfigCatalogo, setConfigCatalogo } = require("../services/catalogoConfigService");
 const { getBannerTienda, setBannerTienda } = require("../services/bannerTiendaService");
+const { getBannerLateral, setBannerLateral } = require("../services/bannerLateralService");
+const cloudinaryService = require("../services/cloudinaryService");
+import { esOrdenValido } from "../utils/ordenImagenes";
 const { obtenerReporteAbuso } = require("../services/catalogoAbusoService");
 
 /**
@@ -407,6 +410,198 @@ export const getCatalogoAbuso = async (req: Request, res: Response) => {
   }
 };
 
+// ==========================================
+// Banner lateral de la tienda (imágenes verticales con enlace opcional a producto)
+// ==========================================
+
+const MAX_IMAGENES_BANNER_LATERAL = 5;
+
+export const getBannerLateralConfig = async (req: Request, res: Response) => {
+  try {
+    const banner = await getBannerLateral();
+    res.json({ success: true, banner });
+  } catch (error: any) {
+    console.error("❌ Error obteniendo el banner lateral:", error);
+    res.status(500).json({ success: false, error: "Error al obtener el banner lateral" });
+  }
+};
+
+/** PUT: activo y enlace (productoId o null) de cada imagen, por posición. */
+export const updateBannerLateralConfig = async (req: Request, res: Response) => {
+  try {
+    const { activo, enlaces } = (req.body || {}) as { activo?: unknown; enlaces?: unknown };
+    const anterior = await getBannerLateral();
+
+    if (!Array.isArray(enlaces) || enlaces.length !== anterior.imagenes.length) {
+      return res.status(400).json({
+        success: false,
+        error: "La lista de enlaces debe tener una posición por cada imagen del banner.",
+      });
+    }
+
+    const propuesto = {
+      activo,
+      imagenes: anterior.imagenes.map((img, i) => ({
+        url: img.url,
+        publicId: img.publicId,
+        productoId: enlaces[i] === undefined ? null : enlaces[i],
+      })),
+    };
+    const validacion = validarBannerLateral(propuesto);
+    if (!validacion.ok) {
+      return res.status(400).json({ success: false, error: validacion.error });
+    }
+
+    const guardado = await setBannerLateral(validacion.value);
+
+    await registrarAuditoria(req, {
+      tipoRecurso: "config",
+      accion: "update",
+      recursoId: "bannerLateral",
+      detalles: { previo: anterior, nuevo: guardado },
+    });
+
+    res.json({ success: true, message: "Banner lateral guardado correctamente", banner: guardado });
+  } catch (error: any) {
+    console.error("❌ Error actualizando el banner lateral:", error);
+    res.status(500).json({ success: false, error: "Error al guardar el banner lateral" });
+  }
+};
+
+/** POST multipart (campo "imagen") con productoId opcional en el cuerpo. */
+export const postBannerLateralImagen = async (req: any, res: Response) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ success: false, error: "No se proporcionó ningún archivo de imagen" });
+    }
+
+    const productoIdRaw = req.body?.productoId;
+    const productoId = typeof productoIdRaw === "string" && productoIdRaw.trim() !== "" ? productoIdRaw.trim() : null;
+
+    const actual = await getBannerLateral();
+    if (actual.imagenes.length >= MAX_IMAGENES_BANNER_LATERAL) {
+      return res.status(400).json({
+        success: false,
+        error: `El banner lateral ya tiene el límite máximo de ${MAX_IMAGENES_BANNER_LATERAL} imágenes`,
+      });
+    }
+
+    let subida;
+    try {
+      subida = await cloudinaryService.subirImagenBanner(req.file.buffer);
+    } catch (cloudErr: any) {
+      console.error("❌ Error subiendo imagen del banner lateral:", cloudErr?.message || cloudErr);
+      if (cloudErr?.message === "Cloudinary no está configurado") {
+        return res.status(400).json({ success: false, error: "Cloudinary no está configurado" });
+      }
+      return res.status(500).json({ success: false, error: "Error al subir la imagen a Cloudinary" });
+    }
+
+    const propuesto = {
+      activo: actual.activo,
+      imagenes: [...actual.imagenes, { url: subida.url, publicId: subida.publicId, productoId }],
+    };
+    const validacion = validarBannerLateral(propuesto);
+    if (!validacion.ok) {
+      // Imagen subida pero no válida para guardar: se borra para no dejar basura en Cloudinary
+      await cloudinaryService.borrarImagen(subida.publicId).catch(() => undefined);
+      return res.status(400).json({ success: false, error: validacion.error });
+    }
+
+    const guardado = await setBannerLateral(validacion.value);
+
+    await registrarAuditoria(req, {
+      tipoRecurso: "config",
+      accion: "subir_imagen_banner_lateral",
+      recursoId: "bannerLateral",
+      detalles: `Imagen subida al banner lateral. Total: ${guardado.imagenes.length}/${MAX_IMAGENES_BANNER_LATERAL}`,
+      nuevo: guardado,
+    });
+
+    res.status(201).json({ success: true, message: "Imagen subida correctamente", banner: guardado });
+  } catch (error: any) {
+    console.error("❌ Error subiendo imagen del banner lateral:", error);
+    res.status(500).json({ success: false, error: "Error al subir la imagen del banner lateral" });
+  }
+};
+
+/** DELETE: quita la imagen de la posición indicada y la borra de Cloudinary si es de este banner. */
+export const deleteBannerLateralImagen = async (req: Request, res: Response) => {
+  try {
+    const indice = Number(req.params.indice);
+    const actual = await getBannerLateral();
+    if (!Number.isInteger(indice) || indice < 0 || indice >= actual.imagenes.length) {
+      return res.status(404).json({ success: false, error: "Imagen no encontrada en el banner lateral" });
+    }
+
+    const quitada = actual.imagenes[indice];
+    const restantes = actual.imagenes.filter((_, i) => i !== indice);
+    const guardado = await setBannerLateral({ activo: actual.activo, imagenes: restantes });
+
+    if (cloudinaryService.esPublicIdDeBanner(quitada.publicId)) {
+      try {
+        await cloudinaryService.borrarImagen(quitada.publicId);
+      } catch (cloudErr: any) {
+        console.warn("⚠️ [BannerLateral] No se pudo borrar la imagen en Cloudinary:", cloudErr?.message || cloudErr);
+      }
+    } else if (quitada.publicId) {
+      console.warn("⚠️ [BannerLateral] La imagen quitada no es de la carpeta del banner; no se borra en Cloudinary.");
+    }
+
+    await registrarAuditoria(req, {
+      tipoRecurso: "config",
+      accion: "eliminar_imagen_banner_lateral",
+      recursoId: "bannerLateral",
+      detalles: `Imagen quitada del banner lateral (posición ${indice + 1}). Total: ${guardado.imagenes.length}/${MAX_IMAGENES_BANNER_LATERAL}`,
+      anterior: quitada,
+    });
+
+    res.json({ success: true, message: "Imagen eliminada del banner lateral", banner: guardado });
+  } catch (error: any) {
+    console.error("❌ Error eliminando imagen del banner lateral:", error);
+    res.status(500).json({ success: false, error: "Error al eliminar la imagen del banner lateral" });
+  }
+};
+
+/** PUT body { orden: number[] }: orden[i] = índice actual de la imagen que pasa a la posición i. */
+export const reorderBannerLateralImagenes = async (req: Request, res: Response) => {
+  try {
+    const { orden } = (req.body || {}) as { orden?: unknown };
+    const actual = await getBannerLateral();
+    if (!esOrdenValido(orden, actual.imagenes.length)) {
+      return res.status(400).json({ success: false, error: "Orden invalido" });
+    }
+
+    const cambio = orden.some((valor, i) => valor !== i);
+    let guardado = actual;
+    if (cambio) {
+      const propuesto = {
+        activo: actual.activo,
+        imagenes: orden.map((i) => actual.imagenes[i]),
+      };
+      const validacion = validarBannerLateral(propuesto);
+      if (!validacion.ok) {
+        return res.status(400).json({ success: false, error: validacion.error });
+      }
+      guardado = await setBannerLateral(validacion.value);
+
+      await registrarAuditoria(req, {
+        tipoRecurso: "config",
+        accion: "reordenar_imagenes_banner_lateral",
+        recursoId: "bannerLateral",
+        detalles: `Orden de imágenes del banner lateral cambiado (${guardado.imagenes.length} imágenes)`,
+        anterior: actual.imagenes,
+        nuevo: guardado.imagenes,
+      });
+    }
+
+    res.json({ success: true, message: "Orden del banner lateral guardado", banner: guardado });
+  } catch (error: any) {
+    console.error("❌ Error reordenando el banner lateral:", error);
+    res.status(500).json({ success: false, error: "Error al reordenar las imágenes del banner lateral" });
+  }
+};
+
 module.exports = {
   getConfigAdmin,
   updateConfigAdmin,
@@ -422,4 +617,9 @@ module.exports = {
   getCatalogoAbuso,
   getBannerTiendaConfig,
   updateBannerTiendaConfig,
+  getBannerLateralConfig,
+  updateBannerLateralConfig,
+  postBannerLateralImagen,
+  deleteBannerLateralImagen,
+  reorderBannerLateralImagenes,
 };

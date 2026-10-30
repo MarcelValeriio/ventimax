@@ -7,6 +7,7 @@ import { Icono } from "../../components/Icono.js";
 import React, { useEffect, useState, useRef } from "https://cdn.skypack.dev/react";
 import { createBlendy } from "https://cdn.jsdelivr.net/npm/blendy/+esm";
 import apiClient from "../../services/apiClient.js";
+import { ListaImagenesOrdenable } from "../../components/ListaImagenesOrdenable.js";
 
 const e = React.createElement;
 
@@ -467,6 +468,21 @@ const ProductTable = () => {
       const msg = err.response?.data?.error || err.response?.data?.message || err.message;
       window.showToast?.(`${msg}`, "error");
     }
+  };
+
+  const handleReorderImages = async (orden) => {
+    if (!editingProduct) return;
+    const res = await apiClient.put(
+      `/api/admin/products/${editingProduct.id}/imagenes/orden`,
+      { orden }
+    );
+    const updatedProduct = res.data?.data;
+    if (updatedProduct) {
+      setProductImages(updatedProduct.imagenes || []);
+      setEditingProduct(updatedProduct);
+    }
+    fetchInventory();
+    window.showToast?.("Orden de fotos guardado", "success");
   };
 
   const handleSetPrimaryImage = async (index) => {
@@ -1081,35 +1097,19 @@ const ProductTable = () => {
                             "No hay fotos. Haz clic en 'Subir fotos' y elige hasta 5 a la vez."
                           )
                         : e(
-                            "div",
-                            { className: "grid grid-cols-5 gap-2 mt-2" },
-                            productImages.map((img, idx) =>
-                              e(
-                                "div",
-                                {
-                                  key: img.publicId || idx,
-                                  className:
-                                    "relative group rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 aspect-square bg-gray-100 dark:bg-gray-900",
-                                },
-                                e("img", {
-                                  src: img.url,
-                                  alt: `Foto ${idx + 1}`,
-                                  className: "w-full h-full object-cover",
-                                }),
-                                idx === 0 &&
-                                  e(
-                                    "span",
-                                    {
-                                      className:
-                                        "absolute top-1 left-1 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow",
-                                    },
-                                    "Principal"
-                                  ),
+                            ListaImagenesOrdenable,
+                            {
+                              imagenes: productImages,
+                              onReordenar: handleReorderImages,
+                              alt: (idx) => `Foto ${idx + 1}`,
+                              className: "grid grid-cols-5 gap-2 mt-2",
+                              aspecto: "1 / 1",
+                              renderSuperpuesto: (img, idx) =>
                                 e(
                                   "div",
                                   {
                                     className:
-                                      "absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1",
+                                      "absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1 pb-8",
                                   },
                                   idx > 0 &&
                                     e(
@@ -1134,9 +1134,8 @@ const ProductTable = () => {
                                     },
                                     "Borrar"
                                   )
-                                )
-                              )
-                            )
+                                ),
+                            }
                           )
                     )
               ),

@@ -435,6 +435,11 @@ mongoose
     await initBannerTienda();
     console.log("✅ Cintillo de la tienda inicializado");
 
+    // Banner lateral de la tienda (F2g): la API pública lo lee de memoria
+    const { init: initBannerLateral } = require("./services/bannerLateralService");
+    await initBannerLateral();
+    console.log("✅ Banner lateral de la tienda inicializado");
+
     // Preguntas frecuentes de la tienda (F2b): la API pública las lee de memoria
     const { init: initPreguntasFrecuentes } = require("./services/preguntasFrecuentesService");
     await initPreguntasFrecuentes();
