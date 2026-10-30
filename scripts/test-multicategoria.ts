@@ -277,7 +277,39 @@ async function runTests() {
   );
   console.log("  ✅ Test 7 superado");
 
-  console.log("\n🎉 TODOS LOS TESTS DE MULTICATEGORÍA PASARON EXITOSAMENTE (7/7).\n");
+  // Test 8: la petición del panel pasa por el validador de la ruta (validate(productoUpdateSchema)) antes de llegar
+  // al controlador. Ese validador descartaba `categorias` y "También aparece en" nunca se guardaba (2026-10-30).
+  console.log("\n▶ Test 8: El validador de la ruta conserva categorías adicionales y emoji...");
+  const { productoUpdateSchema, productoSchema } = require("../validators");
+  const MESA = "6ae111394575cd8be1292f78";
+  const PARED = "6ae111394575cd8be1292f79";
+  const cuerpoPanel = {
+    id: "fortunne-n21",
+    name: 'Fortunne Mini Jumbo 6"',
+    price: 25,
+    description: "6 pulgadas",
+    categoria: MESA,
+    categorias: [MESA, PARED],
+    stock: 0,
+    trackStock: false,
+    emoji: "🌀",
+  };
+  const editado = productoUpdateSchema.safeParse(cuerpoPanel);
+  assert.ok(editado.success, JSON.stringify(editado.error?.issues));
+  assert.deepStrictEqual(editado.data.categorias, [MESA, PARED], "editar: las categorías adicionales llegan al controlador");
+  assert.strictEqual(editado.data.emoji, "🌀");
+  const sinCategorias = productoUpdateSchema.safeParse({ price: 30 });
+  assert.ok(sinCategorias.success && sinCategorias.data.categorias === undefined, "editar sin enviarlas no borra las existentes");
+  const creado = productoSchema.safeParse({ ...cuerpoPanel, id: "nuevo-1" });
+  assert.ok(creado.success && creado.data.categorias.length === 2, "crear: también se conservan");
+  assert.ok(!productoUpdateSchema.safeParse({ categorias: ["no-es-id"] }).success, "un id inválido se rechaza");
+  // Una edición no rellena lo que no se envió: antes reactivaba productos y podía poner el stock en 0
+  assert.deepStrictEqual(productoUpdateSchema.safeParse({ activo: false }).data, { activo: false });
+  assert.deepStrictEqual(productoUpdateSchema.safeParse({ price: 30 }).data, { price: 30 });
+  assert.strictEqual(editado.data.activo, undefined, "el formulario del panel no envía activo: no se toca");
+  console.log("  ✅ Test 8 superado");
+
+  console.log("\n🎉 TODOS LOS TESTS DE MULTICATEGORÍA PASARON EXITOSAMENTE (8/8).\n");
 }
 
 runTests().catch((err) => {

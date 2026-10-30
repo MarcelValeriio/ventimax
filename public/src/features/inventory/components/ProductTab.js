@@ -289,7 +289,7 @@ const CategoriesModal = ({
             type: "text",
             value: newCatName,
             onChange: (e) => setNewCatName(e.target.value),
-            placeholder: "Nombre (ej: Comida, Bebidas, Dumplings...)",
+            placeholder: "Nombre (ej: Novedades, Ofertas, Accesorios...)",
             className:
               "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm",
           }),
@@ -525,7 +525,7 @@ const ProductTab = () => {
         setProductImages(updatedProduct.imagenes || []);
         setEditingProduct(updatedProduct);
       }
-      fetchProducts();
+      fetchInventory();
       window.showToast?.("Imagen subida correctamente", "success");
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.message || err.message;
@@ -548,7 +548,7 @@ const ProductTab = () => {
         setProductImages(updatedProduct.imagenes || []);
         setEditingProduct(updatedProduct);
       }
-      fetchProducts();
+      fetchInventory();
       window.showToast?.("Imagen eliminada", "success");
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.message || err.message;
@@ -568,7 +568,7 @@ const ProductTab = () => {
         setProductImages(updatedProduct.imagenes || []);
         setEditingProduct(updatedProduct);
       }
-      fetchProducts();
+      fetchInventory();
       window.showToast?.("Imagen marcada como principal", "success");
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.message || err.message;
@@ -827,7 +827,7 @@ const ProductTab = () => {
                     className:
                       "block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1",
                   },
-                  "Nombre del Plato",
+                  "Nombre del producto",
                 ),
                 e("input", {
                   type: "text",

@@ -145,6 +145,13 @@ module.exports = function (io) {
     authorize(["audit_log:view"]),
     adminController.getAuditLogs,
   );
+  // Resumen por área y acción (antes de cualquier ruta /audit/:algo)
+  router.get(
+    "/audit/resumen",
+    isAuthenticated,
+    authorize(["audit_log:view"]),
+    adminController.getAuditSummary,
+  );
 
   // Configuración e Información (Admin y Cajero pueden ver tasa)
   router.get(

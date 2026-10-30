@@ -380,7 +380,7 @@ const InboxWhatsAppProfileModal = ({ isOpen, onClose }) => {
                       ]),
                     ],
                   ),
-                  campoTexto("about", "Estado / Info (About)", about, setAbout, 139, "Ej: Dumplings congelados para llevar", true),
+                  campoTexto("about", "Estado / Info (About)", about, setAbout, 139, "Ej: Ventas por WhatsApp con envíos a todo el país", true),
                   e("div", { key: "field-desc", className: "space-y-1.5" }, [
                     e("div", { key: "head", className: "flex justify-between items-center" }, [
                       e(

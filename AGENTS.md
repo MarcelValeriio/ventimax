@@ -2351,6 +2351,23 @@ Pedido por el dueño el 2026-10-29, con una conversación real del Instagram de 
 
 ---
 
+### M-5 · Auditoría por área y acción, y arreglos del inventario — subagente Haiku 5.5 (medium) + **Claude** · `Aprobada`
+
+Pedido por el dueño el 2026-10-30: la auditoría agrupada en secciones en vez de una lista larga. Durante la revisión el dueño reportó dos fallos del inventario, que se corrigieron en la misma entrega.
+
+- **Auditoría (Haiku):** `GET /api/admin/audit` filtra por `tipoRecurso` y `accion` (solo `[a-z_]`); `GET /api/admin/audit/resumen` da los conteos por área y acción. La pantalla muestra pastillas por área, una tarjeta por área en "Todo" y, dentro de cada área, secciones plegables por acción con "Ver más". Suite `test-auditoria.ts`.
+- **Errores de auditoría que se perdían en producción (vistos en Render):**
+  - `metodo_envio` no estaba en el enum del modelo: crear, editar o borrar envíos nunca quedó auditado.
+  - Las listas (fotos de producto) se mandaban donde el modelo espera texto; ahora se guardan como JSON recortado.
+  - Un registro con "Pedido" / "EDITAR_PEDIDO" en mayúsculas pasa a minúsculas.
+  - Prueba nueva: todo `tipoRecurso` que escribe el código está permitido en el modelo.
+- **"fetchProducts is not defined" al subir una foto:** la foto se subía, pero el panel llamaba a una función inexistente y mostraba error. En `ProductTab.js` y `ProductTable.js` ahora llama a `fetchInventory`. Suite nueva `test-panel-referencias.ts`: toda `fetchX()` llamada debe estar definida o importada en su archivo.
+- **"También aparece en" no se guardaba (desde F0-7):** el validador de la ruta (`productoUpdateSchema`) descartaba `categorias` y `emoji`; las pruebas de F0-7 llamaban al controlador saltándose el validador. Además, `productoSchema.partial()` seguía aplicando valores por defecto: guardar un producto desactivado lo reactivaba. El esquema de edición ahora es todo opcional y sin defaults. Test 8 en `test-multicategoria.ts` pasa por el validador; comprobado en el entorno local que el N21 queda en Mesa y Pared y la tienda lo muestra en las dos. La auditoría registra el cambio de categorías.
+- **Restos de Mr. Pachi en textos del panel:** "Nombre del Plato" → "Nombre del producto", y ejemplos de "sabores", "dumplings" y "comida" cambiados por neutros. `dynamicKey: "sabores"` se mantiene porque las preguntas frecuentes guardadas lo usan.
+- **Verificación:** `./scripts/ci.sh` en verde (36 suites); auditoría y formulario de producto revisados en Chrome.
+
+---
+
 ### F2f · Empresas de envío con logo — **Claude** orquesta, 3 subagentes Haiku 5.5 (medium) · `Aprobada`
 
 Pedido por el dueño el 2026-10-29: logos clicables en la tienda y un formulario aparte para envío nacional, con una tarjeta por empresa (nombre y logo que se sube por separado). Contrato común escrito por Claude; servidor, panel y tienda en paralelo sobre archivos distintos.
@@ -2415,6 +2432,9 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 ## Pendientes del dueño
 
+- **Antes de abrir a clientes reales:** el WhatsApp de Datos del negocio (584242555659) es el número personal del dueño, usado solo para pruebas (decisión del 2026-10-29). Cambiarlo por el WhatsApp Business de VentiMax al conectar Meta.
+- **Mr. Pachi (fuera de este repo):** su Instagram envía el número del administrador porque `WHATSAPP_PHONE` está vacío allá (su código cae a `ADMIN_PHONE_NUMBER`). Poner el número de ventas de Pachi en `WHATSAPP_PHONE` (panel de Pachi → variables, o Render → reply-bot-pachi → Environment). Revisado el 2026-10-29: VentiMax y Pachi no comparten base de datos, Cloudinary ni servidor.
+
 - **Render → Blueprints → ventimax → Manual Sync** después del push del 2026-10-29 16:25, para que la tienda tome la cabecera `Cache-Control: no-cache` (evita que tras un despliegue se mezclen archivos nuevos y viejos).
 
 - **URGENTE: cambiar la contraseña del usuario de base de datos de Atlas.** La `MONGODB_URI` real (usuario y contraseña de producción) se subió a GitHub dentro de `.env.example` en el commit `3391fa5` (2026-10-28). Claude devolvió la plantilla a `MONGODB_URI=` vacío el 2026-10-29. Pasos: Atlas → Database Access → usuario → Edit → Edit Password → Autogenerate → Update User; después actualizar `MONGODB_URI` en Render (Environment) con la contraseña nueva. Con la contraseña cambiada, la vieja que quedó en el historial ya no sirve.
@@ -2439,6 +2459,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-10-30 | 23:30 | M-5: auditoría agrupada por área y acción (Haiku). Claude corrigió en la revisión: auditorías que fallaban en silencio en producción (enum sin `metodo_envio`, listas en campos de texto), "fetchProducts is not defined" al subir fotos, categorías adicionales y emoji descartados por el validador desde F0-7, productos desactivados que se reactivaban al guardar, y textos de Mr. Pachi en el panel — Ejecutado por **Claude** + subagente | Claude (Cerebro) | Completado |
 | 2026-10-29 | 17:00 | F2f: empresas de envío con logo (tarjetas clicables en la tienda, formulario de envío nacional con una tarjeta por empresa y subida de logo a Cloudinary). Primera tarea con el esquema "Opus orquesta, 3 subagentes Haiku 5.5 medium en paralelo"; Claude corrigió el borrado de imágenes ajenas en Cloudinary y el selector de tipo — Ejecutado por **Claude** + subagentes | Claude (Cerebro) | Completado |
 | 2026-10-29 | 16:25 | Tienda: tras el despliegue de F2e la CDN de Render sirvió durante ~8 min el JavaScript nuevo con el CSS viejo (empresas sin formato). `render.yaml`: `Cache-Control: no-cache` en todos los archivos del sitio estático (se revalidan con 304). Requiere Manual Sync del Blueprint — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-29 | 16:00 | F2e: empresas de envío (el cliente elige una en la tienda y en el chat) y cobro a destino configurable por método; tienda confirma siempre los métodos de envío con el servidor (la caché de 5 min ocultaba las opciones tras el despliegue de F2c) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |

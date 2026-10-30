@@ -9,11 +9,26 @@ const productoSchema = z.object({
   trackStock: z.coerce.boolean().optional().default(false),
   description: z.string().max(500).optional().default(""),
   categoria: z.string().regex(/^[a-f\d]{24}$/, "ID de categoría inválido"),
+  // Categorías adicionales ("También aparece en", F0-7). Sin declararlas, Zod las descartaba y nunca se guardaban
+  categorias: z.array(z.string().regex(/^[a-f\d]{24}$/, "ID de categoría inválido")).max(20).optional().default([]),
+  // Emoji que el bot usa como viñeta en el menú de WhatsApp
+  emoji: z.string().max(16).optional(),
   activo: z.boolean().optional().default(true),
 });
 
-const productoUpdateSchema = productoSchema.partial().extend({
+// Edición: todo opcional y SIN valores por defecto. Con productoSchema.partial() los defaults seguían aplicándose y
+// una edición que no traía un campo lo pisaba (p. ej. guardar un producto desactivado lo volvía a activar)
+const productoUpdateSchema = z.object({
+  id: z.string().min(1).optional(),
+  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100).optional(),
+  price: z.coerce.number().positive("El precio debe ser un número positivo").optional(),
+  stock: z.coerce.number().int().min(0).optional(),
+  trackStock: z.coerce.boolean().optional(),
+  description: z.string().max(500).optional(),
   categoria: z.string().regex(/^[a-f\d]{24}$/, "ID de categoría inválido").optional(),
+  categorias: z.array(z.string().regex(/^[a-f\d]{24}$/, "ID de categoría inválido")).max(20).optional(),
+  emoji: z.string().max(16).optional(),
+  activo: z.boolean().optional(),
 });
 
 // ─── Categoría ───

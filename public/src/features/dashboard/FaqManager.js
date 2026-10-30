@@ -98,7 +98,7 @@ const FaqManager = ({ onBack }) => {
         .split(",")
         .map((k) => k.trim())
         .filter(Boolean),
-      respuesta: form.type === "dinamica" ? (form.respuesta.trim() || "Consultando sabores disponibles...") : form.respuesta.trim(),
+      respuesta: form.type === "dinamica" ? (form.respuesta.trim() || "Consultando productos disponibles...") : form.respuesta.trim(),
       type: form.type,
       dynamicKey: form.type === "dinamica" ? (form.dynamicKey.trim() || "sabores") : null,
       activo: Boolean(form.activo),
@@ -348,7 +348,7 @@ const FaqManager = ({ onBack }) => {
               className: "w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-teal-500 transition",
             }, [
               e("option", { value: "estatica" }, "Estática (Texto Fijo)"),
-              e("option", { value: "dinamica" }, "Dinámica (Sabores en Stock desde Inventario)"),
+              e("option", { value: "dinamica" }, "Dinámica (productos en stock desde el inventario)"),
             ]),
           ]),
 
@@ -369,7 +369,7 @@ const FaqManager = ({ onBack }) => {
               required: true,
               value: form.pregunta,
               onChange: (ev) => setForm({ ...form, pregunta: ev.target.value }),
-              placeholder: "¿Qué sabores hay?",
+              placeholder: "¿Qué productos tienen?",
               className: "w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-teal-500 transition",
             }),
             e("p", { className: "text-[11px] text-gray-500 dark:text-gray-400" }, "Recomendado máximo 24 caracteres para que se vea completo en la lista de WhatsApp."),
@@ -382,7 +382,7 @@ const FaqManager = ({ onBack }) => {
               type: "text",
               value: form.keywords,
               onChange: (ev) => setForm({ ...form, keywords: ev.target.value }),
-              placeholder: "sabores, relleno, que sabores hay, disponibles",
+              placeholder: "productos, catálogo, que tienen, disponibles",
               className: "w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-teal-500 transition",
             }),
             e("p", { className: "text-[11px] text-gray-500 dark:text-gray-400" }, "Separa las palabras o frases con comas. La búsqueda no distingue mayúsculas ni tildes."),

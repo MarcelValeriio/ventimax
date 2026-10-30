@@ -1174,6 +1174,69 @@ class DbLocal {
   }
 
   getAuditoriaModel() {
+    const CAMPOS_FILTRO = ["pedidoId", "accion", "recursoId", "tipoRecurso"];
+
+    // Igualdad simple o { $in: [...] }; null en $in coincide con el campo ausente (como en MongoDB)
+    const coincide = (valor, condicion) => {
+      if (condicion && typeof condicion === "object" && Array.isArray(condicion.$in)) {
+        return condicion.$in.some((v) =>
+          v === null ? valor === null || valor === undefined : valor === v,
+        );
+      }
+      if (condicion === null) return valor === null || valor === undefined;
+      return valor === condicion;
+    };
+
+    const filtrar = (query = {}) => {
+      const data = this.read();
+      data.auditorias = data.auditorias || [];
+      return data.auditorias.filter((a) =>
+        CAMPOS_FILTRO.every((campo) => query[campo] === undefined || coincide(a[campo], query[campo])),
+      );
+    };
+
+    // Consulta encadenable (sort, skip, limit, populate) que también se puede esperar con await
+    const consulta = (query = {}) => {
+      const q: any = {
+        orden: null,
+        saltar: 0,
+        tope: null,
+        sort(criterio) {
+          this.orden = criterio;
+          return this;
+        },
+        skip(n) {
+          this.saltar = Number(n) || 0;
+          return this;
+        },
+        limit(n) {
+          this.tope = Number(n);
+          return this;
+        },
+        populate() {
+          return this;
+        },
+        resolver() {
+          let lista = filtrar(query);
+          if (this.orden && this.orden.timestamp) {
+            const dir = this.orden.timestamp;
+            lista = [...lista].sort(
+              (a, b) => (new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime()) * dir,
+            );
+          }
+          const fin = this.tope === null ? undefined : this.saltar + this.tope;
+          return lista.slice(this.saltar, fin);
+        },
+        then(resolve, reject) {
+          return Promise.resolve(this.resolver()).then(resolve, reject);
+        },
+        catch(fn) {
+          return Promise.resolve(this.resolver()).catch(fn);
+        },
+      };
+      return q;
+    };
+
     return {
       create: async (auditoria) => {
         const data = this.read();
@@ -1182,38 +1245,8 @@ class DbLocal {
         this.write(data);
         return auditoria;
       },
-      find: (query = {}) => {
-        const data = this.read();
-        data.auditorias = data.auditorias || [];
-        let list = [...data.auditorias];
-        if (query.pedidoId) {
-          list = list.filter(a => a.pedidoId === query.pedidoId);
-        }
-        if (query.accion) {
-          list = list.filter(a => a.accion === query.accion);
-        }
-        if (query.recursoId) {
-          list = list.filter(a => a.recursoId === query.recursoId);
-        }
-        return {
-          sort: () => ({
-            skip: (n = 0) => ({
-              limit: (l = 50) => list.slice(n, n + l),
-              then: (resolve) => resolve(list.slice(n, n + l)),
-              catch: () => {}
-            }),
-            limit: (l = 50) => list.slice(0, l),
-            then: (resolve) => resolve(list),
-            catch: () => {}
-          }),
-          then: (resolve) => resolve(list),
-          catch: () => {}
-        };
-      },
-      countDocuments: async () => {
-        const data = this.read();
-        return (data.auditorias || []).length;
-      },
+      find: (query = {}) => consulta(query),
+      countDocuments: async (query = {}) => filtrar(query).length,
       deleteMany: async () => {
         const data = this.read();
         data.auditorias = [];

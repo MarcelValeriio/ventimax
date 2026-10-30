@@ -451,6 +451,11 @@ const updateProduct = async (req, res) => {
       updateData.categoria !== originalProduct.categoria?.toString()
     )
       cambios.push(`categoría actualizada`);
+    if (updateData.categorias !== undefined) {
+      const antes = (originalProduct.categorias || []).map((c) => String(c)).sort().join(",");
+      const despues = [...updateData.categorias].map((c) => String(c)).sort().join(",");
+      if (antes !== despues) cambios.push(`categorías adicionales actualizadas`);
+    }
     if (
       updateData.activo !== undefined &&
       updateData.activo !== originalProduct.activo
@@ -2175,8 +2180,8 @@ const editOrder = async (req, res, io) => {
       pedidoId: pedido._id,
       correlativo: pedido.correlativo,
       recursoId: pedido._id.toString(),
-      tipoRecurso: "Pedido",
-      accion: "EDITAR_PEDIDO",
+      tipoRecurso: "pedido",
+      accion: "editar_pedido",
       detalles: `Cambios: ${JSON.stringify(req.body)}`
     });
 
@@ -3117,17 +3122,47 @@ const getOrderAuditLog = async (req, res) => {
   }
 };
 
+// Identificadores de área y acción (p. ej. "metodo_envio", "cambio_estado"): solo minúsculas y guion bajo.
+const FILTRO_AUDITORIA = /^[a-z_]{1,50}$/;
+
+/**
+ * Arma el filtro de Auditoria con `tipoRecurso` y `accion` (ambos opcionales).
+ * Devuelve null si algún valor no tiene el formato esperado.
+ * "otro" incluye los registros sin tipoRecurso, igual que el resumen.
+ */
+const construirFiltroAuditoria = (query: any): Record<string, any> | null => {
+  const filtro: Record<string, any> = {};
+  for (const campo of ["tipoRecurso", "accion"]) {
+    const valor = query[campo];
+    if (valor === undefined) continue;
+    if (typeof valor !== "string" || !FILTRO_AUDITORIA.test(valor)) return null;
+    filtro[campo] = valor;
+  }
+  if (filtro.tipoRecurso === "otro") {
+    filtro.tipoRecurso = { $in: ["otro", null] };
+  }
+  return filtro;
+};
+
 const getAuditLogs = async (req, res) => {
   try {
-    const { page = 1, limit = 50 } = req.query;
+    const filtro = construirFiltroAuditoria(req.query);
+    if (!filtro) {
+      return res.status(400).json({ success: false, error: "Filtro inválido" });
+    }
+    // Número no válido -> valor por defecto; número fuera de rango -> acotado
+    const limiteSolicitado = parseInt(req.query.limit, 10);
+    const limit = Number.isNaN(limiteSolicitado) ? 50 : Math.min(100, Math.max(1, limiteSolicitado));
+    const paginaSolicitada = parseInt(req.query.page, 10);
+    const page = Number.isNaN(paginaSolicitada) ? 1 : Math.max(1, paginaSolicitada);
     const skip = (page - 1) * limit;
-    const logs = await Auditoria.find({})
+    const logs = await Auditoria.find(filtro)
       .sort({ timestamp: -1 })
       .skip(skip)
-      .limit(parseInt(limit))
+      .limit(limit)
       .populate("usuarioId", "username nombre role");
 
-    const total = await Auditoria.countDocuments();
+    const total = await Auditoria.countDocuments(filtro);
 
     res.json({
       success: true,
@@ -3135,7 +3170,7 @@ const getAuditLogs = async (req, res) => {
       totalCount: total, // Para depuración
       pagination: {
         total,
-        page: parseInt(page),
+        page,
         pages: Math.ceil(total / limit),
       },
     });
@@ -3144,6 +3179,74 @@ const getAuditLogs = async (req, res) => {
     res
       .status(500)
       .json({ success: false, error: "Error obteniendo logs de auditoría" });
+  }
+};
+
+/**
+ * Resumen por área (tipoRecurso) y acción, para la pantalla de auditoría agrupada.
+ * Áreas y acciones van de mayor a menor total.
+ */
+const getAuditSummary = async (req, res) => {
+  try {
+    let filas: { tipoRecurso?: string; accion?: string; total: number }[];
+    if (typeof Auditoria.aggregate === "function") {
+      const resultado = await Auditoria.aggregate([
+        {
+          $group: {
+            _id: { tipoRecurso: { $ifNull: ["$tipoRecurso", "otro"] }, accion: "$accion" },
+            total: { $sum: 1 },
+          },
+        },
+      ]);
+      filas = resultado.map((f) => ({
+        tipoRecurso: f._id.tipoRecurso,
+        accion: f._id.accion,
+        total: f.total,
+      }));
+    } else {
+      // Mock de pruebas (dbLocal) sin aggregate: mismo cálculo con find y reduce
+      const registros = await Auditoria.find({});
+      const conteo = new Map<string, { tipoRecurso: string; accion: string; total: number }>();
+      for (const r of registros) {
+        const tipoRecurso = r.tipoRecurso || "otro";
+        const accion = r.accion || "otro";
+        const clave = `${tipoRecurso}|${accion}`;
+        const previo = conteo.get(clave) || { tipoRecurso, accion, total: 0 };
+        previo.total += 1;
+        conteo.set(clave, previo);
+      }
+      filas = [...conteo.values()];
+    }
+
+    const areas = new Map<string, { tipoRecurso: string; total: number; acciones: Map<string, number> }>();
+    for (const fila of filas) {
+      const tipoRecurso = fila.tipoRecurso || "otro";
+      const accion = fila.accion || "otro";
+      const area = areas.get(tipoRecurso) || { tipoRecurso, total: 0, acciones: new Map<string, number>() };
+      area.total += fila.total;
+      area.acciones.set(accion, (area.acciones.get(accion) || 0) + fila.total);
+      areas.set(tipoRecurso, area);
+    }
+
+    const porTotal = (a: { total: number }, b: { total: number }) => b.total - a.total;
+    const listaAreas = [...areas.values()]
+      .map((area) => ({
+        tipoRecurso: area.tipoRecurso,
+        total: area.total,
+        acciones: [...area.acciones.entries()]
+          .map(([accion, total]) => ({ accion, total }))
+          .sort((a, b) => porTotal(a, b) || a.accion.localeCompare(b.accion)),
+      }))
+      .sort((a, b) => porTotal(a, b) || a.tipoRecurso.localeCompare(b.tipoRecurso));
+
+    const total = listaAreas.reduce((suma, area) => suma + area.total, 0);
+
+    res.json({ success: true, data: { total, areas: listaAreas } });
+  } catch (error) {
+    console.error("❌ Error en getAuditSummary:", error);
+    res
+      .status(500)
+      .json({ success: false, error: "Error obteniendo resumen de auditoría" });
   }
 };
 
@@ -4374,6 +4477,7 @@ module.exports = {
   getPanel,
   getMe,
   getAuditLogs,
+  getAuditSummary,
   getUsers,
   postUser,
   patchUser,

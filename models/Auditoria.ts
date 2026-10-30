@@ -9,7 +9,7 @@ const AuditoriaSchema = new Schema<IAuditoria>({
   recursoId: { type: String }, // ID del producto, categoria, etc.
   tipoRecurso: {
     type: String,
-    enum: ["pedido", "producto", "categoria", "usuario", "config", "metodo_pago"],
+    enum: ["pedido", "producto", "categoria", "usuario", "config", "metodo_pago", "metodo_envio"],
   },
   accion: { type: String, required: true },
   estadoAnterior: { type: String },
