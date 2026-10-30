@@ -609,6 +609,11 @@ function crearTarjetaProducto(prod) {
     prod.disponible ? null : el("span", { className: "sello-agotado" }, "Agotado")
   );
 
+  const nombresCategoria = (prod.categorias || [])
+    .map((slug) => ((state.catalogo && state.catalogo.categorias) || []).find((c) => c.slug === slug))
+    .filter(Boolean)
+    .map((c) => c.nombre);
+
   const conDescuento = pctDescuento(prod) > 0;
   return el(
     "article",
@@ -618,6 +623,9 @@ function crearTarjetaProducto(prod) {
       "div",
       { className: "tarjeta-cuerpo" },
       el("h3", { className: "tarjeta-nombre" }, el("a", { href: enlace }, prod.nombre)),
+      nombresCategoria.length
+        ? el("div", { className: "tarjeta-etiquetas" }, nombresCategoria.map((n) => el("span", { className: "etiqueta-categoria" }, n)))
+        : null,
       el("div", { className: "tarjeta-precios" }, precioUsd(prod.precioUsd), precioAnteriorUsd(prod), lineaBs(prod.precioBs)),
       controlCompraTarjeta(prod)
     )
