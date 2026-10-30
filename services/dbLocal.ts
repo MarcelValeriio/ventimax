@@ -32,6 +32,7 @@ class DbLocal {
   }
 
   getProductoModel() {
+    const self = this;
     const matchProductQuery = (p, query) => {
       if (!query || Object.keys(query).length === 0) return true;
 
@@ -182,6 +183,8 @@ class DbLocal {
         if (!product.imagenes) product.imagenes = [];
         data.productos.push(product);
         this.write(data);
+        // Como el documento de Mongoose: `populate` encadenable (no enumerable, no se guarda)
+        Object.defineProperty(product, "populate", { value: async () => product, enumerable: false });
         return product;
       },
       insertMany: async (prods) => {
@@ -212,8 +215,16 @@ class DbLocal {
         const data = this.read();
         return (data.productos || []).filter((p) => matchProductQuery(p, query)).length;
       },
-      findOneAndUpdate: async (query, update, options) => {
-        const data = this.read();
+      // Como Mongoose: se puede esperar directamente o encadenar `.populate(...)` (el panel lo hace al editar)
+      findOneAndUpdate: (query, update, options) => {
+        const promesa: any = actualizarProducto(query, update);
+        promesa.populate = () => promesa;
+        return promesa;
+      },
+    };
+
+    async function actualizarProducto(query, update) {
+        const data = self.read();
         let products = data.productos || [];
         let p = products.find((prod) => matchProductQuery(prod, query));
         if (p) {
@@ -230,12 +241,11 @@ class DbLocal {
               p[k] = update[k];
             }
           }
-          this.write(data);
+          self.write(data);
           return p;
         }
         return null;
-      }
-    };
+    }
   }
 
   getPedidoModel() {

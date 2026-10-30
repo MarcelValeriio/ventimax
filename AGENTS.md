@@ -2373,6 +2373,7 @@ Pedido por el dueño el 2026-10-30.
   - Cintillo bajo el buscador, que enlaza al producto.
   - Tarjeta con etiqueta "-X%", precio anterior tachado, borde verde de 1 px y pulso suave, que se apaga con `prefers-reduced-motion`.
   - Ficha con el mismo tratamiento, pero sin pulso para no competir con el botón de compra.
+- **Fallo visto por el dueño (2026-10-30):** el descuento no se guardaba desde el panel. El validador lo dejaba pasar, pero `postProduct` y `updateProduct` no lo leían (en el alta tampoco el emoji); las pruebas fijaban el descuento en la base sin pasar por el guardado. Corregido por Claude, con auditoría del cambio de descuento y dos pruebas que recorren validador → controlador → listado. El mock de productos ahora admite `.populate()` como Mongoose.
 - **Revisión de Claude:** el `grep` de `.price` confirma que todos los precios de producto que entran a un carrito o mensaje pasan por el helper; los ítems ya guardados conservan su precio. `./scripts/ci.sh` en verde (37 suites; `test-descuentos.ts` 17/17). Recorrido en Chrome con un 20 % en el N04: cintillo, tarjeta ($32 con $40 tachado), carrito ($32), listado y bloque del panel; 0 errores.
 
 ---

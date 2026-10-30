@@ -197,6 +197,38 @@ async function run() {
     assert.strictEqual(n21.descuentoPct, 0);
   });
 
+  // El formulario del panel pasa por validate(productoUpdateSchema) y luego por updateProduct. Antes el controlador
+  // no leía descuentoPct y el descuento nunca se guardaba (2026-10-30); las pruebas fijaban el dato en la base.
+  await prueba("Guardar desde el panel (validador + updateProduct) guarda y quita el descuento", async () => {
+    const guardar = async (cuerpo: any) => {
+      const v = productoUpdateSchema.safeParse(cuerpo);
+      assert.ok(v.success, JSON.stringify(v.error?.issues));
+      const { res, out } = mockRes();
+      await adminController.updateProduct({ params: { id: "fortunne-n21" }, body: v.data, user: ADMIN }, res);
+      assert.strictEqual(out.status ?? 200, 200, JSON.stringify(out.json));
+      const lista = mockRes();
+      await adminController.getProducts({ query: {}, user: ADMIN }, lista.res);
+      return lista.out.json.data.find((p: any) => p.id === "fortunne-n21");
+    };
+    const conDescuento = await guardar({ name: 'Fortunne Mini Jumbo 6"', price: 25, descuentoPct: "20" });
+    assert.strictEqual(conDescuento.descuentoPct, 20, "el descuento se guarda");
+    assert.strictEqual(conDescuento.precioVigente, 20);
+    const sinTocar = await guardar({ price: 25 });
+    assert.strictEqual(sinTocar.descuentoPct, 20, "una edición sin el campo no lo borra");
+    const sinDescuento = await guardar({ descuentoPct: 0 });
+    assert.strictEqual(sinDescuento.descuentoPct, 0, "poner 0 lo quita");
+    assert.strictEqual(sinDescuento.precioVigente, 25);
+  });
+
+  await prueba("Crear desde el panel (validador + postProduct) guarda el descuento", async () => {
+    const v = productoSchema.safeParse({ ...BASE_PRODUCTO, id: "prueba-descuento-alta", descuentoPct: "15" });
+    assert.ok(v.success, JSON.stringify(v.error?.issues));
+    const { res, out } = mockRes();
+    await adminController.postProduct({ body: v.data, user: ADMIN }, res);
+    assert.strictEqual(out.status, 201, JSON.stringify(out.json));
+    assert.strictEqual(out.json.data.descuentoPct, 15);
+  });
+
   // ── 4. Catálogo público ───────────────────────────────────────────────────
   await prueba("Catálogo público: precioUsd vigente, precioAntesUsd, descuentoPct y precioBs", async () => {
     const { res, out } = mockRes();

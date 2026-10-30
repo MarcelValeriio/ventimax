@@ -311,6 +311,7 @@ const postProduct = async (req, res) => {
       categorias,
       stock,
       trackStock,
+      descuentoPct,
     } = req.body;
 
     // 1. Validaciones de Campos Obligatorios
@@ -347,6 +348,8 @@ const postProduct = async (req, res) => {
       description: description || "",
       categoria: categoria,
       categorias: Array.isArray(categorias) ? categorias : [],
+      ...(emoji ? { emoji } : {}),
+      descuentoPct: descuentoPct !== undefined ? Number(descuentoPct) : 0,
       stock: stock !== undefined ? Number(stock) : 0,
       trackStock: trackStock === true || trackStock === "true",
     });
@@ -382,6 +385,7 @@ const updateProduct = async (req, res) => {
       activo,
       stock,
       trackStock,
+      descuentoPct,
     } = req.body;
 
     const originalProduct = await Producto.findOne({ id: id });
@@ -417,6 +421,7 @@ const updateProduct = async (req, res) => {
     if (categorias !== undefined)
       updateData.categorias = Array.isArray(categorias) ? categorias : [];
     if (activo !== undefined) updateData.activo = activo;
+    if (descuentoPct !== undefined) updateData.descuentoPct = Number(descuentoPct);
     if (stock !== undefined) updateData.stock = Number(stock);
     if (trackStock !== undefined)
       updateData.trackStock = trackStock === true || trackStock === "true";
@@ -441,6 +446,11 @@ const updateProduct = async (req, res) => {
       updateData.price !== originalProduct.price
     )
       cambios.push(`precio: $${originalProduct.price} → $${updateData.price}`);
+    if (
+      updateData.descuentoPct !== undefined &&
+      updateData.descuentoPct !== (originalProduct.descuentoPct || 0)
+    )
+      cambios.push(`descuento: ${originalProduct.descuentoPct || 0}% → ${updateData.descuentoPct}%`);
     if (
       updateData.stock !== undefined &&
       updateData.stock !== (originalProduct.stock || 0)
