@@ -717,8 +717,8 @@ select {
   position: relative;
   display: grid;
   place-items: center;
-  aspect-ratio: 1 / 1;
-  padding: 12px;
+  aspect-ratio: 4 / 3;
+  padding: 16px;
   background: var(--superficie);
   border-bottom: 1px solid var(--linea);
   text-decoration: none;
