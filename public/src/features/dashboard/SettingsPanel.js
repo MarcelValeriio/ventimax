@@ -1364,6 +1364,9 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
                 bannerConfig.activo
                   ? "Activo: la tienda muestra el cintillo debajo del buscador."
                   : "Desactivado: la tienda no muestra ningún cintillo."
+              ),
+              e("p", { className: "text-xs text-gray-500 dark:text-gray-400 mt-1" },
+                "Con el cintillo activo, la tienda muestra en movimiento todos los productos con descuento. El texto y el producto destacado son opcionales."
               )
             )
           ),
@@ -1381,7 +1384,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
         ),
         e("div", { className: "grid grid-cols-1 gap-4 pt-2 border-t border-gray-100 dark:border-gray-700" },
           e("div", { className: "space-y-1" },
-            e("label", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Texto del cintillo (opcional si eliges un producto):"),
+            e("label", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Texto del cintillo (opcional):"),
             e("input", {
               type: "text",
               value: bannerConfig.texto,
@@ -1412,22 +1415,43 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
             )
           ),
           (() => {
-            // Vista previa del texto que verá el cliente (el servidor arma el mismo texto si lo dejas vacío)
-            const productoSel = productosBanner.find((p) => p.id === bannerConfig.productoId);
-            const pct = productoSel ? Number(productoSel.descuentoPct) || 0 : 0;
-            let vista = (bannerConfig.texto || "").trim();
-            if (!vista && productoSel) {
-              vista = pct > 0 ? `${pct}% OFF en ${productoSel.name}` : `Destacado: ${productoSel.name}`;
+            // Vista previa de lo que verá el cliente: misma regla y orden que el servidor (resolverBannerTienda)
+            const pctDe = (p) => Number(p?.descuentoPct) || 0;
+            const textoPropio = (bannerConfig.texto || "").trim();
+            const destacado = productosBanner.find((p) => p.id === bannerConfig.productoId);
+            const items = [];
+            const incluidos = new Set();
+            if (textoPropio) {
+              items.push({ texto: textoPropio, pct: destacado ? pctDe(destacado) : 0 });
+              if (destacado) incluidos.add(destacado.id);
+            } else if (destacado && pctDe(destacado) === 0) {
+              items.push({ texto: `Destacado: ${destacado.name}`, pct: 0 });
+              incluidos.add(destacado.id);
             }
+            productosBanner
+              .filter((p) => pctDe(p) > 0 && !incluidos.has(p.id))
+              .sort((a, b) => pctDe(b) - pctDe(a) || String(a.name).localeCompare(String(b.name), "es"))
+              .forEach((p) => items.push({ texto: `${pctDe(p)}% OFF en ${p.name}`, pct: pctDe(p) }));
+            const vista = items.slice(0, 20);
             return e("div", { className: "space-y-1" },
               e("p", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Vista previa para el cliente:"),
-              e("div", {
-                className: "px-4 py-3 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center gap-2 min-h-[2.5rem]",
-              },
-                vista
-                  ? [e(Icono, { key: "ico", nombre: "megaphone" }), e("span", { key: "txt" }, vista)]
-                  : e("span", { className: "font-normal opacity-80" }, "Sin texto: el cintillo no se mostrará aunque esté activo.")
-              )
+              vista.length > 0
+                ? e("div", { className: "space-y-2" },
+                    vista.map((it, i) => e("div", {
+                      key: `vista-${i}`,
+                      className: "px-4 py-3 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center gap-2 min-h-[2.5rem]",
+                    },
+                      e(Icono, { nombre: "megaphone" }),
+                      e("span", null, it.texto),
+                      it.pct > 0 ? e("span", { className: "ml-auto px-2 py-0.5 rounded-full bg-white text-emerald-700" }, `-${it.pct}%`) : null
+                    )),
+                    vista.length > 1
+                      ? e("p", { className: "text-[11px] text-gray-400" }, "En la tienda se mueven en bucle; se detienen al pasar el ratón.")
+                      : null
+                  )
+                : e("div", { className: "px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 text-xs" },
+                    "Sin texto ni productos con descuento: el cintillo no se mostrará aunque esté activo."
+                  )
             );
           })()
         ),

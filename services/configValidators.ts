@@ -494,9 +494,6 @@ export function validarBannerTienda(val: unknown): ResultadoValidacionBanner {
     productoId = v.productoId;
   }
 
-  if (activo && texto === "" && productoId === null) {
-    return { ok: false, error: "Escribe un texto o elige un producto" };
-  }
-
+  // Activo sin texto ni producto es válido: el servidor muestra los productos con descuento (F2g)
   return { ok: true, value: { activo, texto, productoId } };
 }

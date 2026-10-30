@@ -451,7 +451,7 @@ async function runTests() {
   assert.ok(/function crearCintillo\(banner\)/.test(appSrc), "crearCintillo existe");
   const cuerpoCintillo = appSrc.slice(appSrc.indexOf("function crearCintillo(banner)"), appSrc.indexOf("function pasosCompra()"));
   assert.ok(cuerpoCintillo.includes("el(") && !cuerpoCintillo.includes("innerHTML"), "cintillo se pinta con el(), sin innerHTML");
-  assert.ok(cuerpoCintillo.includes("`#/producto/${encodeURIComponent(productoId)}`"), "cintillo con producto enlaza a su ficha");
+  assert.ok(cuerpoCintillo.includes("`#/producto/${encodeURIComponent(item.productoId)}`"), "cintillo con producto enlaza a su ficha");
   assert.ok(cuerpoCintillo.includes('icono("siguiente", "cintillo-flecha")') && cuerpoCintillo.includes('"Ver"'), "enlace termina en 'Ver' con flecha");
   assert.ok(appSrc.includes("crearCintillo(state.info?.banner)"), "el catálogo pinta el cintillo debajo del buscador");
   assert.ok(appSrc.includes('if (state.vista === "catalogo") renderizarCatalogo();'), "al llegar la información se vuelve a pintar el catálogo");
@@ -479,11 +479,27 @@ async function runTests() {
   assert.ok(reglaPulso && reglaPulso[0].includes("animation: pulso-descuento 2.4s ease-out infinite") && reglaPulso[0].includes("pointer-events: none"), "pulso de 2.4 s, ease-out, sin captar toques");
   assert.ok(cssSrc.includes("@keyframes pulso-descuento") && !bloquePulso!.includes("@keyframes"), "keyframes fuera del bloque de movimiento reducido");
   assert.ok(cssSrc.includes(".cintillo {") && cssSrc.includes("min-height: 48px") && cssSrc.includes("var(--accion)"), "cintillo con altura mínima 48 px y color de acción");
-  assert.ok(!/\.(cintillo|insignia-descuento|precio-antes)[^{]*\{[^}]*animation/.test(cssSrc), "cintillo, insignia y precio tachado sin animación");
+  // La banda fija, la insignia y el precio tachado no se animan (la cinta sí, y va en su propia regla)
+  assert.ok(!/\.(cintillo|insignia-descuento|precio-antes)(?![-\w])[^{]*\{[^}]*animation/.test(cssSrc), "cintillo fijo, insignia y precio tachado sin animación");
   console.log("  ✅ Test 15 superado (cintillo con el(), insignia y precio tachado, pulso solo en un bloque que se desactiva con reducir movimiento)");
 
+  // Test 16 (F2g-2): cinta en movimiento del cintillo con varios productos
+  console.log("\n▶ Test 16: Cinta en movimiento del cintillo (F2g-2)...");
+  assert.ok(cssSrc.includes("@keyframes cintillo-desplazar") && cssSrc.includes("translateX(-50%)"), "la cinta se traslada de 0 a -50% en bucle");
+  assert.ok(/\.cintillo-cinta:hover[^{]*\{[^}]*animation-play-state:\s*paused/.test(cssSrc), "la cinta se detiene con :hover");
+  assert.ok(/\.cintillo-cinta:focus-within[^{]*\{[^}]*animation-play-state:\s*paused/.test(cssSrc), "la cinta se detiene con :focus-within");
+  const bloqueCinta = bloques.find((b) => b.includes(".cintillo-grupo[aria-hidden"));
+  assert.ok(bloqueCinta, "la cinta tiene su bloque prefers-reduced-motion");
+  assert.ok(/animation:\s*none/.test(bloqueCinta!) && /display:\s*none/.test(bloqueCinta!) && /overflow-x:\s*auto/.test(bloqueCinta!), "sin animación, se desplaza con el dedo y se oculta la copia");
+  assert.ok(appSrc.includes('"aria-hidden": "true"') && appSrc.includes('tabindex: repaso ? "-1" : null'), "la copia de repaso va oculta a lectores y fuera del orden de tabulación");
+  assert.ok(appSrc.includes('role: "region"') && appSrc.includes('"aria-label": "Ofertas"'), "la cinta es una región con nombre");
+  assert.ok(appSrc.includes('setProperty("--cintillo-duracion"'), "la duración se pasa a la pista según la cantidad de items");
+  assert.ok(appSrc.includes("items.length === 1") && appSrc.includes("crearCintilloUnico(items[0])"), "un solo item conserva la banda fija");
+  assert.ok(cssSrc.includes("min-height: 44px") && cssSrc.includes(".cintillo-item-enlace:focus-visible"), "tamaño táctil de 44 px y foco visible en los items");
+  console.log("  ✅ Test 16 superado (cinta con animación infinita, pausa en hover y foco, reducir movimiento y copia oculta)");
+
   console.log("\n================================================================================");
-  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (15/15)");
+  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (16/16)");
   console.log("================================================================================\n");
 }
 

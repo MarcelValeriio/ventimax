@@ -472,25 +472,89 @@ function estadoVacio(iconoNombre, titulo, texto, accion) {
  * ---------------------------------------------------------------------------------------------- */
 
 /**
- * Cintillo promocional (state.info.banner, F2g): banda debajo del buscador. Con producto es un enlace a su ficha;
- * sin producto, un bloque de texto. Sin texto ni producto, no se pinta nada.
+ * Lista de items del cintillo (F2g). Usa `banner.items` del servidor; si no viene, arma un solo item
+ * con los campos de primer nivel. Descarta lo que no tiene texto.
+ */
+function itemsCintillo(banner) {
+  const origen = Array.isArray(banner?.items) && banner.items.length > 0 ? banner.items : [banner];
+  return origen
+    .map((it) => ({
+      texto: typeof it?.texto === "string" ? it.texto.trim() : "",
+      productoId: typeof it?.productoId === "string" && it.productoId ? it.productoId : null,
+      descuentoPct: Math.min(pctDescuento({ descuentoPct: it?.descuentoPct }), 90),
+    }))
+    .filter((it) => it.texto);
+}
+
+/** Pastilla "-X%" del item, salvo que el texto ya diga el porcentaje (p. ej. "20% OFF en …"). */
+function pastillaCintillo(item) {
+  if (!(item.descuentoPct > 0) || item.texto.includes(`${item.descuentoPct}%`)) return null;
+  return el("span", { className: "cintillo-pastilla" }, `-${item.descuentoPct}%`);
+}
+
+/**
+ * Cintillo de la tienda (F2g). Un solo item: banda fija como antes. Dos o más: cinta en movimiento.
  */
 function crearCintillo(banner) {
-  const texto = typeof banner?.texto === "string" ? banner.texto.trim() : "";
-  const productoId = typeof banner?.productoId === "string" ? banner.productoId : "";
-  if (!texto && !productoId) return null;
-  const pct = Math.min(pctDescuento({ descuentoPct: banner?.descuentoPct }), 90);
+  const items = itemsCintillo(banner);
+  if (items.length === 0) return null;
+  if (items.length === 1) return crearCintilloUnico(items[0]);
+  return crearCintillaEnMovimiento(items);
+}
+
+/** Banda fija con un solo item: texto, pastilla de descuento y "Ver" si lleva a un producto. */
+function crearCintilloUnico(item) {
   const partes = [
     icono("etiqueta", "cintillo-icono"),
-    el("span", { className: "cintillo-texto" }, texto),
-    pct > 0 ? el("span", { className: "cintillo-pastilla" }, `-${pct}%`) : null,
+    el("span", { className: "cintillo-texto" }, item.texto),
+    pastillaCintillo(item),
   ];
-  if (!productoId) return el("div", { className: "cintillo" }, partes);
+  if (!item.productoId) return el("div", { className: "cintillo" }, partes);
   return el(
     "a",
-    { className: "cintillo cintillo-enlace", href: `#/producto/${encodeURIComponent(productoId)}` },
+    { className: "cintillo cintillo-enlace", href: `#/producto/${encodeURIComponent(item.productoId)}` },
     partes,
     el("span", { className: "cintillo-ver" }, "Ver", icono("siguiente", "cintillo-flecha"))
+  );
+}
+
+/** Un item de la cinta. En la copia de repaso los enlaces salen del orden de tabulación (tabindex -1). */
+function crearItemCintillo(item, repaso) {
+  const partes = [
+    icono("etiqueta", "cintillo-icono"),
+    el("span", { className: "cintillo-texto" }, item.texto),
+    pastillaCintillo(item),
+  ];
+  if (!item.productoId) return el("span", { className: "cintillo-item" }, partes);
+  return el(
+    "a",
+    {
+      className: "cintillo-item cintillo-item-enlace",
+      href: `#/producto/${encodeURIComponent(item.productoId)}`,
+      tabindex: repaso ? "-1" : null,
+    },
+    partes
+  );
+}
+
+/**
+ * Cinta en movimiento con todos los items. La pista lleva la lista dos veces para que el desplazamiento
+ * sea continuo; la segunda copia se oculta a los lectores de pantalla. Se detiene con el ratón encima o el foco dentro.
+ */
+function crearCintillaEnMovimiento(items) {
+  // Unos 7 s por item, con un mínimo de 20 s, para que se lean sin correr
+  const duracion = Math.max(20, items.length * 7);
+  const pista = el(
+    "div",
+    { className: "cintillo-pista" },
+    el("div", { className: "cintillo-grupo" }, items.map((it) => crearItemCintillo(it, false))),
+    el("div", { className: "cintillo-grupo", "aria-hidden": "true" }, items.map((it) => crearItemCintillo(it, true)))
+  );
+  pista.style.setProperty("--cintillo-duracion", `${duracion}s`);
+  return el(
+    "div",
+    { className: "cintillo cintillo-cinta", role: "region", "aria-label": "Ofertas" },
+    pista
   );
 }
 

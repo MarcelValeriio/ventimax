@@ -2290,6 +2290,112 @@ body.con-ayuda.con-barra .pie-interior {
   height: 18px;
 }
 
+/* Cinta en movimiento (F2g): con dos o más productos en el cintillo, los items se desplazan en bucle */
+.cintillo.cintillo-cinta {
+  display: block;
+  overflow: hidden;
+  padding: 2px 0;
+  margin: 16px 0;
+  /* Los bordes se desvanecen para que el texto no se corte en seco */
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+}
+
+.cintillo-pista {
+  display: flex;
+  width: max-content;
+  animation: cintillo-desplazar var(--cintillo-duracion, 20s) linear infinite;
+}
+
+/* Cada copia ocupa al menos el ancho de la pantalla (así el bucle no deja un hueco a la derecha) y, con pocos
+   productos, los reparte a lo ancho en vez de amontonarlos a la izquierda */
+.cintillo-grupo {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  flex-shrink: 0;
+  min-width: 100vw;
+}
+
+@keyframes cintillo-desplazar {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Se detiene con el ratón encima o con el foco dentro, para leer o llegar a un enlace */
+.cintillo-cinta:hover .cintillo-pista,
+.cintillo-cinta:focus-within .cintillo-pista {
+  animation-play-state: paused;
+}
+
+.cintillo-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 36px 0 16px;
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* Separador discreto entre items: un punto con el color del texto atenuado */
+.cintillo-item::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+  transform: translateY(-50%);
+}
+
+.cintillo-item .cintillo-texto {
+  flex: none;
+  min-width: 0;
+}
+
+.cintillo-item-enlace:hover {
+  text-decoration: underline;
+}
+
+.cintillo-item-enlace:focus-visible {
+  outline: 3px solid var(--tinta);
+  outline-offset: -3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Sin movimiento: la cinta se recorre con el dedo o la barra de desplazamiento */
+  .cintillo-pista {
+    animation: none;
+  }
+
+  .cintillo-cinta {
+    overflow-x: auto;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .cintillo-grupo {
+    min-width: 0;
+  }
+
+  .cintillo-grupo[aria-hidden="true"] {
+    display: none;
+  }
+}
+
 /* Insignia "-X%" sobre la foto (tarjeta y ficha), esquina superior derecha */
 .insignia-descuento {
   position: absolute;

@@ -11,8 +11,8 @@
  * 6. Venta manual: el precio sale de la base y es el vigente.
  * 7. Bot de WhatsApp: el producto y el carrito usan el precio vigente; el menú dinámico muestra "(-X%)".
  * 8. IA: la línea del catálogo usa el precio vigente.
- * 9. Cintillo: validador, PUT con permiso y auditoría, y /api/public/info con banner automático
- *    (null si está inactivo, o si el producto no existe o está inactivo).
+ * 9. Cintillo: validador, PUT con permiso y auditoría, y /api/public/info con la cinta de items
+ *    (texto propio, destacado, descuentos en orden; null si está inactivo o no hay nada que mostrar).
  *
  * Uso: NODE_ENV=test npx tsx scripts/test-descuentos.ts
  */
@@ -116,6 +116,13 @@ function sembrarProductos() {
   if (data.settings) delete data.settings.bannerTienda;
   dbLocal.write(data);
   bannerTiendaService.invalidateBannerTiendaCache();
+}
+
+function setDescuento(id: string, pct: number) {
+  const data = dbLocal.read();
+  const p = data.productos.find((x: any) => x.id === id);
+  p.descuentoPct = pct;
+  dbLocal.write(data);
 }
 
 function setActivo(id: string, activo: boolean) {
@@ -330,10 +337,8 @@ async function run() {
   });
 
   // ── 9. Cintillo ───────────────────────────────────────────────────────────
-  await prueba("Validador del cintillo: activo sin texto ni producto da error; textos y ids inválidos se rechazan", () => {
-    const vacio = validarBannerTienda({ activo: true, texto: "", productoId: null });
-    assert.strictEqual(vacio.ok, false);
-    assert.strictEqual(vacio.error, "Escribe un texto o elige un producto");
+  await prueba("Validador del cintillo: activo sin texto ni producto es válido; textos y ids inválidos se rechazan", () => {
+    assert.strictEqual(validarBannerTienda({ activo: true, texto: "", productoId: null }).ok, true);
     assert.strictEqual(validarBannerTienda({ activo: true, texto: "x".repeat(121), productoId: null }).ok, false);
     assert.strictEqual(validarBannerTienda({ activo: true, texto: "x".repeat(120), productoId: null }).ok, true);
     assert.strictEqual(validarBannerTienda({ activo: true, texto: "", productoId: "Fortunne N04" }).ok, false);
@@ -348,9 +353,12 @@ async function run() {
     const antes = (await Auditoria.find({ recursoId: "bannerTienda" })).length;
 
     const invalido = mockRes();
-    await configAdminController.updateBannerTiendaConfig({ body: { activo: true, texto: "", productoId: null }, user: ADMIN }, invalido.res);
+    await configAdminController.updateBannerTiendaConfig(
+      { body: { activo: true, texto: "x".repeat(121), productoId: null }, user: ADMIN },
+      invalido.res,
+    );
     assert.strictEqual(invalido.out.status, 400);
-    assert.strictEqual(invalido.out.json.error, "Escribe un texto o elige un producto");
+    assert.strictEqual(invalido.out.json.error, "El texto del cintillo no puede exceder 120 caracteres.");
 
     const ok = mockRes();
     await configAdminController.updateBannerTiendaConfig(
@@ -376,47 +384,115 @@ async function run() {
     assert.strictEqual(status, 403);
   });
 
-  await prueba("/api/public/info: banner automático '20% OFF en <nombre>' con el producto del cintillo", async () => {
+  await prueba("/api/public/info: cinta con todos los productos con descuento (items) y campos de primer nivel", async () => {
     const { res, out } = mockRes();
     await publicController.getInfo({}, res);
     assert.strictEqual(out.status, 200);
     assert.deepStrictEqual(out.json.banner, {
+      items: [{ texto: '20% OFF en Fortunne Turbo Fan 10"', productoId: "fortunne-n04", descuentoPct: 20 }],
       texto: '20% OFF en Fortunne Turbo Fan 10"',
       productoId: "fortunne-n04",
       descuentoPct: 20,
     });
   });
 
-  await prueba("/api/public/info: sin descuento el texto es 'Destacado: <nombre>'; con texto propio se usa ese", async () => {
+  await prueba("/api/public/info: destacado sin descuento va primero; con texto propio, el texto va primero", async () => {
     await bannerTiendaService.setBannerTienda({ activo: true, texto: "", productoId: "fortunne-n21" });
     let { res, out } = mockRes();
     await publicController.getInfo({}, res);
-    assert.strictEqual(out.json.banner.texto, 'Destacado: Fortunne Mini Jumbo 6"');
+    assert.strictEqual(out.json.banner.items.length, 2);
+    assert.deepStrictEqual(out.json.banner.items[0], { texto: 'Destacado: Fortunne Mini Jumbo 6"', productoId: "fortunne-n21", descuentoPct: 0 });
+    assert.deepStrictEqual(out.json.banner.items[1], { texto: '20% OFF en Fortunne Turbo Fan 10"', productoId: "fortunne-n04", descuentoPct: 20 });
+    assert.strictEqual(out.json.banner.texto, 'Destacado: Fortunne Mini Jumbo 6"', "campos de primer nivel = primer item");
     assert.strictEqual(out.json.banner.descuentoPct, 0);
 
     await bannerTiendaService.setBannerTienda({ activo: true, texto: "Envíos a todo el país", productoId: null });
     ({ res, out } = mockRes());
     await publicController.getInfo({}, res);
-    assert.deepStrictEqual(out.json.banner, { texto: "Envíos a todo el país", productoId: null, descuentoPct: 0 });
+    assert.deepStrictEqual(out.json.banner.items[0], { texto: "Envíos a todo el país", productoId: null, descuentoPct: 0 });
+    assert.strictEqual(out.json.banner.items[1].productoId, "fortunne-n04");
+
+    // Texto propio + destacado sin descuento: el destacado va dentro del texto, sin item aparte
+    await bannerTiendaService.setBannerTienda({ activo: true, texto: "Hola", productoId: "fortunne-n21" });
+    ({ res, out } = mockRes());
+    await publicController.getInfo({}, res);
+    assert.deepStrictEqual(out.json.banner.items[0], { texto: "Hola", productoId: "fortunne-n21", descuentoPct: 0 });
+    assert.ok(!out.json.banner.items.some((it: any) => String(it.texto).startsWith("Destacado:")), "sin 'Destacado:' repetido");
   });
 
-  await prueba("/api/public/info: banner null si está inactivo, si el producto está inactivo o no existe", async () => {
+  await prueba("/api/public/info: varios descuentos (30 % y 20 %) con texto propio -> orden [texto, 30 %, 20 %]", async () => {
+    const data = dbLocal.read();
+    data.productos.push({
+      _id: "prod-n20",
+      id: "fortunne-n20",
+      name: 'Fortunne Turbo Fan 12"',
+      price: 46,
+      descuentoPct: 30,
+      description: "12 pulgadas",
+      categoria: CATEGORIA_MESA,
+      categorias: [],
+      activo: true,
+      trackStock: false,
+      stock: 0,
+      imagenes: [],
+    });
+    dbLocal.write(data);
+
+    await bannerTiendaService.setBannerTienda({ activo: true, texto: "Semana de ofertas", productoId: null });
+    const { res, out } = mockRes();
+    await publicController.getInfo({}, res);
+    assert.deepStrictEqual(out.json.banner.items.map((it: any) => it.descuentoPct), [0, 30, 20]);
+    assert.strictEqual(out.json.banner.items[1].texto, '30% OFF en Fortunne Turbo Fan 12"');
+    assert.strictEqual(out.json.banner.items[2].productoId, "fortunne-n04");
+
+    // Un texto propio con producto de descuento: ese producto va en el primer item y no se repite
+    await bannerTiendaService.setBannerTienda({ activo: true, texto: "Hoy", productoId: "fortunne-n20" });
+    const otra = mockRes();
+    await publicController.getInfo({}, otra.res);
+    assert.deepStrictEqual(otra.out.json.banner.items.map((it: any) => [it.productoId, it.descuentoPct]), [
+      ["fortunne-n20", 30],
+      ["fortunne-n04", 20],
+    ]);
+  });
+
+  await prueba("/api/public/info: banner null si está inactivo, si no hay texto ni descuentos; un destacado inexistente no anula", async () => {
     await bannerTiendaService.setBannerTienda({ activo: false, texto: "Apagado", productoId: "fortunne-n04" });
     let { res, out } = mockRes();
     await publicController.getInfo({}, res);
     assert.strictEqual(out.json.banner, null, "inactivo");
 
+    // Producto destacado inactivo: no aporta item, y sin otros descuentos el cintillo queda vacío
     await bannerTiendaService.setBannerTienda({ activo: true, texto: "", productoId: "fortunne-n04" });
     setActivo("fortunne-n04", false);
+    setActivo("fortunne-n20", false);
     ({ res, out } = mockRes());
     await publicController.getInfo({}, res);
-    assert.strictEqual(out.json.banner, null, "producto inactivo");
+    assert.strictEqual(out.json.banner, null, "producto inactivo y sin otros descuentos");
     setActivo("fortunne-n04", true);
+    setActivo("fortunne-n20", true);
 
+    // Producto inexistente sin texto: no anula los descuentos que sí hay
     await bannerTiendaService.setBannerTienda({ activo: true, texto: "", productoId: "fortunne-no-existe" });
     ({ res, out } = mockRes());
     await publicController.getInfo({}, res);
-    assert.strictEqual(out.json.banner, null, "producto inexistente");
+    assert.strictEqual(out.json.banner.items[0].productoId, "fortunne-n20", "el inexistente no aporta item");
+
+    // Producto inexistente con texto propio: el texto sigue sin producto
+    await bannerTiendaService.setBannerTienda({ activo: true, texto: "Envíos gratis", productoId: "fortunne-no-existe" });
+    ({ res, out } = mockRes());
+    await publicController.getInfo({}, res);
+    assert.strictEqual(out.json.banner.items[0].productoId, null);
+    assert.strictEqual(out.json.banner.items[0].texto, "Envíos gratis");
+
+    // Activo sin texto, sin producto y sin descuentos: null
+    setDescuento("fortunne-n04", 0);
+    setDescuento("fortunne-n20", 0);
+    await bannerTiendaService.setBannerTienda({ activo: true, texto: "", productoId: null });
+    ({ res, out } = mockRes());
+    await publicController.getInfo({}, res);
+    assert.strictEqual(out.json.banner, null, "activo sin nada que mostrar");
+    setDescuento("fortunne-n04", 20);
+    setDescuento("fortunne-n20", 30);
   });
 
   // Restaurar el estado de la suite y los productos de prueba

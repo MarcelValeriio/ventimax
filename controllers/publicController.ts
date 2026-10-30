@@ -277,23 +277,71 @@ async function resolverEntrega(entrega: any): Promise<{ ok: true; value: any } |
  * Cintillo de la tienda (F2g). Null si está inactivo, o si trae producto que no existe o está inactivo.
  * Sin texto propio y con producto, el servidor arma el texto: "<pct>% OFF en <nombre>" o "Destacado: <nombre>".
  */
-async function resolverBannerTienda(): Promise<{ texto: string; productoId: string | null; descuentoPct: number } | null> {
+/** Item del cintillo: texto para el cliente, producto al que lleva (o null) y descuento vigente. */
+type ItemBannerTienda = { texto: string; productoId: string | null; descuentoPct: number };
+
+const MAX_ITEMS_BANNER = 20;
+
+/**
+ * Cintillo de la tienda (F2g, cinta F2g-2). Devuelve todos los items en movimiento:
+ * 1. El texto propio (si existe), enlazado al producto destacado si lo hay.
+ * 2. El producto destacado sin descuento, si no está ya en el texto propio.
+ * 3. Todos los productos activos con descuento vigente, del mayor al menor (y por nombre).
+ * Los campos de primer nivel (texto, productoId, descuentoPct) son los del primer item, por compatibilidad.
+ * Solo si el cintillo está activo; sin ningún item devuelve null.
+ */
+async function resolverBannerTienda(): Promise<{
+  items: ItemBannerTienda[];
+  texto: string;
+  productoId: string | null;
+  descuentoPct: number;
+} | null> {
   const cfg = getBannerTiendaSync();
   if (!cfg || cfg.activo !== true) return null;
 
-  if (!cfg.productoId) {
-    return { texto: cfg.texto, productoId: null, descuentoPct: 0 };
+  const items: ItemBannerTienda[] = [];
+  const incluidos = new Set<string>();
+  const textoPropio = typeof cfg.texto === "string" ? cfg.texto.trim() : "";
+
+  // Búsqueda por id de texto (nunca _id, para evitar CastError). Un destacado inexistente o inactivo no aporta item.
+  let destacado: any = null;
+  if (cfg.productoId) {
+    const prod = await Producto.findOne({ id: cfg.productoId });
+    if (prod && prod.activo !== false) destacado = prod;
   }
 
-  // Búsqueda por id de texto (nunca _id, para evitar CastError)
-  const prod = await Producto.findOne({ id: cfg.productoId });
-  if (!prod || prod.activo === false) return null;
+  if (textoPropio) {
+    const pct = destacado ? descuentoVigente(destacado) : 0;
+    const productoId = destacado ? String(destacado.id) : null;
+    items.push({ texto: textoPropio, productoId, descuentoPct: pct });
+    if (productoId) incluidos.add(productoId);
+  } else if (destacado && descuentoVigente(destacado) === 0) {
+    items.push({ texto: `Destacado: ${destacado.name}`, productoId: String(destacado.id), descuentoPct: 0 });
+    incluidos.add(String(destacado.id));
+  }
 
-  const pct = descuentoVigente(prod);
-  const texto =
-    cfg.texto ||
-    (pct > 0 ? `${pct}% OFF en ${prod.name}` : `Destacado: ${prod.name}`);
-  return { texto, productoId: prod.id, descuentoPct: pct };
+  // Todos los productos activos con descuento vigente, sin repetir los que ya están en el texto propio
+  const productosDb = await Producto.find({ activo: true });
+  const conDescuento = (productosDb || [])
+    .filter((p: any) => p && p.activo !== false && !incluidos.has(String(p.id)))
+    .map((p: any) => ({ prod: p, pct: descuentoVigente(p) }))
+    .filter((x: any) => x.pct > 0)
+    .sort((a: any, b: any) => b.pct - a.pct || String(a.prod.name || "").localeCompare(String(b.prod.name || ""), "es"));
+
+  for (const { prod, pct } of conDescuento) {
+    items.push({ texto: `${pct}% OFF en ${prod.name}`, productoId: String(prod.id), descuentoPct: pct });
+  }
+
+  const limitados = items.slice(0, MAX_ITEMS_BANNER);
+  if (limitados.length === 0) return null;
+
+  const primero = limitados[0];
+  return {
+    items: limitados,
+    texto: primero.texto,
+    productoId: primero.productoId,
+    descuentoPct: primero.descuentoPct,
+  };
 }
 
 export async function getInfo(req: any, res: any) {
