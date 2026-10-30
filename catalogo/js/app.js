@@ -1811,6 +1811,14 @@ async function iniciar() {
   actualizarBadge();
   window.addEventListener("hashchange", enrutar);
 
+  // Altura real del encabezado fijo: el cintillo y el banner lateral se pegan justo debajo
+  const encabezado = document.querySelector(".encabezado");
+  if (encabezado && typeof ResizeObserver === "function") {
+    new ResizeObserver(() => {
+      document.documentElement.style.setProperty("--alto-encabezado", `${encabezado.offsetHeight}px`);
+    }).observe(encabezado);
+  }
+
   obtenerMarca()
     .then((marcaData) => {
       aplicarIdentidadMarca(marcaData);
