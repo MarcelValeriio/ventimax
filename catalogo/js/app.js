@@ -114,6 +114,25 @@ function lineaBs(montoBs, clase = "") {
   return texto ? el("span", { className: `precio-bs ${clase}`.trim() }, texto) : null;
 }
 
+/** Porcentaje de descuento del producto: entero de 0 a 90. Sin dato o inválido, 0. */
+function pctDescuento(prod) {
+  const pct = Math.round(Number(prod?.descuentoPct));
+  return Number.isFinite(pct) && pct > 0 ? Math.min(pct, 90) : 0;
+}
+
+/** Precio anterior tachado; solo si hay descuento y el servidor envió el precio base. */
+function precioAnteriorUsd(prod) {
+  const antes = Number(prod?.precioAntesUsd);
+  if (pctDescuento(prod) === 0 || !(antes > 0)) return null;
+  return el("s", { className: "precio-antes" }, el("span", { className: "sr-only" }, "Antes: "), formatearUsd(antes));
+}
+
+/** Insignia "-X%" sobre la foto; null sin descuento. */
+function insigniaDescuento(prod) {
+  const pct = pctDescuento(prod);
+  return pct > 0 ? el("span", { className: "insignia-descuento" }, `-${pct}%`) : null;
+}
+
 /** Cantidad de un producto que ya está en el pedido. */
 function cantidadEnCarrito(productoId) {
   return state.carrito.find((i) => i.productoId === productoId)?.cantidad || 0;
@@ -452,6 +471,29 @@ function estadoVacio(iconoNombre, titulo, texto, accion) {
  * Vista: catálogo (inicio, categoría y búsqueda)
  * ---------------------------------------------------------------------------------------------- */
 
+/**
+ * Cintillo promocional (state.info.banner, F2g): banda debajo del buscador. Con producto es un enlace a su ficha;
+ * sin producto, un bloque de texto. Sin texto ni producto, no se pinta nada.
+ */
+function crearCintillo(banner) {
+  const texto = typeof banner?.texto === "string" ? banner.texto.trim() : "";
+  const productoId = typeof banner?.productoId === "string" ? banner.productoId : "";
+  if (!texto && !productoId) return null;
+  const pct = Math.min(pctDescuento({ descuentoPct: banner?.descuentoPct }), 90);
+  const partes = [
+    icono("etiqueta", "cintillo-icono"),
+    el("span", { className: "cintillo-texto" }, texto),
+    pct > 0 ? el("span", { className: "cintillo-pastilla" }, `-${pct}%`) : null,
+  ];
+  if (!productoId) return el("div", { className: "cintillo" }, partes);
+  return el(
+    "a",
+    { className: "cintillo cintillo-enlace", href: `#/producto/${encodeURIComponent(productoId)}` },
+    partes,
+    el("span", { className: "cintillo-ver" }, "Ver", icono("siguiente", "cintillo-flecha"))
+  );
+}
+
 /** Cómo se compra aquí: lo que ninguna otra tienda puede decir con verdad, en tres pasos cortos. */
 function pasosCompra() {
   const paso = (nombreIcono, titulo, texto) =>
@@ -499,18 +541,20 @@ function crearTarjetaProducto(prod) {
     "a",
     { className: "tarjeta-foto", href: enlace, tabindex: "-1", "aria-hidden": "true" },
     imagenProducto(imgUrl, prod.nombre, "tarjeta-imagen", { loading: "lazy" }),
+    insigniaDescuento(prod),
     prod.disponible ? null : el("span", { className: "sello-agotado" }, "Agotado")
   );
 
+  const conDescuento = pctDescuento(prod) > 0;
   return el(
     "article",
-    { className: `tarjeta ${prod.disponible ? "" : "tarjeta-agotada"}`.trim() },
+    { className: ["tarjeta", prod.disponible ? "" : "tarjeta-agotada", conDescuento ? "tarjeta-descuento" : ""].filter(Boolean).join(" ") },
     foto,
     el(
       "div",
       { className: "tarjeta-cuerpo" },
       el("h3", { className: "tarjeta-nombre" }, el("a", { href: enlace }, prod.nombre)),
-      el("div", { className: "tarjeta-precios" }, precioUsd(prod.precioUsd), lineaBs(prod.precioBs)),
+      el("div", { className: "tarjeta-precios" }, precioUsd(prod.precioUsd), precioAnteriorUsd(prod), lineaBs(prod.precioBs)),
       controlCompraTarjeta(prod)
     )
   );
@@ -541,6 +585,10 @@ function renderizarCatalogo() {
   const esInicio = state.categoriaActiva === "todas" && !state.busqueda;
   const categorias = state.catalogo.categorias || [];
   const categoria = categorias.find((c) => c.slug === state.categoriaActiva);
+
+  // Cintillo promocional (F2g): debajo del buscador, antes de los pasos y las categorías
+  const cintillo = crearCintillo(state.info?.banner);
+  if (cintillo) appRoot.appendChild(cintillo);
 
   if (esInicio) appRoot.appendChild(pasosCompra());
 
@@ -744,6 +792,8 @@ function crearGaleriaProducto(prod) {
     )
   );
   const visor = el("div", { className: "ficha-visor carrusel" }, tira);
+  const insignia = insigniaDescuento(prod);
+  if (insignia) visor.appendChild(insignia);
   if (!prod.disponible) visor.appendChild(el("span", { className: "sello-agotado" }, "Agotado"));
   const galeria = el("div", { className: "ficha-galeria" }, visor);
   if (total < 2) return galeria;
@@ -939,12 +989,13 @@ function renderizarDetalleProducto(productoId) {
 
   const compra = el(
     "div",
-    { className: "ficha-compra" },
+    { className: pctDescuento(prod) > 0 ? "ficha-compra ficha-compra-descuento" : "ficha-compra" },
     el("h1", { className: "ficha-nombre" }, prod.nombre),
     el(
       "div",
       { className: "ficha-precios" },
       precioUsd(prod.precioUsd, "precio-grande"),
+      precioAnteriorUsd(prod),
       prod.precioBs ? el("p", { className: "ficha-bs" }, formatearBs(prod.precioBs), fechaTasa ? el("span", {}, ` · tasa BCV del ${fechaTasa}`) : null) : null
     ),
     el(
@@ -1626,7 +1677,9 @@ async function cargarDatos() {
     obtenerInfo()
       .then((info) => {
         state.info = info;
-        pintarPreguntas();
+        // El cintillo (F2g) llega con esta información: si el catálogo está en pantalla, se vuelve a pintar
+        if (state.vista === "catalogo") renderizarCatalogo();
+        else pintarPreguntas();
         // El carrito muestra las formas de entrega que llegan con esta información
         if (state.vista === "carrito") renderizarCarrito();
       })

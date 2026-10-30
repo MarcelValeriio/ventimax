@@ -350,10 +350,12 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
   const [catalogoSaving, setCatalogoSaving] = useState(false);
   const [abusoReporte, setAbusoReporte] = useState([]);
 
-  // Preguntas frecuentes de la tienda (F2b)
-  const [faqItems, setFaqItems] = useState([]);
-  const [faqLoading, setFaqLoading] = useState(false);
-  const [faqSaving, setFaqSaving] = useState(false);
+  // Cintillo de la tienda (F2g)
+  const [bannerConfig, setBannerConfig] = useState({ activo: false, texto: "", productoId: "" });
+  const [bannerLoading, setBannerLoading] = useState(false);
+  const [bannerSaving, setBannerSaving] = useState(false);
+  const [productosBanner, setProductosBanner] = useState([]);
+
   const [abusoLoading, setAbusoLoading] = useState(false);
 
   const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
@@ -451,25 +453,6 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
     fetchDatosNegocio();
   }, [isAdmin]);
 
-  useEffect(() => {
-    if (!isAdmin) return;
-    const fetchPreguntasFrecuentes = async () => {
-      try {
-        setFaqLoading(true);
-        const client = window.apiClient || apiClient;
-        const res = await client.get("/api/admin/config/preguntas-frecuentes");
-        if (res.data?.success && res.data?.preguntas) {
-          setFaqItems(res.data.preguntas.items || []);
-        }
-      } catch (err) {
-        console.warn("No se pudieron cargar las preguntas frecuentes:", err);
-      } finally {
-        setFaqLoading(false);
-      }
-    };
-    fetchPreguntasFrecuentes();
-  }, [isAdmin]);
-
   // Carga la configuración de Días No Laborables (solo admin)
   useEffect(() => {
     if (!isAdmin) return;
@@ -542,6 +525,44 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
 
     fetchCatalogoConfig();
     fetchAbusoReporte();
+  }, [isAdmin]);
+
+  // Carga el cintillo de la tienda y la lista de productos para elegir uno (F2g, solo admin)
+  useEffect(() => {
+    if (!isAdmin) return;
+    const fetchBanner = async () => {
+      try {
+        setBannerLoading(true);
+        const client = window.apiClient || apiClient;
+        const res = await client.get("/api/admin/config/banner-tienda");
+        if (res.data?.success && res.data?.banner) {
+          const b = res.data.banner;
+          setBannerConfig({
+            activo: Boolean(b.activo),
+            texto: b.texto || "",
+            productoId: b.productoId || "",
+          });
+        }
+      } catch (err) {
+        console.warn("No se pudo cargar el cintillo de la tienda:", err);
+      } finally {
+        setBannerLoading(false);
+      }
+    };
+
+    const fetchProductosBanner = async () => {
+      try {
+        const client = window.apiClient || apiClient;
+        const res = await client.get("/api/admin/products");
+        const lista = Array.isArray(res.data?.data) ? res.data.data : [];
+        setProductosBanner(lista.filter((p) => p && p.activo !== false));
+      } catch (err) {
+        console.warn("No se pudo cargar la lista de productos:", err);
+      }
+    };
+
+    fetchBanner();
+    fetchProductosBanner();
   }, [isAdmin]);
 
   const toast = (msg, type) => {
@@ -692,50 +713,6 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
     }
   };
 
-  // Preguntas frecuentes de la tienda (F2b): añadir, quitar, subir/bajar y guardar
-  const FAQ_MAX = 12;
-
-  const handleFaqChange = (index, campo, valor) => {
-    setFaqItems(faqItems.map((item, i) => (i === index ? { ...item, [campo]: valor } : item)));
-  };
-
-  const handleFaqAdd = () => {
-    if (faqItems.length >= FAQ_MAX) {
-      toast(`Puedes tener hasta ${FAQ_MAX} preguntas`, "error");
-      return;
-    }
-    setFaqItems([...faqItems, { pregunta: "", respuesta: "" }]);
-  };
-
-  const handleFaqRemove = (index) => {
-    setFaqItems(faqItems.filter((_, i) => i !== index));
-  };
-
-  const handleFaqMove = (index, delta) => {
-    const destino = index + delta;
-    if (destino < 0 || destino >= faqItems.length) return;
-    const copia = [...faqItems];
-    [copia[index], copia[destino]] = [copia[destino], copia[index]];
-    setFaqItems(copia);
-  };
-
-  const handleSaveFaq = async () => {
-    setFaqSaving(true);
-    try {
-      const client = window.apiClient || apiClient;
-      const res = await client.put("/api/admin/config/preguntas-frecuentes", { items: faqItems });
-      if (res.data?.success && res.data?.preguntas) {
-        setFaqItems(res.data.preguntas.items || []);
-        toast("Preguntas frecuentes guardadas correctamente", "success");
-      }
-    } catch (err) {
-      console.error("Error guardando preguntas frecuentes:", err);
-      toast(err.response?.data?.error || err.message || "Error al guardar las preguntas frecuentes", "error");
-    } finally {
-      setFaqSaving(false);
-    }
-  };
-
   const handleSaveFlujo = async () => {
     if (flujoActivo && !entregaDiferidaActivo && !retiroEnPuntoActivo) {
       toast("Activa al menos una modalidad o apaga el flujo de días no laborables", "error");
@@ -823,6 +800,33 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       toast(err.response?.data?.error || err.message || "Error al guardar configuración", "error");
     } finally {
       setCatalogoSaving(false);
+    }
+  };
+
+  const handleSaveBanner = async () => {
+    setBannerSaving(true);
+    try {
+      const client = window.apiClient || apiClient;
+      const res = await client.put("/api/admin/config/banner-tienda", {
+        activo: bannerConfig.activo,
+        texto: bannerConfig.texto.trim(),
+        productoId: bannerConfig.productoId || null,
+      });
+      if (res.data?.success && res.data?.banner) {
+        const b = res.data.banner;
+        setBannerConfig({
+          activo: Boolean(b.activo),
+          texto: b.texto || "",
+          productoId: b.productoId || "",
+        });
+        toast("Cintillo de la tienda guardado correctamente", "success");
+      }
+    } catch (err) {
+      console.error("Error guardando el cintillo de la tienda:", err);
+      // El error del servidor se muestra tal cual (validaciones de texto y producto)
+      toast(err.response?.data?.error || err.message || "Error al guardar el cintillo", "error");
+    } finally {
+      setBannerSaving(false);
     }
   };
 
@@ -1346,77 +1350,109 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
         )
       )
     ),
-    e("section", { key: "preguntas-frecuentes", className: "space-y-3" },
-      e("h3", { className: "text-[11px] font-black uppercase tracking-widest text-gray-400 px-1" }, "Preguntas frecuentes de la tienda"),
-      e("div", { className: "bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-6 space-y-4" },
-        e("p", { className: "text-xs text-gray-500 dark:text-gray-400" }, "Las preguntas sin respuesta no se muestran en la tienda."),
-        faqLoading && e("p", { className: "text-xs text-gray-400" }, "Cargando..."),
-        ...faqItems.map((item, index) =>
-          e("div", { key: index, className: "space-y-2 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" },
-            e("div", { className: "flex items-center justify-between gap-2" },
-              e("span", { className: "text-[11px] font-black uppercase tracking-widest text-gray-400" }, `Pregunta ${index + 1}`),
-              e("div", { className: "flex items-center gap-1" },
-                e("button", {
-                  type: "button",
-                  onClick: () => handleFaqMove(index, -1),
-                  disabled: index === 0 || faqSaving,
-                  "aria-label": "Subir pregunta",
-                  className: "w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition",
-                }, e(Icono, { nombre: "arrow-up" })),
-                e("button", {
-                  type: "button",
-                  onClick: () => handleFaqMove(index, 1),
-                  disabled: index === faqItems.length - 1 || faqSaving,
-                  "aria-label": "Bajar pregunta",
-                  className: "w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition",
-                }, e(Icono, { nombre: "arrow-down" })),
-                e("button", {
-                  type: "button",
-                  onClick: () => handleFaqRemove(index),
-                  disabled: faqSaving,
-                  "aria-label": "Quitar pregunta",
-                  className: "w-8 h-8 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-30 transition",
-                }, e(Icono, { nombre: "trash" }))
-              )
+    e("section", { key: "cintillo", className: "space-y-3" },
+      e("h3", { className: "text-[11px] font-black uppercase tracking-widest text-gray-400 px-1" }, "Cintillo de la tienda"),
+      e("div", { className: "bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-6 space-y-6" },
+        e("div", { className: "flex items-start justify-between gap-4" },
+          e("div", { className: "flex items-center gap-3" },
+            e("div", { className: `w-10 h-10 rounded-2xl flex items-center justify-center text-sm ${ICON_TONES.teal}` },
+              e(Icono, { nombre: "megaphone" })
             ),
+            e("div", null,
+              e("h4", { className: "text-sm font-bold text-gray-800 dark:text-gray-100" }, "Mostrar cintillo en la tienda"),
+              e("p", { className: "text-xs text-gray-500 dark:text-gray-400 mt-0.5" },
+                bannerConfig.activo
+                  ? "Activo: la tienda muestra el cintillo debajo del buscador."
+                  : "Desactivado: la tienda no muestra ningún cintillo."
+              )
+            )
+          ),
+          e("label", { className: "relative inline-flex items-center cursor-pointer" },
             e("input", {
-              type: "text",
-              value: item.pregunta,
-              maxLength: 120,
-              placeholder: "Escribe la pregunta",
-              onChange: (ev) => handleFaqChange(index, "pregunta", ev.target.value),
-              className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500",
+              type: "checkbox",
+              checked: bannerConfig.activo,
+              onChange: (ev) => setBannerConfig({ ...bannerConfig, activo: ev.target.checked }),
+              className: "sr-only peer",
             }),
-            e("textarea", {
-              rows: 3,
-              value: item.respuesta,
-              maxLength: 600,
-              placeholder: "Respuesta (si la dejas vacía, la pregunta no se muestra)",
-              onChange: (ev) => handleFaqChange(index, "respuesta", ev.target.value),
-              className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none",
+            e("div", {
+              className: "w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600",
             })
           )
         ),
-        e("div", { className: "flex flex-wrap items-center justify-between gap-3 pt-2" },
-          e("button", {
-            type: "button",
-            onClick: handleFaqAdd,
-            disabled: faqSaving || faqItems.length >= FAQ_MAX,
-            className: "px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition disabled:opacity-50 flex items-center gap-2",
-          },
-            e(Icono, { nombre: "plus" }),
-            "Añadir pregunta"
+        e("div", { className: "grid grid-cols-1 gap-4 pt-2 border-t border-gray-100 dark:border-gray-700" },
+          e("div", { className: "space-y-1" },
+            e("label", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Texto del cintillo (opcional si eliges un producto):"),
+            e("input", {
+              type: "text",
+              value: bannerConfig.texto,
+              maxLength: 120,
+              placeholder: "Ej.: 20% OFF en ventiladores de mesa esta semana",
+              onChange: (ev) => setBannerConfig({ ...bannerConfig, texto: ev.target.value }),
+              className: "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
+            }),
+            e("div", { className: "flex justify-end text-[11px] text-gray-400" },
+              e("span", null, `${(bannerConfig.texto || "").length}/120`)
+            )
           ),
+          e("div", { className: "space-y-1" },
+            e("label", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Producto (opcional):"),
+            e("select", {
+              value: bannerConfig.productoId || "",
+              onChange: (ev) => setBannerConfig({ ...bannerConfig, productoId: ev.target.value }),
+              className: "w-full max-w-md px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
+            },
+              e("option", { key: "ninguno", value: "" }, "Ninguno"),
+              ...(bannerConfig.productoId && !productosBanner.some((p) => p.id === bannerConfig.productoId)
+                ? [e("option", { key: "no-disponible", value: bannerConfig.productoId }, "(producto no disponible)")]
+                : []),
+              ...productosBanner.map((p) => {
+                const pct = Number(p.descuentoPct) || 0;
+                return e("option", { key: p.id, value: p.id }, `${p.name}${pct > 0 ? ` (-${pct}%)` : ""}`);
+              })
+            )
+          ),
+          (() => {
+            // Vista previa del texto que verá el cliente (el servidor arma el mismo texto si lo dejas vacío)
+            const productoSel = productosBanner.find((p) => p.id === bannerConfig.productoId);
+            const pct = productoSel ? Number(productoSel.descuentoPct) || 0 : 0;
+            let vista = (bannerConfig.texto || "").trim();
+            if (!vista && productoSel) {
+              vista = pct > 0 ? `${pct}% OFF en ${productoSel.name}` : `Destacado: ${productoSel.name}`;
+            }
+            return e("div", { className: "space-y-1" },
+              e("p", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Vista previa para el cliente:"),
+              e("div", {
+                className: "px-4 py-3 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center gap-2 min-h-[2.5rem]",
+              },
+                vista
+                  ? [e(Icono, { key: "ico", nombre: "megaphone" }), e("span", { key: "txt" }, vista)]
+                  : e("span", { className: "font-normal opacity-80" }, "Sin texto: el cintillo no se mostrará aunque esté activo.")
+              )
+            );
+          })()
+        ),
+        e("div", { className: "flex justify-end pt-2" },
           e("button", {
             type: "button",
-            onClick: handleSaveFaq,
-            disabled: faqSaving || faqLoading,
+            onClick: handleSaveBanner,
+            disabled: bannerSaving || bannerLoading,
             className: "px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 transition disabled:opacity-50 flex items-center gap-2",
           },
-            faqSaving && e(Icono, { nombre: "loader-circle", girar: true }),
-            faqSaving ? "Guardando..." : "Guardar preguntas"
+            bannerSaving && e(Icono, { nombre: "loader-circle", girar: true }),
+            bannerSaving ? "Guardando..." : "Guardar cintillo"
           )
         )
+      )
+    ),
+    e("section", { key: "preguntas-frecuentes", className: "space-y-3" },
+      e("h3", { className: "text-[11px] font-black uppercase tracking-widest text-gray-400 px-1" }, "Preguntas frecuentes de la tienda"),
+      e("div", { className: "bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-6 flex flex-wrap items-center justify-between gap-3" },
+        e("p", { className: "text-xs text-gray-500 dark:text-gray-400 max-w-xl" }, "La tienda y el bot usan la misma lista. Se administra en Configuración → Gestión → Preguntas frecuentes, con la casilla \"Mostrar en la tienda web\"."),
+        e("button", {
+          type: "button",
+          onClick: () => setActiveTab("faqs"),
+          className: "px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition flex items-center gap-2",
+        }, e(Icono, { nombre: "arrow-right" }), "Ir a Preguntas frecuentes")
       )
     ),
     e("section", { key: "abuso", className: "space-y-3" },

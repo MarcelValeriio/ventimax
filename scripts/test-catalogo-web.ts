@@ -445,8 +445,45 @@ async function runTests() {
   assert.ok(!fs.readFileSync(path.join(__dirname, "..", "catalogo", "css", "style.css"), "utf8").includes("entrega-chip"), "estilos de chips retirados");
   console.log("  ✅ Test 14 superado (empresas de envío: nombres desde strings u objetos, logo solo de Cloudinary)");
 
+  // Test 15 (F2g): cintillo y descuentos. Se comprueba el código, no el aspecto: pinta con el(), sin innerHTML,
+  // y la animación del pulso queda dentro de un bloque que se desactiva con prefers-reduced-motion.
+  console.log("\n▶ Test 15: Cintillo promocional y descuentos (F2g)...");
+  assert.ok(/function crearCintillo\(banner\)/.test(appSrc), "crearCintillo existe");
+  const cuerpoCintillo = appSrc.slice(appSrc.indexOf("function crearCintillo(banner)"), appSrc.indexOf("function pasosCompra()"));
+  assert.ok(cuerpoCintillo.includes("el(") && !cuerpoCintillo.includes("innerHTML"), "cintillo se pinta con el(), sin innerHTML");
+  assert.ok(cuerpoCintillo.includes("`#/producto/${encodeURIComponent(productoId)}`"), "cintillo con producto enlaza a su ficha");
+  assert.ok(cuerpoCintillo.includes('icono("siguiente", "cintillo-flecha")') && cuerpoCintillo.includes('"Ver"'), "enlace termina en 'Ver' con flecha");
+  assert.ok(appSrc.includes("crearCintillo(state.info?.banner)"), "el catálogo pinta el cintillo debajo del buscador");
+  assert.ok(appSrc.includes('if (state.vista === "catalogo") renderizarCatalogo();'), "al llegar la información se vuelve a pintar el catálogo");
+  assert.ok(appSrc.includes('className: "insignia-descuento"') && appSrc.includes("insigniaDescuento(prod)"), "insignia -X% sobre la foto");
+  assert.ok(appSrc.includes('el("s", { className: "precio-antes" }') && appSrc.includes("formatearUsd(antes)"), "precio anterior tachado con formatearUsd");
+  assert.ok(appSrc.includes('"tarjeta-descuento"') && appSrc.includes("ficha-compra-descuento"), "tarjeta y ficha marcan el descuento");
+  // Bloque de movimiento reducido: cualquier @media (prefers-reduced-motion) cuyo cuerpo contenga el pulso
+  const bloques: string[] = [];
+  const inicioMedia = /@media \(prefers-reduced-motion: reduce\)\s*\{/g;
+  let m: RegExpExecArray | null;
+  while ((m = inicioMedia.exec(cssSrc)) !== null) {
+    let profundidad = 1;
+    let i = m.index + m[0].length;
+    while (i < cssSrc.length && profundidad > 0) {
+      if (cssSrc[i] === "{") profundidad++;
+      if (cssSrc[i] === "}") profundidad--;
+      i++;
+    }
+    bloques.push(cssSrc.slice(m.index, i));
+  }
+  const bloquePulso = bloques.find((b) => b.includes(".tarjeta-descuento::after"));
+  assert.ok(bloquePulso, "el pulso tiene un bloque prefers-reduced-motion propio");
+  assert.ok(/display:\s*none/.test(bloquePulso!) && /animation:\s*none/.test(bloquePulso!), "el bloque desactiva el pulso");
+  const reglaPulso = cssSrc.match(/\.tarjeta-descuento::after\s*\{[^}]*\}/);
+  assert.ok(reglaPulso && reglaPulso[0].includes("animation: pulso-descuento 2.4s ease-out infinite") && reglaPulso[0].includes("pointer-events: none"), "pulso de 2.4 s, ease-out, sin captar toques");
+  assert.ok(cssSrc.includes("@keyframes pulso-descuento") && !bloquePulso!.includes("@keyframes"), "keyframes fuera del bloque de movimiento reducido");
+  assert.ok(cssSrc.includes(".cintillo {") && cssSrc.includes("min-height: 48px") && cssSrc.includes("var(--accion)"), "cintillo con altura mínima 48 px y color de acción");
+  assert.ok(!/\.(cintillo|insignia-descuento|precio-antes)[^{]*\{[^}]*animation/.test(cssSrc), "cintillo, insignia y precio tachado sin animación");
+  console.log("  ✅ Test 15 superado (cintillo con el(), insignia y precio tachado, pulso solo en un bloque que se desactiva con reducir movimiento)");
+
   console.log("\n================================================================================");
-  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (14/14)");
+  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (15/15)");
   console.log("================================================================================\n");
 }
 

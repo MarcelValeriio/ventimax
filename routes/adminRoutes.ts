@@ -236,25 +236,24 @@ module.exports = function (io) {
     authorize(["config:manage"]),
     configAdminController.updateCatalogoConfig,
   );
+  // Cintillo promocional de la tienda (F2g, solo Admin con config:manage)
+  router.get(
+    "/config/banner-tienda",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.getBannerTiendaConfig,
+  );
+  router.put(
+    "/config/banner-tienda",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.updateBannerTiendaConfig,
+  );
   router.get(
     "/config/catalogo/abuso",
     isAuthenticated,
     authorize(["config:manage"]),
     configAdminController.getCatalogoAbuso,
-  );
-
-  // Preguntas frecuentes de la tienda (F2b, Solo Admin con config:manage)
-  router.get(
-    "/config/preguntas-frecuentes",
-    isAuthenticated,
-    authorize(["config:manage"]),
-    configAdminController.getPreguntasFrecuentesConfig,
-  );
-  router.put(
-    "/config/preguntas-frecuentes",
-    isAuthenticated,
-    authorize(["config:manage"]),
-    configAdminController.updatePreguntasFrecuentesConfig,
   );
 
   // Gestión de Categorías (Solo Admin)

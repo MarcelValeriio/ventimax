@@ -1,13 +1,15 @@
 /**
- * scripts/test-preguntas-frecuentes.ts — F2b
- * Preguntas frecuentes de la tienda editables desde el panel y datos públicos (/api/public/info).
+ * scripts/test-preguntas-frecuentes.ts — F2h
+ * Lista única de preguntas frecuentes para el bot y la tienda web (colección FAQ).
  *
- *  - Validador: máximo 12, longitudes (pregunta 3-120, respuesta 0-600), repetidas sin distinguir
- *    mayúsculas, claves extra descartadas, respuesta vacía permitida.
- *  - Sin nada guardado se usan las preguntas de la marca (respuesta vacía).
- *  - GET/PUT /api/admin/config/preguntas-frecuentes: 400 con el motivo, auditoría, solo config:manage.
- *  - GET /api/public/info: lista blanca (sin _id ni datos de cuenta), preguntas vacías ocultas,
- *    retiro con dirección y horario (o horario de atención), a convenir con costo null y Cache-Control.
+ *  - keywordsDePregunta: palabras de 5+ letras, sin tildes, sin palabras vacías, máximo 5; en la migración se
+ *    descartan las del catálogo y las que comparten dos preguntas (el bot responde con cualquier coincidencia).
+ *  - Migración única desde el Setting "preguntasFrecuentes": crea FAQ (estáticas, activas, en la tienda),
+ *    no duplica preguntas (sin mayúsculas ni tildes), no se repite en el segundo arranque, no borra el Setting.
+ *  - listarPreguntasTienda y GET /api/public/info: solo estáticas activas con mostrarEnTienda y respuesta, en orden,
+ *    de la marca; las dinámicas nunca salen.
+ *  - createFaq/updateFaq aceptan mostrarEnTienda; las dinámicas se guardan con false.
+ *  - Los endpoints viejos /api/admin/config/preguntas-frecuentes ya no existen.
  *
  * Uso: NODE_ENV=test npx tsx scripts/test-preguntas-frecuentes.ts
  */
@@ -19,15 +21,10 @@ process.env.BRAND_NAME = "ventimax";
 process.env.JWT_SECRET = "x".repeat(40);
 
 const express = require("express");
-const fs = require("node:fs");
-const path = require("node:path");
 const dbLocal = require("../services/dbLocal");
-const { validarPreguntasFrecuentes } = require("../services/configValidators");
 const preguntasService = require("../services/preguntasFrecuentesService");
-const { getPreguntasFrecuentesConfig, updatePreguntasFrecuentesConfig } = require("../controllers/configAdminController");
-const { authorize } = require("../middlewares/auth");
-const PERMISSIONS = require("../data/permissions");
-const { formatearHorarioAtencion } = require("../services/horarioService");
+const adminController = require("../controllers/adminController");
+const configAdminController = require("../controllers/configAdminController");
 
 let superadas = 0;
 async function prueba(nombre: string, fn: () => Promise<void> | void) {
@@ -45,15 +42,29 @@ function mockRes() {
   return { res, out };
 }
 
-function limpiarSetting(key: string) {
+function limpiar() {
   const data = dbLocal.read();
+  data.faqs = [];
   if (data.settings) {
-    delete data.settings[key];
-    dbLocal.write(data);
+    delete data.settings["preguntasFrecuentes"];
+    delete data.settings["preguntasFrecuentesMigradas"];
   }
+  dbLocal.write(data);
 }
 
-/** App Express con el router público montado igual que en index.ts (trust proxy 1). */
+function faqModel() {
+  return dbLocal.getFAQModel();
+}
+
+function settingModel() {
+  return dbLocal.getSettingModel();
+}
+
+async function todasLasFaq(): Promise<any[]> {
+  return (await faqModel().find({})) || [];
+}
+
+/** App Express con el router público montado igual que en index.ts. */
 function crearApp() {
   delete require.cache[require.resolve("../routes/publicRoutes")];
   delete require.cache[require.resolve("../controllers/publicController")];
@@ -74,223 +85,162 @@ async function conServidor(fn: (baseUrl: string) => Promise<void>) {
   }
 }
 
-const SECRETO_CUENTA = "0102-SECRETO-99887766";
-const SECRETO_CORREO = "pagos-privados@ejemplo.test";
-
 async function run() {
   console.log("================================================================================");
-  console.log("❓ SUITE DE PRUEBAS: PREGUNTAS FRECUENTES DE LA TIENDA (F2b)");
+  console.log("❓ SUITE DE PRUEBAS: LISTA ÚNICA DE PREGUNTAS FRECUENTES (F2h)");
   console.log("================================================================================");
 
-  limpiarSetting("preguntasFrecuentes");
-  preguntasService.invalidatePreguntasFrecuentesCache();
+  limpiar();
 
   // --------------------------------------------------------------------------
-  await prueba("Validador: rechaza más de 12, longitudes, repetidas y formatos incorrectos", () => {
-    const pregunta = (texto: string, respuesta = "") => ({ pregunta: texto, respuesta });
-    const doce = Array.from({ length: 12 }, (_, i) => pregunta(`Pregunta número ${i + 1}`));
-    assert.strictEqual(validarPreguntasFrecuentes({ items: doce }).ok, true, "12 preguntas deben ser válidas");
-
-    const trece = [...doce, pregunta("Pregunta número 13")];
-    const malos: any[] = [
-      null,
-      [],
-      { items: "no es lista" },
-      { items: trece },
-      { items: [pregunta("ab")] },
-      { items: [pregunta("x".repeat(121))] },
-      { items: [pregunta("¿Hay garantía?", "x".repeat(601))] },
-      { items: [pregunta("¿Hay garantía?"), pregunta("¿HAY GARANTÍA?".toLowerCase())] },
-      { items: [pregunta("¿Hay garantía?"), pregunta("  ¿hay garantía?  ")] },
-      { items: [123] },
-      { items: [{ pregunta: 55, respuesta: "" }] },
-      { items: [{ pregunta: "¿Cuánto tarda?", respuesta: 7 }] },
-    ];
-    for (const m of malos) {
-      assert.strictEqual(validarPreguntasFrecuentes(m).ok, false, `debería rechazar ${JSON.stringify(m)}`);
-    }
+  await prueba("keywordsDePregunta: 5+ letras, sin tildes, sin palabras vacías, máximo 5, sin repetir, con exclusiones", () => {
+    assert.deepStrictEqual(preguntasService.keywordsDePregunta("¿Los ventiladores tienen garantía?"), ["ventiladores", "garantia"]);
+    assert.deepStrictEqual(preguntasService.keywordsDePregunta("¿Cuánto tarda la entrega?"), ["tarda", "entrega"]);
+    assert.deepStrictEqual(preguntasService.keywordsDePregunta("¿Entregan factura o nota de entrega?"), ["entregan", "factura", "entrega"], "\"nota\" (4 letras) aparece dentro de otras palabras");
+    assert.deepStrictEqual(preguntasService.keywordsDePregunta("¿Los ventiladores tienen garantía?", ["venti"]), ["garantia"], "una raíz del catálogo se excluye");
+    assert.deepStrictEqual(preguntasService.keywordsDePregunta("¿Hacen envíos a Maracaibo, Valencia, Barquisimeto y Mérida?"), ["envios", "maracaibo", "valencia", "barquisimeto", "merida"]);
+    assert.deepStrictEqual(preguntasService.keywordsDePregunta("¿Y eso es?"), []);
   });
 
-  await prueba("Validador: descarta claves extra, recorta espacios y permite respuesta vacía", () => {
-    const r = validarPreguntasFrecuentes({
-      items: [
-        { pregunta: "  ¿Entregan factura?  ", respuesta: " Sí, nota de entrega. ", _id: "abc", extra: 1 },
-        { pregunta: "¿Hay garantía?", respuesta: "" },
-      ],
-    });
-    assert.strictEqual(r.ok, true);
-    assert.deepStrictEqual(Object.keys(r.value.items[0]).sort(), ["pregunta", "respuesta"]);
-    assert.strictEqual(r.value.items[0].pregunta, "¿Entregan factura?");
-    assert.strictEqual(r.value.items[0].respuesta, "Sí, nota de entrega.");
-    assert.strictEqual(r.value.items[1].respuesta, "");
-  });
+  // --------------------------------------------------------------------------
+  await prueba("Migración: crea FAQ de la tienda, no duplica (sin mayúsculas ni tildes), deja el Setting y no se repite", async () => {
+    // Ya existe una FAQ con la misma pregunta escrita distinta (mayúsculas y tilde): no debe duplicarse
+    await faqModel().create({ pregunta: "¿CUANTO TARDA LA ENTREGA?", respuesta: "Ya existente", type: "estatica", activo: true, order: 0, brand: "default" });
 
-  await prueba("Sin nada guardado se usan las 3 preguntas de la marca, con respuesta vacía", async () => {
-    const pf = await preguntasService.getPreguntasFrecuentes();
-    assert.deepStrictEqual(
-      pf.items.map((i: any) => i.pregunta),
-      ["¿Los ventiladores tienen garantía?", "¿Cuánto tarda la entrega?", "¿Entregan factura o nota de entrega?"],
-    );
-    assert.ok(pf.items.every((i: any) => i.respuesta === ""));
-  });
-
-  await prueba("GET /api/admin/config/preguntas-frecuentes devuelve la lista", async () => {
-    const { res, out } = mockRes();
-    await getPreguntasFrecuentesConfig({} as any, res);
-    assert.strictEqual(out.status, 200);
-    assert.strictEqual(out.json.success, true);
-    assert.strictEqual(out.json.preguntas.items.length, 3);
-  });
-
-  await prueba("PUT inválido devuelve 400 con el motivo y no guarda", async () => {
-    const antes = preguntasService.getPreguntasFrecuentesSync().items.length;
-    const { res, out } = mockRes();
-    await updatePreguntasFrecuentesConfig({
-      body: { items: [{ pregunta: "¿Hay garantía?" }, { pregunta: "¿hay GARANTÍA?" }] },
-      user: { user: "admin", role: "admin" },
-    } as any, res);
-    assert.strictEqual(out.status, 400);
-    assert.ok(String(out.json.error).includes("repetida"), out.json.error);
-    assert.strictEqual(preguntasService.getPreguntasFrecuentesSync().items.length, antes);
-  });
-
-  await prueba("PUT válido guarda, registra auditoría y se lee sin reiniciar", async () => {
-    const Auditoria = dbLocal.getAuditoriaModel();
-    const antes = (await Auditoria.find({ recursoId: "preguntasFrecuentes" })).length;
-    const { res, out } = mockRes();
-    await updatePreguntasFrecuentesConfig({
-      body: {
-        items: [
-          { pregunta: "¿Los ventiladores tienen garantía?", respuesta: "Sí, 6 meses por defecto de fábrica." },
-          { pregunta: "¿Cuánto tarda la entrega?", respuesta: "" },
-        ],
+    await settingModel().findOneAndUpdate(
+      { key: "preguntasFrecuentes" },
+      {
+        key: "preguntasFrecuentes",
+        value: {
+          items: [
+            { pregunta: "¿Los ventiladores tienen garantía?", respuesta: "Sí, 6 meses." },
+            { pregunta: "¿Cuánto tarda la entrega?", respuesta: "Entre 1 y 3 días hábiles." },
+            { pregunta: "¿Entregan factura o nota de entrega?", respuesta: "Entregamos nota de entrega." },
+            { pregunta: "¿Tienen otra cosa?", respuesta: "" },
+          ],
+        },
       },
-      user: { user: "admin", role: "admin" },
-    } as any, res);
-    assert.strictEqual(out.status, 200, JSON.stringify(out.json));
-    assert.strictEqual(out.json.preguntas.items.length, 2);
-    const despues = (await Auditoria.find({ recursoId: "preguntasFrecuentes" })).length;
-    assert.strictEqual(despues, antes + 1, "debe quedar una entrada de auditoría");
-    assert.strictEqual(preguntasService.getPreguntasFrecuentesSync().items[0].respuesta, "Sí, 6 meses por defecto de fábrica.");
+      { upsert: true },
+    );
+
+    // Un producto con "Ventilador" en el nombre: esa palabra no puede quedar como palabra clave de la garantía
+    await require("../services/dbLocal").getProductoModel().create({ id: "prueba-vent", name: "Ventilador de pared 16", price: 30, activo: true });
+
+    const creadas = await preguntasService.migrarPreguntasTienda();
+    assert.strictEqual(creadas, 2, "garantía y factura; la de entrega ya existía y la vacía se descarta");
+
+    const faqs = await todasLasFaq();
+    assert.strictEqual(faqs.length, 3, "1 existente + 2 migradas");
+    const garantia = faqs.find((f) => f.pregunta === "¿Los ventiladores tienen garantía?");
+    assert.ok(garantia, "la FAQ de garantía existe");
+    assert.strictEqual(garantia.brand, "default");
+    assert.strictEqual(garantia.type, "estatica");
+    assert.strictEqual(garantia.activo, true);
+    assert.strictEqual(garantia.mostrarEnTienda, true);
+    assert.strictEqual(garantia.respuesta, "Sí, 6 meses.");
+    assert.deepStrictEqual(garantia.keywords, ["garantia"], "\"ventiladores\" está en el catálogo: respondería la garantía a cualquier consulta de productos");
+    assert.strictEqual(garantia.order, 1, "después de la existente (order 0)");
+
+    const factura = faqs.find((f) => f.pregunta === "¿Entregan factura o nota de entrega?");
+    assert.deepStrictEqual(factura.keywords, ["factura"], "\"entrega\" la comparte con otra pregunta migrada");
+    assert.strictEqual(factura.order, 2);
+
+    assert.ok(await settingModel().findOne({ key: "preguntasFrecuentes" }), "el Setting viejo no se borra");
+    const bandera = await settingModel().findOne({ key: "preguntasFrecuentesMigradas" });
+    assert.strictEqual(bandera.value, true);
+
+    // Segundo arranque: no hace nada
+    const segunda = await preguntasService.migrarPreguntasTienda();
+    assert.strictEqual(segunda, null);
+    assert.strictEqual((await todasLasFaq()).length, 3, "no se duplica nada");
   });
 
-  await prueba("Solo config:manage puede leer o cambiar las preguntas", () => {
-    const probar = (user: any) => {
-      let status = 200;
-      let siguio = false;
-      const res: any = { status: (s: number) => { status = s; return res; }, json: () => res };
-      authorize(["config:manage"])({ user } as any, res, () => { siguio = true; });
-      return { status, siguio };
-    };
-    const conRol = (role: string) => ({ user: role, role, permissions: PERMISSIONS[role] });
-    assert.strictEqual(probar(conRol("admin")).siguio, true);
-    assert.strictEqual(probar(conRol("cajero")).status, 403);
-    assert.strictEqual(probar(conRol("repartidor")).status, 403);
-    assert.strictEqual(probar(undefined).status, 401);
-
-    const rutas = fs.readFileSync(path.join(__dirname, "../routes/adminRoutes.ts"), "utf8");
-    assert.ok(rutas.includes('"/config/preguntas-frecuentes"'), "la ruta debe existir en adminRoutes");
-    const bloque = rutas.slice(rutas.indexOf('"/config/preguntas-frecuentes"'), rutas.indexOf('"/config/preguntas-frecuentes"') + 400);
-    assert.ok(bloque.includes('authorize(["config:manage"])'), "las dos rutas deben exigir config:manage");
+  await prueba("Migración: sin Setting no marca nada (se reintenta al siguiente arranque)", async () => {
+    const data = dbLocal.read();
+    delete data.settings["preguntasFrecuentes"];
+    delete data.settings["preguntasFrecuentesMigradas"];
+    dbLocal.write(data);
+    assert.strictEqual(await preguntasService.migrarPreguntasTienda(), null);
+    assert.strictEqual(await settingModel().findOne({ key: "preguntasFrecuentesMigradas" }), null);
   });
 
   // --------------------------------------------------------------------------
-  // Datos para /api/public/info
-  // --------------------------------------------------------------------------
-  const data = dbLocal.read();
-  data.metodosPago = [
-    { _id: "pago-1", tipo: "transferencia", nombre: "Transferencia", detalles: { cuenta: SECRETO_CUENTA, correo: SECRETO_CORREO }, notaAdicional: "", activo: true },
-    { _id: "pago-2", tipo: "pago_movil", nombre: "Pago Móvil", detalles: { telefono: "0414-0000000", cedula: "V-1" }, notaAdicional: "", activo: true },
-    { _id: "pago-3", tipo: "zelle", nombre: "Zelle (inactivo)", detalles: { correo: SECRETO_CORREO }, notaAdicional: "", activo: false },
-  ];
-  data.metodosEnvio = [
-    { _id: "env-1", nombre: "Delivery Caracas", tipo: "delivery_local", descripcion: "El costo depende de la zona", costoTipo: "a_convenir", costo: 0, pideDatos: "", direccion: "", horario: "", activo: true, orden: 1, createdAt: new Date(1) },
-    { _id: "env-2", nombre: "Envío nacional", tipo: "envio_nacional", descripcion: "Por agencia", costoTipo: "fijo", costo: 5, pideDatos: "", direccion: "", horario: "", activo: true, orden: 2, createdAt: new Date(2) },
-    { _id: "env-3", nombre: "Retiro en Catia", tipo: "retiro", descripcion: "En persona", costoTipo: "fijo", costo: 0, pideDatos: "", direccion: "Av. Sucre de Catia", horario: "", activo: true, orden: 3, createdAt: new Date(3) },
-    { _id: "env-4", nombre: "Retiro con horario", tipo: "retiro", descripcion: "", costoTipo: "fijo", costo: 0, pideDatos: "", direccion: "Punto alterno", horario: "Sábados de 10 am a 2 pm", activo: true, orden: 4, createdAt: new Date(4) },
-    { _id: "env-5", nombre: "Otro desactivado", tipo: "otro", descripcion: "", costoTipo: "fijo", costo: 9, pideDatos: "", direccion: "", horario: "", activo: false, orden: 0, createdAt: new Date(0) },
-  ];
-  dbLocal.write(data);
+  // Lista para la tienda: solo estáticas activas con mostrarEnTienda y respuesta, en orden, de la marca
+  limpiar();
+  await faqModel().create({ pregunta: "Pregunta C tercera", respuesta: "C", type: "estatica", activo: true, mostrarEnTienda: true, order: 9, brand: "default" });
+  await faqModel().create({ pregunta: "Pregunta A primera", respuesta: "A", type: "estatica", activo: true, mostrarEnTienda: true, order: 1, brand: "default" });
+  await faqModel().create({ pregunta: "Pregunta B dinámica", respuesta: "", type: "dinamica", dynamicKey: "sabores", activo: true, mostrarEnTienda: true, order: 2, brand: "default" });
+  await faqModel().create({ pregunta: "Pregunta D sin marcar", respuesta: "D", type: "estatica", activo: true, mostrarEnTienda: false, order: 3, brand: "default" });
+  await faqModel().create({ pregunta: "Pregunta E inactiva", respuesta: "E", type: "estatica", activo: false, mostrarEnTienda: true, order: 4, brand: "default" });
+  await faqModel().create({ pregunta: "Pregunta F sin respuesta", respuesta: "", type: "estatica", activo: true, mostrarEnTienda: true, order: 5, brand: "default" });
+  await faqModel().create({ pregunta: "Pregunta G otra marca", respuesta: "G", type: "estatica", activo: true, mostrarEnTienda: true, order: 6, brand: "otra" });
 
-  await preguntasService.setPreguntasFrecuentes({
-    items: [
-      { pregunta: "¿Los ventiladores tienen garantía?", respuesta: "Sí, 6 meses." },
-      { pregunta: "¿Cuánto tarda la entrega?", respuesta: "" },
-      { pregunta: "¿Entregan factura o nota de entrega?", respuesta: "Entregamos nota de entrega." },
-    ],
+  await prueba("listarPreguntasTienda: solo estáticas activas marcadas con respuesta, en orden y de la marca", async () => {
+    const lista = await preguntasService.listarPreguntasTienda();
+    assert.deepStrictEqual(lista, [
+      { pregunta: "Pregunta A primera", respuesta: "A" },
+      { pregunta: "Pregunta C tercera", respuesta: "C" },
+    ]);
   });
 
-  await conServidor(async (baseUrl) => {
-    await prueba("GET /api/public/info: cabecera Cache-Control y lista blanca exacta", async () => {
+  await prueba("GET /api/public/info trae la misma lista en 'preguntas' y sigue sin datos de cuenta", async () => {
+    await conServidor(async (baseUrl) => {
       const res = await fetch(`${baseUrl}/api/public/info`);
       assert.strictEqual(res.status, 200);
-      assert.strictEqual(res.headers.get("cache-control"), "public, max-age=300");
-      const json = await res.json();
-      assert.deepStrictEqual(Object.keys(json), ["preguntas", "pagos", "envios", "horario"]);
-    });
-
-    await prueba("Preguntas: solo las que tienen respuesta, en orden", async () => {
-      const json = await (await fetch(`${baseUrl}/api/public/info`)).json();
+      const json: any = await res.json();
+      assert.deepStrictEqual(Object.keys(json), ["preguntas", "pagos", "envios", "horario", "banner"]);
       assert.deepStrictEqual(json.preguntas, [
-        { pregunta: "¿Los ventiladores tienen garantía?", respuesta: "Sí, 6 meses." },
-        { pregunta: "¿Entregan factura o nota de entrega?", respuesta: "Entregamos nota de entrega." },
+        { pregunta: "Pregunta A primera", respuesta: "A" },
+        { pregunta: "Pregunta C tercera", respuesta: "C" },
       ]);
     });
-
-    await prueba("Pagos: solo nombres de métodos activos, sin cuentas, cédulas ni correos", async () => {
-      const json = await (await fetch(`${baseUrl}/api/public/info`)).json();
-      assert.deepStrictEqual(json.pagos, ["Transferencia", "Pago Móvil"]);
-      const texto = JSON.stringify(json);
-      assert.ok(!texto.includes(SECRETO_CUENTA), "no debe salir el número de cuenta");
-      assert.ok(!texto.includes(SECRETO_CORREO), "no debe salir el correo de cobro");
-      assert.ok(!texto.includes("0414-0000000"), "no debe salir el teléfono de Pago Móvil");
-      assert.ok(!texto.includes("cedula") && !texto.includes("V-1"), "no debe salir la cédula");
-    });
-
-    await prueba("Envíos: activos por orden, a convenir con costo null, fijo con costo, sin _id", async () => {
-      const json = await (await fetch(`${baseUrl}/api/public/info`)).json();
-      assert.strictEqual(json.envios.length, 4, "el método desactivado no sale");
-      assert.deepStrictEqual(json.envios.map((m: any) => m.nombre), ["Delivery Caracas", "Envío nacional", "Retiro en Catia", "Retiro con horario"]);
-      for (const m of json.envios) {
-        // id: para que la tienda envíe el método elegido (F2c, el servidor lo revalida); pideDatos: etiqueta del campo
-        assert.deepStrictEqual(Object.keys(m).sort(), ["aConvenir", "cobroADestino", "costo", "descripcion", "direccion", "empresas", "horario", "id", "nombre", "pideDatos", "tipo"].sort());
-      }
-      const delivery = json.envios[0];
-      assert.strictEqual(delivery.aConvenir, true);
-      assert.strictEqual(delivery.costo, null);
-      assert.strictEqual(delivery.direccion, null, "solo los retiros tienen dirección");
-      assert.strictEqual(delivery.horario, null);
-      const nacional = json.envios[1];
-      assert.strictEqual(nacional.aConvenir, false);
-      assert.strictEqual(nacional.costo, 5);
-      assert.ok(!JSON.stringify(json).includes('"_id"'), "sin _id");
-    });
-
-    await prueba("Retiro: dirección del punto; horario vacío usa el de atención; horario propio se muestra", async () => {
-      const json = await (await fetch(`${baseUrl}/api/public/info`)).json();
-      const horarioAtencion = formatearHorarioAtencion();
-      assert.strictEqual(horarioAtencion, "Lunes a Viernes de 9:00 am a 5:00 pm");
-      assert.strictEqual(json.envios[2].direccion, "Av. Sucre de Catia");
-      assert.strictEqual(json.envios[2].horario, horarioAtencion);
-      assert.strictEqual(json.envios[3].horario, "Sábados de 10 am a 2 pm");
-      assert.strictEqual(json.horario, horarioAtencion);
-    });
   });
 
-  await prueba("Sin preguntas con respuesta, la lista pública queda vacía", async () => {
-    await preguntasService.setPreguntasFrecuentes({ items: [{ pregunta: "¿Hay garantía?", respuesta: "" }] });
-    await conServidor(async (baseUrl) => {
-      const json = await (await fetch(`${baseUrl}/api/public/info`)).json();
-      assert.deepStrictEqual(json.preguntas, []);
-    });
+  // --------------------------------------------------------------------------
+  await prueba("createFaq: mostrarEnTienda se guarda en estáticas y se fuerza a false en dinámicas", async () => {
+    const { res, out } = mockRes();
+    await adminController.createFaq({ body: { pregunta: "¿Hacen retiro?", respuesta: "Sí, en Catia.", type: "estatica", mostrarEnTienda: true } } as any, res);
+    assert.strictEqual(out.status, 201, JSON.stringify(out.json));
+    assert.strictEqual(out.json.data.mostrarEnTienda, true);
+
+    const r2 = mockRes();
+    await adminController.createFaq({ body: { pregunta: "¿Qué sabores hay?", type: "dinamica", mostrarEnTienda: true } } as any, r2.res);
+    assert.strictEqual(r2.out.status, 201, JSON.stringify(r2.out.json));
+    assert.strictEqual(r2.out.json.data.mostrarEnTienda, false);
   });
 
-  // Dejar la base de prueba como estaba
-  limpiarSetting("preguntasFrecuentes");
-  preguntasService.invalidatePreguntasFrecuentesCache();
+  await prueba("updateFaq: cambiar a dinámica quita la marca; mostrarEnTienda se puede cambiar en estáticas", async () => {
+    const creada = await faqModel().create({ pregunta: "¿Hay garantía de fábrica?", respuesta: "Sí.", type: "estatica", mostrarEnTienda: true, order: 7, brand: "default" });
+    const id = String(creada._id);
+
+    const r1 = mockRes();
+    await adminController.updateFaq({ params: { id }, body: { mostrarEnTienda: false } } as any, r1.res);
+    assert.strictEqual(r1.out.json.data.mostrarEnTienda, false);
+
+    const r2 = mockRes();
+    await adminController.updateFaq({ params: { id }, body: { type: "dinamica", dynamicKey: "sabores" } } as any, r2.res);
+    assert.strictEqual(r2.out.json.data.type, "dinamica");
+    assert.strictEqual(r2.out.json.data.mostrarEnTienda, false);
+  });
+
+  // --------------------------------------------------------------------------
+  await prueba("Los endpoints viejos /api/admin/config/preguntas-frecuentes ya no existen", () => {
+    const crearRouter = require("../routes/adminRoutes");
+    const io: any = { on() {}, emit() {}, to() { return io; }, use() {} };
+    const router = crearRouter(io);
+    const rutas = (router.stack || [])
+      .filter((layer: any) => layer.route)
+      .map((layer: any) => layer.route.path);
+    assert.ok(!rutas.includes("/config/preguntas-frecuentes"), "la ruta vieja no debe existir");
+    assert.ok(rutas.includes("/faqs"), "la lista única de FAQ sigue en el panel");
+    assert.strictEqual(typeof (configAdminController as any).getPreguntasFrecuentesConfig, "undefined");
+    assert.strictEqual(typeof (configAdminController as any).updatePreguntasFrecuentesConfig, "undefined");
+  });
+
+  limpiar();
 
   console.log("================================================================================");
-  console.log(`🎉 ${superadas} pruebas de preguntas frecuentes superadas.`);
+  console.log(`🎉 ${superadas} pruebas de la lista única de preguntas frecuentes superadas.`);
   console.log("================================================================================");
 }
 

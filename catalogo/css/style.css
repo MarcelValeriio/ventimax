@@ -32,6 +32,8 @@
   --peligro-suave: #fef3f2;
   --exito: #0e7a3e;
   --exito-suave: #e8f5ee;
+  /* Descuentos (F2g): verde propio, distinto del verde de WhatsApp (--wa). Contraste AA con texto blanco */
+  --descuento: #2a7f4f;
 
   --radio: 8px;
   --radio-grande: 12px;
@@ -2227,4 +2229,129 @@ body.con-ayuda.con-barra .pie-interior {
   .carrusel-tira {
     scroll-behavior: auto;
   }
+}
+
+/* ---------------------------------------------------------------------------------------------- */
+/* Descuentos y cintillo promocional (F2g)                                                        */
+/* ---------------------------------------------------------------------------------------------- */
+
+/* Cintillo: banda de color de acción debajo del buscador, con enlace a la ficha si trae producto */
+.cintillo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-height: 48px;
+  margin: 16px 0;
+  padding: 10px 16px;
+  border-radius: var(--radio-grande);
+  background: var(--accion);
+  color: #fff;
+  font-size: 0.9375rem;
+  line-height: 1.3;
+  text-decoration: none;
+}
+
+.cintillo-enlace:hover {
+  background: var(--accion-hover);
+}
+
+.cintillo-enlace:focus-visible {
+  outline: 3px solid var(--tinta);
+  outline-offset: 2px;
+}
+
+.cintillo-texto {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.cintillo-pastilla {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--accion);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cintillo-ver {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-weight: 700;
+}
+
+.cintillo-flecha {
+  width: 18px;
+  height: 18px;
+}
+
+/* Insignia "-X%" sobre la foto (tarjeta y ficha), esquina superior derecha */
+.insignia-descuento {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: var(--descuento);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Precio anterior tachado, debajo del precio vigente */
+.precio-antes {
+  display: block;
+  font-size: 0.9375rem;
+  color: var(--tinta-3);
+  font-variant-numeric: tabular-nums;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+/* Tarjeta con descuento: borde verde de 1 px (también en hover, donde la base lo quita) */
+.tarjeta.tarjeta-descuento,
+.tarjeta.tarjeta-descuento:hover {
+  position: relative;
+  border-color: var(--descuento);
+}
+
+/* Pulso suave: un anillo verde casi transparente que se expande hacia dentro y se desvanece.
+   pointer-events: none para que no estorbe los toques sobre la tarjeta */
+.tarjeta-descuento::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: pulso-descuento 2.4s ease-out infinite;
+}
+
+@keyframes pulso-descuento {
+  0% {
+    box-shadow: inset 0 0 0 0 color-mix(in srgb, var(--descuento) 22%, transparent);
+  }
+  100% {
+    box-shadow: inset 0 0 0 10px color-mix(in srgb, var(--descuento) 0%, transparent);
+  }
+}
+
+/* Con "reducir movimiento" la tarjeta conserva su borde verde y no pulsa */
+@media (prefers-reduced-motion: reduce) {
+  .tarjeta-descuento::after {
+    display: none;
+    animation: none;
+  }
+}
+
+/* Ficha con descuento: mismo borde verde en la caja de compra; sin pulso, para no competir con el botón de compra */
+.ficha-compra.ficha-compra-descuento {
+  border-color: var(--descuento);
 }

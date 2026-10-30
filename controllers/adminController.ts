@@ -65,6 +65,7 @@ const {
 } = require("../services/whatsapp");
 const { formatBs, formatUsd } = require("../utils/helpers");
 const { filtroPorCategoria } = require("../services/catalogQuery");
+const { precioVigente, descuentoVigente } = require("../services/precios");
 const { getPasoLabel } = require("../utils/pasoEmbudo");
 // Definición ÚNICA de `requiereAtencion` (§6.2.1 del contrato del Inbox Unificado).
 // `normalizar` no requiere modelos ni controladores: no genera ciclos.
@@ -282,7 +283,13 @@ const getProducts = async (req, res) => {
       .populate("categorias")
       .sort(sortOption);
 
-    res.json({ success: true, data: products });
+    // Cada producto trae su precio vigente (F2g) y el descuento; el resto de campos no cambia
+    const data = (products || []).map((p) => {
+      const plano = typeof p.toObject === "function" ? p.toObject() : { ...p };
+      return { ...plano, descuentoPct: descuentoVigente(plano), precioVigente: precioVigente(plano) };
+    });
+
+    res.json({ success: true, data });
   } catch (error) {
     console.error("❌ Error en getProducts:", error.message);
     res.status(500).json({
@@ -3536,8 +3543,9 @@ const postManualSale = async (req, res, io) => {
         });
       }
 
-      // Seguridad: el precio se toma SIEMPRE de la base de datos por producto/id, no del cuerpo de la petición
-      item.price = Number(prod.price);
+      // Seguridad: el precio se toma SIEMPRE de la base de datos por producto/id, no del cuerpo de la petición.
+      // Es el precio VIGENTE (con el descuento del producto, F2g)
+      item.price = precioVigente(prod);
       item.producto = prod.name;
       item.id = prod.id;
 
@@ -3970,7 +3978,7 @@ const createFaq = async (req, res) => {
       if (typeof dbLocal.getFAQModel === "function")
         FAQ = dbLocal.getFAQModel();
     }
-    const { pregunta, keywords, respuesta, order, activo, type, dynamicKey } =
+    const { pregunta, keywords, respuesta, order, activo, type, dynamicKey, mostrarEnTienda } =
       req.body;
     if (!pregunta || !pregunta.trim()) {
       return res
@@ -4003,6 +4011,8 @@ const createFaq = async (req, res) => {
       dynamicKey: dynamicKey ? String(dynamicKey).trim() : null,
       order: Number(order) || 0,
       activo: activo !== undefined ? Boolean(activo) : true,
+      // Las dinámicas nunca salen en la tienda (F2h)
+      mostrarEnTienda: faqType === "estatica" && mostrarEnTienda === true,
       brand: "default",
     });
     res.status(201).json({ success: true, data: faq });
@@ -4020,7 +4030,7 @@ const updateFaq = async (req, res) => {
       if (typeof dbLocal.getFAQModel === "function")
         FAQ = dbLocal.getFAQModel();
     }
-    const { pregunta, keywords, respuesta, order, activo, type, dynamicKey } =
+    const { pregunta, keywords, respuesta, order, activo, type, dynamicKey, mostrarEnTienda } =
       req.body;
     const update: any = {};
     if (pregunta !== undefined) update.pregunta = pregunta.trim();
@@ -4031,6 +4041,9 @@ const updateFaq = async (req, res) => {
       update.dynamicKey = dynamicKey ? String(dynamicKey).trim() : null;
     if (order !== undefined) update.order = Number(order) || 0;
     if (activo !== undefined) update.activo = Boolean(activo);
+    // Las dinámicas nunca salen en la tienda (F2h)
+    if (type === "dinamica") update.mostrarEnTienda = false;
+    else if (mostrarEnTienda !== undefined) update.mostrarEnTienda = mostrarEnTienda === true;
     if (keywords !== undefined) {
       update.keywords = Array.isArray(keywords)
         ? keywords.map((k) => String(k).trim()).filter(Boolean)

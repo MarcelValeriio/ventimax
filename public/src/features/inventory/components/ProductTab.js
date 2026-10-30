@@ -15,6 +15,32 @@ import ConfirmModal from "./ConfirmModal.js";
 
 const e = React.createElement;
 
+/**
+ * Precio vigente y descuento de un producto (F2g). `price` es el precio BASE; el servidor manda `precioVigente`
+ * y `descuentoPct`. Si no viene `precioVigente`, se calcula igual que el servidor (services/precios.ts).
+ */
+const precioVigenteDe = (p) => {
+  const base = Number(p.price) || 0;
+  const pct = Number(p.descuentoPct) || 0;
+  const vigente = typeof p.precioVigente === "number"
+    ? p.precioVigente
+    : Math.round(base * (100 - pct)) / 100;
+  return { base, pct, vigente };
+};
+
+/** Hijos del precio en USD del listado: precio vigente, insignia verde "-X%" y precio base tachado. */
+const precioUsdHijos = (p) => {
+  const { base, pct, vigente } = precioVigenteDe(p);
+  const hijos = [`$${vigente.toFixed(2)}`];
+  if (pct > 0) {
+    hijos.push(
+      e("span", { className: "ml-2 px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-black" }, `-${pct}%`),
+      e("span", { className: "ml-2 text-xs font-normal text-gray-400 line-through" }, `$${base.toFixed(2)}`),
+    );
+  }
+  return hijos;
+};
+
 // Componente Modal de Categorías (Componente Funcional Estricto)
 const CategoriesModal = ({
   isOpen,
@@ -374,6 +400,7 @@ const ProductTab = () => {
     id: "",
     name: "",
     price: "",
+    descuentoPct: 0,
     description: "",
     categoria: "",
     stock: "",
@@ -479,6 +506,7 @@ const ProductTab = () => {
         id: product.id,
         name: product.name,
         price: product.price,
+        descuentoPct: product.descuentoPct ?? 0,
         description: product.description || "",
         categoria:
           product.categoria?._id ||
@@ -498,6 +526,7 @@ const ProductTab = () => {
         id: "",
         name: "",
         price: "",
+        descuentoPct: 0,
         description: "",
         categoria: categorias[0]?._id || "",
         categorias: [],
@@ -590,14 +619,22 @@ const ProductTab = () => {
 
   const handleSave = async (ev) => {
     if (ev) ev.preventDefault();
+    // Descuento: vacío = 0; solo enteros de 0 a 90
+    const pctTexto = String(formData.descuentoPct ?? "").trim();
+    const descuentoPct = pctTexto === "" ? 0 : Number(pctTexto);
+    if (!Number.isInteger(descuentoPct) || descuentoPct < 0 || descuentoPct > 90) {
+      window.showToast?.("El descuento debe ser un número entero entre 0 y 90.", "error");
+      return;
+    }
+    const payload = { ...formData, descuentoPct };
     try {
       if (editingProduct) {
         await apiClient.put(
           `/api/admin/products/${editingProduct.id}`,
-          formData,
+          payload,
         );
       } else {
-        await apiClient.post("/api/admin/products", formData);
+        await apiClient.post("/api/admin/products", payload);
       }
       handleCloseModal();
       fetchInventory();
@@ -862,6 +899,43 @@ const ProductTab = () => {
                   className:
                     "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all",
                 }),
+              ),
+              // Descuento (%) y vista previa del precio vigente
+              e(
+                "div",
+                null,
+                e(
+                  "label",
+                  {
+                    className:
+                      "block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1",
+                  },
+                  "Descuento (%)",
+                ),
+                e("input", {
+                  type: "number",
+                  step: "1",
+                  min: "0",
+                  max: "90",
+                  inputMode: "numeric",
+                  value: formData.descuentoPct,
+                  onChange: (ev) =>
+                    setFormData({ ...formData, descuentoPct: ev.target.value }),
+                  placeholder: "0",
+                  className:
+                    "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all",
+                }),
+                (() => {
+                  const pct = Number(String(formData.descuentoPct ?? "").trim() || 0);
+                  const base = Number(formData.price);
+                  if (!(pct > 0) || !(base > 0) || pct > 90) return null;
+                  const vigente = Math.round(base * (100 - pct)) / 100;
+                  return e(
+                    "p",
+                    { className: "mt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400" },
+                    `Precio con descuento: $${vigente.toFixed(2)} (antes $${base.toFixed(2)})`,
+                  );
+                })(),
               ),
               // Stock Toggle + Field
               e(
@@ -1312,7 +1386,7 @@ const ProductTab = () => {
                       className:
                         "font-bold text-emerald-600 dark:text-emerald-400",
                     },
-                    `$${Number(p.price).toFixed(2)}`,
+                    ...precioUsdHijos(p),
                   ),
                 ),
                 bcvRate > 0 &&
@@ -1332,7 +1406,7 @@ const ProductTab = () => {
                       {
                         className: "font-bold text-gray-700 dark:text-gray-200",
                       },
-                      `Bs. ${(p.price * bcvRate).toLocaleString("es-VE", { minimumFractionDigits: 2 })}`,
+                      `Bs. ${(precioVigenteDe(p).vigente * bcvRate).toLocaleString("es-VE", { minimumFractionDigits: 2 })}`,
                     ),
                   ),
                 e(
@@ -1501,7 +1575,7 @@ const ProductTab = () => {
                       className:
                         "px-6 py-4 text-emerald-600 dark:text-emerald-400 font-bold",
                     },
-                    `$${Number(p.price).toFixed(2)}`,
+                    ...precioUsdHijos(p),
                   ),
                   e(
                     "td",
@@ -1510,7 +1584,7 @@ const ProductTab = () => {
                         "px-6 py-4 text-gray-700 dark:text-gray-200 font-bold",
                     },
                     bcvRate > 0
-                      ? `Bs. ${(p.price * bcvRate).toLocaleString("es-VE", { minimumFractionDigits: 2 })}`
+                      ? `Bs. ${(precioVigenteDe(p).vigente * bcvRate).toLocaleString("es-VE", { minimumFractionDigits: 2 })}`
                       : "Cargando...",
                   ),
                   e(

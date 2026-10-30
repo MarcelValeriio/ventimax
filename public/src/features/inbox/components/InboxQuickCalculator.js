@@ -6,6 +6,16 @@ import apiClient from "../../../services/apiClient.js?v=6";
 
 const e = React.createElement;
 
+/** Precio vigente y descuento de un producto (F2g): `price` es el base; se usa `precioVigente` si el servidor lo manda. */
+const precioVigenteDe = (p) => {
+  const base = Number(p.price) || 0;
+  const pct = Number(p.descuentoPct) || 0;
+  const vigente = typeof p.precioVigente === "number"
+    ? p.precioVigente
+    : Math.round(base * (100 - pct)) / 100;
+  return { base, pct, vigente };
+};
+
 let rowCounter = 0;
 const generateRowId = () => `row-${Date.now()}-${++rowCounter}`;
 
@@ -95,7 +105,8 @@ const InboxQuickCalculator = ({ onFillInput }) => {
                 categoriesMap.set(key, {
                   id: catId,
                   name: catName,
-                  price: Number(p.price || 0),
+                  price: precioVigenteDe(p).vigente,
+                  descuentoPct: precioVigenteDe(p).pct,
                   emoji: (c?.emoji || p.emoji || "").trim(),
                   trackStock: p.trackStock,
                   stock: p.stock,
@@ -429,10 +440,11 @@ const InboxQuickCalculator = ({ onFillInput }) => {
                           categories.map((cat) => {
                             const emoji = cat.emoji ? `${cat.emoji} ` : "";
                             const catPrice = Number(cat.price || 0).toFixed(2);
+                            const descuento = cat.descuentoPct > 0 ? ` -${cat.descuentoPct}%` : "";
                             return e(
                               "option",
                               { key: cat.id, value: cat.id },
-                              `${emoji}${cat.name} ($${catPrice})${cat.trackStock ? ` - Stock: ${cat.stock}` : ''}`,
+                              `${emoji}${cat.name} ($${catPrice}${descuento})${cat.trackStock ? ` - Stock: ${cat.stock}` : ''}`,
                             );
                           }),
                         ),

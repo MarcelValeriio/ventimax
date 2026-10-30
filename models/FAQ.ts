@@ -13,6 +13,8 @@ const FAQSchema = new Schema<IFAQ>(
     type: { type: String, enum: ["estatica", "dinamica"], default: "estatica" },
     dynamicKey: { type: String, default: null, trim: true },
     activo: { type: Boolean, default: true },
+    // Solo las estáticas activas con este interruptor salen en la tienda web (F2h)
+    mostrarEnTienda: { type: Boolean, default: false },
     order: { type: Number, default: 0 },
     brand: { type: String, default: "default" },
   },

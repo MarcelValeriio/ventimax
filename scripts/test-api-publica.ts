@@ -240,10 +240,12 @@ async function main() {
       const whitelistKeys = [
         "categorias",
         "descripcion",
+        "descuentoPct",
         "disponible",
         "id",
         "imagenes",
         "nombre",
+        "precioAntesUsd",
         "precioBs",
         "precioUsd",
       ].sort();

@@ -4,7 +4,9 @@ import { IProducto } from "../types/models";
 const productoSchema = new Schema<IProducto>({
   id: { type: String, required: true, unique: true }, // Cambiado a String para soportar 'prod-001'
   name: { type: String, required: true }, // Cambiado de 'nombre' a 'name'
-  price: { type: Number, required: true }, // Cambiado de 'precio' a 'price'
+  price: { type: Number, required: true }, // Precio BASE. El vigente lo calcula services/precios.ts
+  // Descuento por producto (F2g): entero de 0 a 90. 0 = sin descuento
+  descuentoPct: { type: Number, min: 0, max: 90, default: 0 },
   description: { type: String }, // Nuevo campo
   emoji: { type: String },
   imagenes: {

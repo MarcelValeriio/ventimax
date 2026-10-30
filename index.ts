@@ -430,6 +430,11 @@ mongoose
     await initCatalogoConfig();
     console.log("✅ Configuración del catálogo web inicializada");
 
+    // Cintillo promocional de la tienda (F2g): la API pública lo lee de memoria
+    const { init: initBannerTienda } = require("./services/bannerTiendaService");
+    await initBannerTienda();
+    console.log("✅ Cintillo de la tienda inicializado");
+
     // Preguntas frecuentes de la tienda (F2b): la API pública las lee de memoria
     const { init: initPreguntasFrecuentes } = require("./services/preguntasFrecuentesService");
     await initPreguntasFrecuentes();

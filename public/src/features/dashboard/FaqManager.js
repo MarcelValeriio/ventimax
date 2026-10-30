@@ -6,6 +6,10 @@ import ConfirmModal from "../inventory/components/ConfirmModal.js";
 
 const e = React.createElement;
 
+/** Se muestra en la tienda web: estática, activa, con respuesta y marcada (F2h). Igual que listarPreguntasTienda del servidor. */
+const seMuestraEnTienda = (faq) =>
+  faq.type !== "dinamica" && faq.activo !== false && faq.mostrarEnTienda === true && String(faq.respuesta || "").trim() !== "";
+
 /**
  * FaqManager — Panel de Administración de Preguntas Frecuentes (FAQs)
  * Permite configurar respuestas automáticas locales por palabras clave (estáticas o dinámicas por inventario).
@@ -23,6 +27,7 @@ const FaqManager = ({ onBack }) => {
     type: "estatica",
     dynamicKey: "",
     activo: true,
+    mostrarEnTienda: false,
     order: 0,
   });
   const [saving, setSaving] = useState(false);
@@ -59,6 +64,7 @@ const FaqManager = ({ onBack }) => {
       type: "estatica",
       dynamicKey: "",
       activo: true,
+      mostrarEnTienda: false,
       order: faqs.length,
     });
     setShowForm(true);
@@ -73,6 +79,7 @@ const FaqManager = ({ onBack }) => {
       type: faq.type || "estatica",
       dynamicKey: faq.dynamicKey || (faq.type === "dinamica" ? "sabores" : ""),
       activo: faq.activo !== false,
+      mostrarEnTienda: faq.mostrarEnTienda === true,
       order: faq.order || 0,
     });
     setShowForm(true);
@@ -102,6 +109,8 @@ const FaqManager = ({ onBack }) => {
       type: form.type,
       dynamicKey: form.type === "dinamica" ? (form.dynamicKey.trim() || "sabores") : null,
       activo: Boolean(form.activo),
+      // Las dinámicas nunca salen en la tienda
+      mostrarEnTienda: form.type === "estatica" && Boolean(form.mostrarEnTienda),
       order: Number(form.order) || 0,
     };
 
@@ -263,6 +272,13 @@ const FaqManager = ({ onBack }) => {
               e("span", {
                 className: `px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${faq.activo !== false ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`,
               }, faq.activo !== false ? "Activo" : "Inactivo"),
+              seMuestraEnTienda(faq) && e("span", {
+                title: "Esta pregunta sale en la tienda web",
+                className: "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border border-teal-200 dark:border-teal-800/50 flex items-center gap-1",
+              }, [
+                e(Icono, { nombre: "store", className: "text-[9px]", "aria-hidden": "true" }),
+                "Tienda",
+              ]),
             ]),
             // Keywords
             e("div", { className: "flex items-center gap-1.5 flex-wrap" }, [
@@ -344,7 +360,12 @@ const FaqManager = ({ onBack }) => {
             e("label", { className: "block text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider" }, "Tipo de Respuesta"),
             e("select", {
               value: form.type,
-              onChange: (ev) => setForm({ ...form, type: ev.target.value, dynamicKey: ev.target.value === "dinamica" ? "sabores" : "" }),
+              onChange: (ev) => setForm({
+                ...form,
+                type: ev.target.value,
+                dynamicKey: ev.target.value === "dinamica" ? "sabores" : "",
+                mostrarEnTienda: ev.target.value === "estatica" ? form.mostrarEnTienda : false,
+              }),
               className: "w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-teal-500 transition",
             }, [
               e("option", { value: "estatica" }, "Estática (Texto Fijo)"),
@@ -407,6 +428,28 @@ const FaqManager = ({ onBack }) => {
           }, [
             e(Icono, { nombre: "info", className: "text-sm mt-0.5", "aria-hidden": "true" }),
             e("span", null, "Esta respuesta se generará en tiempo real consultando los productos con stock activo en el inventario."),
+          ]),
+
+          // Mostrar en la tienda web (solo estáticas)
+          e("div", { className: "space-y-1.5" }, [
+            e("div", { className: "flex items-center gap-3" }, [
+              e("input", {
+                type: "checkbox",
+                id: "faq-tienda-checkbox",
+                checked: form.type === "estatica" && form.mostrarEnTienda,
+                disabled: form.type !== "estatica",
+                onChange: (ev) => setForm({ ...form, mostrarEnTienda: ev.target.checked }),
+                className: "w-4 h-4 text-teal-600 rounded border-gray-300 focus:ring-teal-500 disabled:opacity-50",
+              }),
+              e("label", {
+                htmlFor: "faq-tienda-checkbox",
+                className: `text-sm font-bold cursor-pointer ${form.type === "estatica" ? "text-gray-700 dark:text-gray-300" : "text-gray-400 dark:text-gray-500"}`,
+              }, "Mostrar en la tienda web"),
+            ]),
+            e("p", { className: "text-[11px] text-gray-500 dark:text-gray-400" },
+              form.type === "estatica"
+                ? "Si está marcada, la pregunta y su respuesta aparecen en la tienda, además de en el bot."
+                : "Las dinámicas solo las usa el bot."),
           ]),
 
           // Activo Checkbox

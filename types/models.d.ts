@@ -204,7 +204,8 @@ export interface IProducto {
   _id?: string;
   id: string; // ej. 'prod-001'
   name: string;
-  price: number;
+  price: number; // precio base
+  descuentoPct?: number; // 0 a 90 (F2g)
   description?: string;
   emoji?: string;
   imagenes?: IProductoImagen[];
@@ -440,6 +441,8 @@ export interface IFAQ {
   type?: FAQType;
   dynamicKey?: string | null;
   activo?: boolean;
+  /** Se muestra en la tienda web (F2h). Nunca aplica a las dinámicas. */
+  mostrarEnTienda?: boolean;
   order?: number;
   brand?: string;
   createdAt?: Date;

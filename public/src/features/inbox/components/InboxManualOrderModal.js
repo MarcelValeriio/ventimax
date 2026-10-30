@@ -65,6 +65,16 @@ import apiClient from "../../../services/apiClient.js?v=6";
 const { useState, useEffect, useRef } = React;
 const e = React.createElement;
 
+/** Precio vigente y descuento de un producto (F2g): `price` es el base; se usa `precioVigente` si el servidor lo manda. */
+const precioVigenteDe = (p) => {
+  const base = Number(p.price) || 0;
+  const pct = Number(p.descuentoPct) || 0;
+  const vigente = typeof p.precioVigente === "number"
+    ? p.precioVigente
+    : Math.round(base * (100 - pct)) / 100;
+  return { base, pct, vigente };
+};
+
 const API_INBOX = "/api/admin/inbox";
 
 /** Lista usable de catálogo/métodos de pago: los activos; si no hay, la cruda. */
@@ -265,7 +275,7 @@ const InboxManualOrderModal = ({
       .filter((i) => i.producto && Number(i.cantidad) > 0)
       .map((i) => {
         const prodEnCatalogo = catalogo.find((p) => p.name === i.producto);
-        const precio = prodEnCatalogo ? prodEnCatalogo.price : 0;
+        const precio = prodEnCatalogo ? precioVigenteDe(prodEnCatalogo).vigente : 0;
         const sub = precio * Number(i.cantidad);
         totalUSD += sub;
         return { ...i, cantidad: Number(i.cantidad), price: precio, subtotal: sub };
@@ -515,7 +525,7 @@ const InboxManualOrderModal = ({
                             [
                               e("option", { key: "vacio", value: "" }, "Selecciona..."),
                               ...catalogo.map((c) =>
-                                e("option", { key: c._id || c.name, value: c.name }, `${c.name}${c.trackStock ? ` - Stock: ${c.stock}` : ''}`),
+                                e("option", { key: c._id || c.name, value: c.name }, `${c.name}${precioVigenteDe(c).pct > 0 ? ` (-${precioVigenteDe(c).pct}%)` : ''}${c.trackStock ? ` - Stock: ${c.stock}` : ''}`),
                               ),
                             ],
                           ),

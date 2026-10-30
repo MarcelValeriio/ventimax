@@ -6,9 +6,11 @@ const { getConfigCatalogoSync } = require("../services/catalogoConfigService");
 const { registrarEventoCatalogo } = require("../services/catalogoAbusoService");
 const { obtenerCategoriasDeProducto } = require("../services/catalogQuery");
 const { pedidoPublicoSchema } = require("../validators");
-const { getPreguntasFrecuentesSync } = require("../services/preguntasFrecuentesService");
+const { listarPreguntasTienda } = require("../services/preguntasFrecuentesService");
 const { formatearHorarioAtencion } = require("../services/horarioService");
 const { normalizarEmpresas, nombresEmpresas } = require("../services/empresasEnvio");
+const { precioVigente, descuentoVigente } = require("../services/precios");
+const { getBannerTiendaSync } = require("../services/bannerTiendaService");
 
 let Producto = require("../models/Producto");
 let Categoria = require("../models/Categoria");
@@ -158,8 +160,10 @@ export async function getCatalogo(req: any, res: any) {
     const productosResponse = (productosDb || [])
       .filter((p: any) => p && p.activo !== false)
       .map((p: any) => {
-        const precioUsd = Number(p.price) || 0;
+        // Precio VIGENTE (con descuento por producto, F2g); el base solo se muestra tachado
+        const precioUsd = precioVigente(p);
         const precioBs = tasa !== null ? Math.round(precioUsd * tasa * 100) / 100 : null;
+        const descuentoPct = descuentoVigente(p);
 
         // Slugs de categorías
         const catIds = obtenerCategoriasDeProducto(p);
@@ -185,6 +189,9 @@ export async function getCatalogo(req: any, res: any) {
           descripcion: p.description || "",
           precioUsd,
           precioBs,
+          // Precio base tachado cuando hay descuento; null si el producto no tiene descuento
+          precioAntesUsd: descuentoPct > 0 ? Number(p.price) || 0 : null,
+          descuentoPct,
           imagenes: imagenesUrls,
           categorias: Array.from(slugsSet),
           disponible,
@@ -266,13 +273,35 @@ async function resolverEntrega(entrega: any): Promise<{ ok: true; value: any } |
   };
 }
 
+/**
+ * Cintillo de la tienda (F2g). Null si está inactivo, o si trae producto que no existe o está inactivo.
+ * Sin texto propio y con producto, el servidor arma el texto: "<pct>% OFF en <nombre>" o "Destacado: <nombre>".
+ */
+async function resolverBannerTienda(): Promise<{ texto: string; productoId: string | null; descuentoPct: number } | null> {
+  const cfg = getBannerTiendaSync();
+  if (!cfg || cfg.activo !== true) return null;
+
+  if (!cfg.productoId) {
+    return { texto: cfg.texto, productoId: null, descuentoPct: 0 };
+  }
+
+  // Búsqueda por id de texto (nunca _id, para evitar CastError)
+  const prod = await Producto.findOne({ id: cfg.productoId });
+  if (!prod || prod.activo === false) return null;
+
+  const pct = descuentoVigente(prod);
+  const texto =
+    cfg.texto ||
+    (pct > 0 ? `${pct}% OFF en ${prod.name}` : `Destacado: ${prod.name}`);
+  return { texto, productoId: prod.id, descuentoPct: pct };
+}
+
 export async function getInfo(req: any, res: any) {
   try {
     res.setHeader("Cache-Control", "public, max-age=300");
 
-    const preguntas = getPreguntasFrecuentesSync()
-      .items.filter((p: any) => p.respuesta && p.respuesta.trim() !== "")
-      .map((p: any) => ({ pregunta: p.pregunta, respuesta: p.respuesta }));
+    // Lista única de FAQ (F2h): solo las estáticas activas marcadas para la tienda
+    const preguntas = await listarPreguntasTienda();
 
     const pagosDb = await MetodoPago.find({ activo: true }).sort({ _id: 1 });
     const pagos = (pagosDb || [])
@@ -306,7 +335,9 @@ export async function getInfo(req: any, res: any) {
         };
       });
 
-    return res.status(200).json({ preguntas, pagos, envios, horario });
+    const banner = await resolverBannerTienda();
+
+    return res.status(200).json({ preguntas, pagos, envios, horario, banner });
   } catch (error: any) {
     console.error("❌ Error en getInfo público:", error);
     return res.status(500).json({ error: "Error al obtener la información de la tienda" });
@@ -403,7 +434,8 @@ export async function postPedidoWeb(req: any, res: any) {
         }
       }
 
-      const precioUnitario = Number(prod.price) || 0;
+      // Precio vigente del producto de la base (F2g): lo que se cobra en la tienda
+      const precioUnitario = precioVigente(prod);
       totalUsd += precioUnitario * cantidad;
       itemsGuardar.push({
         productoId: prod.id,

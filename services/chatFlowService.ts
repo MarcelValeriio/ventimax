@@ -66,6 +66,7 @@ const pushService = require("./pushService");
 const { filtroPorCategoria } = require("./catalogQuery");
 const { getFlujoNoLaborableSync } = require("./flujoNoLaborableService");
 const { nombresEmpresas } = require("./empresasEnvio");
+const { precioVigente, etiquetaPrecio, descuentoVigente } = require("./precios");
 const {
   getProximoDiaHabil,
   getHoraAperturaFormateada,
@@ -1358,10 +1359,11 @@ class ChatFlowService {
       if (prodDirecto) {
         let carrito = estado.carrito || { items: [] };
     if (!carrito.items) carrito.items = [];
+        // Precio VIGENTE (F2g): es el que se agrega al carrito
         carrito.producto_actual = {
           id: prodDirecto.id,
           name: prodDirecto.name,
-          price: prodDirecto.price,
+          price: precioVigente(prodDirecto),
         };
         await orderService.setEstado(
           from,
@@ -1375,13 +1377,13 @@ class ChatFlowService {
         const promptQtyDirect =
           configManager.format("settings.messages.promptQuantityDirect", {
             name: prodDirecto.name,
-            price: prodDirecto.price,
+            price: precioVigente(prodDirecto),
             unitPlural,
           }) ||
           `¿Cuántas *${unitPlural}* deseas agregar? 📦 (Escribe solo el número):`;
         await this._sendYGuardar(
           from,
-          `✅ Elegiste *${prodDirecto.name}* ($${prodDirecto.price}).\n\n${promptQtyDirect}`,
+          `✅ Elegiste *${prodDirecto.name}* (${etiquetaPrecio(prodDirecto)}).\n\n${promptQtyDirect}`,
           io,
         );
       } else {
@@ -1403,10 +1405,11 @@ class ChatFlowService {
     if (!carrito.items) carrito.items = [];
 
     if (producto) {
+      // Precio VIGENTE (F2g): es el que se agrega al carrito
       carrito.producto_actual = {
         id: producto.id,
         name: producto.name,
-        price: producto.price,
+        price: precioVigente(producto),
       };
       await orderService.setEstado(
         from,
@@ -1420,13 +1423,13 @@ class ChatFlowService {
       const promptQty =
         configManager.format("settings.messages.promptQuantity", {
           name: producto.name,
-          price: producto.price,
+          price: precioVigente(producto),
           unitPlural,
         }) ||
         `¿Cuántas *${unitPlural}* deseas agregar? 📦 \n\n (Escribe solo el número):`;
       await this._sendYGuardar(
         from,
-        `✅ Elegiste *${producto.name}* ($${producto.price}).\n\n${promptQty}`,
+        `✅ Elegiste *${producto.name}* (${etiquetaPrecio(producto)}).\n\n${promptQty}`,
         io,
       );
     } else if (low === "volver" || low === "atras") {
@@ -1881,7 +1884,9 @@ class ChatFlowService {
     const url = producto?.imagenes?.[0]?.url;
     if (!url || configManager.get("settings.features.sendProductImage") === false) return;
     const desc = producto.description ? `\n${producto.description}` : "";
-    const caption = `${producto.name} — $${formatUsd(Number(producto.price) || 0)}${desc}`;
+    const pct = descuentoVigente(producto);
+    const etiqueta = `$${formatUsd(precioVigente(producto))}${pct > 0 ? ` (-${pct}%)` : ""}`;
+    const caption = `${producto.name} — ${etiqueta}${desc}`;
     try {
       // enviarImagenPorUrl devuelve false si WhatsApp rechaza el envío (no lanza)
       const enviado = await whatsapp.enviarImagenPorUrl(from, url, caption);
@@ -2734,7 +2739,8 @@ class ChatFlowService {
         }
       }
 
-      const precioActual = Number(prod.price) || 0;
+      // Precio VIGENTE de la base (F2g); el carrito web se cobra con el que hay hoy
+      const precioActual = precioVigente(prod);
       const precioOriginal = Number(it.precio) || 0;
 
       if (precioActual !== precioOriginal) {

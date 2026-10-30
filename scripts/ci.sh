@@ -29,6 +29,7 @@ SUITES=(
   test-pedido-web-bot.ts
   test-catalogo-web.ts
   test-catalogo-panel.ts
+  test-descuentos.ts
   test-auditoria.ts
   test-cortesia-social.ts
   test-iconos.ts

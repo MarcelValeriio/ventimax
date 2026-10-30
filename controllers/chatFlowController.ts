@@ -40,6 +40,7 @@ const {
   getHoraAperturaFormateada,
 } = require("../services/horarioService");
 const { getFlujoNoLaborableSync } = require("../services/flujoNoLaborableService");
+const { precioVigente, descuentoVigente } = require("../services/precios");
 
 /**
  * Orquestador de las interfaces de conversación (Vistas de WhatsApp)
@@ -295,10 +296,13 @@ class ChatFlowController {
       const sanitizeTitle = (name) => (name || "Producto").substring(0, 24);
       const formatDescription = (p, tasa) => {
         const descShort = (p.description || "").substring(0, 30);
-        const priceUSD = p.price || 0;
+        // Precio VIGENTE (F2g): con descuento se muestra el precio de hoy y "(-X%)"
+        const priceUSD = precioVigente(p);
+        const pct = descuentoVigente(p);
+        const etiquetaDescuento = pct > 0 ? ` (-${pct}%)` : "";
         const priceVESRaw = priceUSD * tasa;
         const priceVES = priceVESRaw > 0 ? formatBs(priceVESRaw) : "N/A";
-        return `${descShort} | $${formatUsd(priceUSD)} / Bs. ${priceVES}`.substring(
+        return `${descShort} | $${formatUsd(priceUSD)}${etiquetaDescuento} / Bs. ${priceVES}`.substring(
           0,
           72,
         );

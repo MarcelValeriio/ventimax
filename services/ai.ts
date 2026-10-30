@@ -2,6 +2,7 @@
 const axios = require("axios");
 const { createBreaker } = require("./circuitBreaker");
 const configManager = require("./configManager");
+const { precioVigente, descuentoVigente } = require("./precios");
 const Producto = require("../models/Producto");
 const { obtenerTasaUSD } = require("./bcv");
 const { formatBs, formatUsd } = require("../utils/helpers");
@@ -46,10 +47,7 @@ async function consultarAsistenteVentas(mensajeUsuario) {
     // 2. Formatear lista de productos para la IA
     let contextoproductos = "";
     if (productosDB.length > 0) {
-      contextoproductos = productosDB.map(p => {
-        const precioBs = tasa > 0 ? formatBs(p.price * tasa) : "N/A";
-        return `- ${p.name}: ${p.description || "Sin descripción"}. Precio: $${formatUsd(p.price)} / ${precioBs} Bs.`;
-      }).join("\n");
+      contextoproductos = productosDB.map(p => lineaProductoParaIA(p, tasa)).join("\n");
     } else {
       contextoproductos = "No hay productos disponibles en este momento.";
     }
@@ -149,4 +147,15 @@ RESPUESTA OBLIGATORIA EN FORMATO JSON ESTRICTO con esta estructura:
   }
 }
 
-module.exports = { consultarAsistenteVentas, evaluarReactivacionConIA };
+/**
+ * Línea del catálogo que recibe la IA (F2g). Usa el precio VIGENTE del producto; con descuento lo indica.
+ */
+function lineaProductoParaIA(p: any, tasa: number): string {
+  const precioVig = precioVigente(p);
+  const pct = descuentoVigente(p);
+  const precioBs = tasa > 0 ? formatBs(precioVig * tasa) : "N/A";
+  const descuentoTxt = pct > 0 ? ` (con ${pct}% de descuento)` : "";
+  return `- ${p.name}: ${p.description || "Sin descripción"}. Precio: $${formatUsd(precioVig)}${descuentoTxt} / ${precioBs} Bs.`;
+}
+
+module.exports = { consultarAsistenteVentas, evaluarReactivacionConIA, lineaProductoParaIA };

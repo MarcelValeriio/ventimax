@@ -101,7 +101,7 @@ const ChatManualOrderModal = ({
     let totalUSD = 0;
     const finalItems = formData.items.filter(i => i.producto && i.cantidad > 0).map(i => {
       const prodEnCatalogo = catalogo.find(p => p.name === i.producto);
-      const precio = prodEnCatalogo ? prodEnCatalogo.price : 0;
+      const precio = prodEnCatalogo ? (prodEnCatalogo.precioVigente ?? prodEnCatalogo.price) : 0;
       const sub = precio * i.cantidad;
       totalUSD += sub;
       return { ...i, price: precio, subtotal: sub };

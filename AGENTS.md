@@ -2351,6 +2351,43 @@ Pedido por el dueño el 2026-10-29, con una conversación real del Instagram de 
 
 ---
 
+### F2g · Descuentos por producto y cintillo de la tienda — **Claude** orquesta, 3 subagentes Haiku 5.5 (medium) · `Aprobada`
+
+Pedido por el dueño el 2026-10-30.
+
+- **Regla única del precio (servidor):**
+  - `Producto.descuentoPct` va de 0 a 90; `price` sigue siendo el precio base.
+  - `services/precios.ts` (`precioVigente`, `descuentoVigente`) calcula el precio vigente, que es el que se cobra en la tienda, el pedido web, el bot de WhatsApp (selección, carrito, foto y lista), la venta manual, el menú dinámico y el catálogo de la IA.
+  - El catálogo público trae `precioAntesUsd` y `descuentoPct`.
+  - El esquema de edición no aplica valores por defecto.
+- **Cintillo:**
+  - Setting `bannerTienda` con caché e `init()`.
+  - Validador; `GET`/`PUT /api/admin/config/banner-tienda` con auditoría.
+  - `/api/public/info.banner`: si no hay texto, se arma "X% OFF en <producto>" o "Destacado: <producto>"; es `null` si está inactivo o el producto no existe o está inactivo.
+- **Panel:**
+  - "Descuento (%)" con vista previa en los dos formularios de producto.
+  - Etiqueta "-X%" y precio tachado en el listado.
+  - Calculadoras y ventas manuales con el precio vigente.
+  - Bloque "Cintillo de la tienda" en Configuración → Catálogo web.
+- **Tienda:**
+  - Cintillo bajo el buscador, que enlaza al producto.
+  - Tarjeta con etiqueta "-X%", precio anterior tachado, borde verde de 1 px y pulso suave, que se apaga con `prefers-reduced-motion`.
+  - Ficha con el mismo tratamiento, pero sin pulso para no competir con el botón de compra.
+- **Revisión de Claude:** el `grep` de `.price` confirma que todos los precios de producto que entran a un carrito o mensaje pasan por el helper; los ítems ya guardados conservan su precio. `./scripts/ci.sh` en verde (37 suites; `test-descuentos.ts` 17/17). Recorrido en Chrome con un 20 % en el N04: cintillo, tarjeta ($32 con $40 tachado), carrito ($32), listado y bloque del panel; 0 errores.
+
+---
+
+### F2h · Una sola lista de preguntas frecuentes — subagente Haiku 5.5 (medium) + **Claude** · `Aprobada`
+
+Pedido por el dueño el 2026-10-30: que las preguntas de la tienda sean las mismas que responde el bot (WhatsApp, Instagram, Messenger y, más adelante, TikTok).
+
+- **Una sola fuente:** `FAQ.mostrarEnTienda` (por defecto `false`; las dinámicas no pueden marcarse). `/api/public/info` lista las FAQ activas marcadas, con respuesta. Se quitaron el Setting `preguntasFrecuentes`, sus endpoints `/config/preguntas-frecuentes` y su validador.
+- **Migración automática al arrancar** (`preguntasFrecuentesService.init()`): las preguntas que el dueño tenía en la tienda pasan a FAQ marcadas, una sola vez. Las palabras clave se derivan de la pregunta: palabras de 5 letras o más, sin palabras vacías, sin raíces del catálogo (nombres de productos y categorías) ni raíces compartidas entre preguntas migradas, para que no tapen otras respuestas del bot. Si una queda sin palabras clave, aviso `⚠️ [FAQ]` y se ajusta en el panel.
+- **Panel:** casilla "Mostrar en la tienda web" e insignia "Tienda" en Preguntas frecuentes; en Configuración → Catálogo web, un botón lleva a esa pantalla.
+- **Revisión de Claude:** la primera versión sacaba palabras como "ventiladores", "entrega" o "nota", que habrían desviado mensajes del bot hacia esas respuestas; corregido con las exclusiones de arriba. Comprobado en el entorno local con las 4 preguntas reales: palabras clave `garantia`, `tarda`, `factura`, `retiro`/`personalmente`; la tienda las sigue mostrando; casilla e insignia vistas en Chrome, 0 errores. Datos de prueba borrados. `./scripts/ci.sh` en verde (37 suites; `test-preguntas-frecuentes.ts` 8/8).
+
+---
+
 ### M-5 · Auditoría por área y acción, y arreglos del inventario — subagente Haiku 5.5 (medium) + **Claude** · `Aprobada`
 
 Pedido por el dueño el 2026-10-30: la auditoría agrupada en secciones en vez de una lista larga. Durante la revisión el dueño reportó dos fallos del inventario, que se corrigieron en la misma entrega.
@@ -2459,6 +2496,8 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-10-30 | 02:00 | F2h: una sola lista de preguntas frecuentes para la tienda y el bot (`FAQ.mostrarEnTienda`, migración automática de las preguntas de la tienda con palabras clave que no tapan otras respuestas); subagente Haiku, revisado por Claude — Ejecutado por **Claude** + subagente | Claude (Cerebro) | Completado |
+| 2026-10-30 | 00:30 | F2g: descuentos por producto (precio vigente único en tienda, bot, ventas y pedido web) y cintillo promocional configurable; 3 subagentes Haiku en paralelo, revisado por Claude — Ejecutado por **Claude** + subagentes | Claude (Cerebro) | Completado |
 | 2026-10-30 | 23:30 | M-5: auditoría agrupada por área y acción (Haiku). Claude corrigió en la revisión: auditorías que fallaban en silencio en producción (enum sin `metodo_envio`, listas en campos de texto), "fetchProducts is not defined" al subir fotos, categorías adicionales y emoji descartados por el validador desde F0-7, productos desactivados que se reactivaban al guardar, y textos de Mr. Pachi en el panel — Ejecutado por **Claude** + subagente | Claude (Cerebro) | Completado |
 | 2026-10-29 | 17:00 | F2f: empresas de envío con logo (tarjetas clicables en la tienda, formulario de envío nacional con una tarjeta por empresa y subida de logo a Cloudinary). Primera tarea con el esquema "Opus orquesta, 3 subagentes Haiku 5.5 medium en paralelo"; Claude corrigió el borrado de imágenes ajenas en Cloudinary y el selector de tipo — Ejecutado por **Claude** + subagentes | Claude (Cerebro) | Completado |
 | 2026-10-29 | 16:25 | Tienda: tras el despliegue de F2e la CDN de Render sirvió durante ~8 min el JavaScript nuevo con el CSS viejo (empresas sin formato). `render.yaml`: `Cache-Control: no-cache` en todos los archivos del sitio estático (se revalidan con 304). Requiere Manual Sync del Blueprint — Ejecutado por **Claude** | Claude (Cerebro) | Completado |

@@ -452,75 +452,51 @@ export function validarConfigCatalogo(val: unknown): ResultadoValidacionCatalogo
 }
 
 
+
+
 // ==========================================
-// Preguntas frecuentes de la tienda (F2b): editables desde el panel
+// Cintillo promocional de la tienda (F2g): editable desde el panel
 // ==========================================
 
-export interface PreguntaFrecuente {
-  pregunta: string;
-  respuesta: string;
+export interface BannerTienda {
+  activo: boolean;
+  texto: string;
+  productoId: string | null;
 }
 
-export interface PreguntasFrecuentes {
-  items: PreguntaFrecuente[];
-}
-
-export type ResultadoValidacionPreguntas =
-  | { ok: true; value: PreguntasFrecuentes }
+export type ResultadoValidacionBanner =
+  | { ok: true; value: BannerTienda }
   | { ok: false; error: string };
 
-const MAX_PREGUNTAS_FRECUENTES = 12;
+const PRODUCTO_ID_REGEX = /^[a-z0-9-]{1,60}$/;
 
-/**
- * Valida la lista de preguntas frecuentes de la tienda.
- * Pregunta obligatoria (3 a 120 caracteres), respuesta opcional (hasta 600).
- * Las claves extra de cada elemento se descartan y no se permiten preguntas repetidas (sin distinguir mayúsculas).
- */
-export function validarPreguntasFrecuentes(val: any): ResultadoValidacionPreguntas {
-  if (!val || typeof val !== "object" || Array.isArray(val)) {
-    return { ok: false, error: "Las preguntas frecuentes deben ser un objeto con la lista 'items'." };
-  }
-  if (!Array.isArray(val.items)) {
-    return { ok: false, error: "El campo 'items' debe ser una lista." };
-  }
-  if (val.items.length > MAX_PREGUNTAS_FRECUENTES) {
-    return { ok: false, error: `No puede haber más de ${MAX_PREGUNTAS_FRECUENTES} preguntas frecuentes.` };
+export function validarBannerTienda(val: unknown): ResultadoValidacionBanner {
+  if (!val || typeof val !== "object") {
+    return { ok: false, error: "Datos del cintillo inválidos." };
   }
 
-  const items: PreguntaFrecuente[] = [];
-  const vistas = new Set<string>();
+  const v = val as Partial<BannerTienda>;
+  const activo = typeof v.activo === "boolean" ? v.activo : false;
 
-  for (let i = 0; i < val.items.length; i++) {
-    const item = val.items[i];
-    const numero = i + 1;
-    if (!item || typeof item !== "object" || Array.isArray(item)) {
-      return { ok: false, error: `La pregunta ${numero} debe ser un objeto.` };
-    }
-    if (item.pregunta !== undefined && item.pregunta !== null && typeof item.pregunta !== "string") {
-      return { ok: false, error: `La pregunta ${numero} debe ser texto.` };
-    }
-    if (item.respuesta !== undefined && item.respuesta !== null && typeof item.respuesta !== "string") {
-      return { ok: false, error: `La respuesta ${numero} debe ser texto.` };
-    }
-
-    const pregunta = String(item.pregunta ?? "").trim();
-    const respuesta = String(item.respuesta ?? "").trim();
-
-    if (pregunta.length < 3 || pregunta.length > 120) {
-      return { ok: false, error: `La pregunta ${numero} debe tener entre 3 y 120 caracteres.` };
-    }
-    if (respuesta.length > 600) {
-      return { ok: false, error: `La respuesta ${numero} no puede exceder 600 caracteres.` };
-    }
-
-    const clave = pregunta.toLowerCase();
-    if (vistas.has(clave)) {
-      return { ok: false, error: `La pregunta '${pregunta}' está repetida.` };
-    }
-    vistas.add(clave);
-
-    items.push({ pregunta, respuesta });
+  if (v.texto !== undefined && v.texto !== null && typeof v.texto !== "string") {
+    return { ok: false, error: "El texto del cintillo debe ser texto." };
+  }
+  const texto = (typeof v.texto === "string" ? v.texto : "").trim();
+  if (texto.length > 120) {
+    return { ok: false, error: "El texto del cintillo no puede exceder 120 caracteres." };
   }
 
-  return { ok: true, value: { items } };
+  let productoId: string | null = null;
+  if (v.productoId !== undefined && v.productoId !== null && v.productoId !== "") {
+    if (typeof v.productoId !== "string" || !PRODUCTO_ID_REGEX.test(v.productoId)) {
+      return { ok: false, error: "El producto del cintillo no es válido." };
+    }
+    productoId = v.productoId;
+  }
+
+  if (activo && texto === "" && productoId === null) {
+    return { ok: false, error: "Escribe un texto o elige un producto" };
+  }
+
+  return { ok: true, value: { activo, texto, productoId } };
 }

@@ -5,6 +5,8 @@ const productoSchema = z.object({
   id: z.string().min(1, "El ID del producto es obligatorio"),
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
   price: z.coerce.number().positive("El precio debe ser un número positivo"),
+  // Descuento por producto (F2g): entero de 0 a 90
+  descuentoPct: z.coerce.number().int("El descuento debe ser un número entero").min(0).max(90, "El descuento no puede pasar de 90 %").optional().default(0),
   stock: z.coerce.number().int().min(0).optional().default(0),
   trackStock: z.coerce.boolean().optional().default(false),
   description: z.string().max(500).optional().default(""),
@@ -22,6 +24,8 @@ const productoUpdateSchema = z.object({
   id: z.string().min(1).optional(),
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100).optional(),
   price: z.coerce.number().positive("El precio debe ser un número positivo").optional(),
+  // Sin default: una edición que no trae el descuento no lo cambia
+  descuentoPct: z.coerce.number().int("El descuento debe ser un número entero").min(0).max(90, "El descuento no puede pasar de 90 %").optional(),
   stock: z.coerce.number().int().min(0).optional(),
   trackStock: z.coerce.boolean().optional(),
   description: z.string().max(500).optional(),

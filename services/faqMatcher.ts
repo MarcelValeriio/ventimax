@@ -47,6 +47,7 @@ function buscarFAQ(userMessage, faqs = []) {
 const { obtenerTasaUSD } = require("./bcv");
 const { formatBs, formatUsd } = require("../utils/helpers");
 const configManager = require("./configManager");
+const { precioVigente, descuentoVigente } = require("./precios");
 
 /**
  * Consulta los sabores/productos en stock desde la base de datos y formatea la respuesta.
@@ -190,8 +191,10 @@ async function getMenuDinamico() {
     const prodsTexto = prods.map((p) => {
       const emojiProd = p.emoji ? `${p.emoji} ` : "• ";
       const nombre = (p.name || p.nombre || "Producto").trim();
-      const precioUSD = Number(p.price) || 0;
-      const usdFormatted = `$${formatUsd(precioUSD)}`;
+      // Precio VIGENTE (F2g) y, con descuento, el porcentaje
+      const precioUSD = precioVigente(p);
+      const pct = descuentoVigente(p);
+      const usdFormatted = `$${formatUsd(precioUSD)}${pct > 0 ? ` (-${pct}%)` : ""}`;
       let precioTexto = usdFormatted;
       if (tasa > 0) {
         const bsFormatted = formatBs(precioUSD * tasa);
