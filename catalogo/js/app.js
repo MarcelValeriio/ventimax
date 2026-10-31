@@ -34,7 +34,7 @@ import { debeMostrarAyuda, textoAyuda, armarEnlaceAyuda } from "./ayuda.js";
 
 import { ajustarIndice, indiceDesdeScroll } from "./galeria.js";
 
-import { entregaCompleta, armarEntrega, costoEntrega, enlaceMapa, usaGps, empresasDe, logoEmpresa, MAX_DIRECCION } from "./entrega.js";
+import { entregaCompleta, armarEntrega, costoEntrega, enlaceMapa, usaGps, empresasDe, logoEmpresa, MAX_DIRECCION, MIN_DIRECCION } from "./entrega.js";
 
 import { montarSelectorMapa } from "./mapa.js";
 
@@ -1443,24 +1443,59 @@ function seccionEntrega(metodos, alCambiar) {
       ? "Referencias para el repartidor (opcional)"
       : metodo.pideDatos || "Dirección de entrega y referencias";
     const id = "entrega-direccion";
+
+    const placeholder = conGps
+      ? "Ej.: edificio azul, piso 3, apto 3-B"
+      : usaGps(metodo)
+        ? `Ej.: urbanización, calle, casa o edificio y punto de referencia (mínimo ${MIN_DIRECCION} caracteres)`
+        : `Ej.: Carabobo, Valencia, oficina de la agencia más cercana (mínimo ${MIN_DIRECCION} caracteres)`;
+
+    const longitudActual = String(state.entrega.direccion || "").trim().length;
+    const textoInicialAyuda = conGps
+      ? "Puedes indicar detalles adicionales como el número de casa, piso o punto de referencia."
+      : longitudActual === 0
+        ? `Mínimo ${MIN_DIRECCION} caracteres (indica estado, ciudad y dirección o agencia).`
+        : longitudActual < MIN_DIRECCION
+          ? `Faltan ${MIN_DIRECCION - longitudActual} caracteres para completar la dirección (mínimo ${MIN_DIRECCION}).`
+          : `Dirección lista (${longitudActual} caracteres).`;
+
+    const claseInicialAyuda = conGps
+      ? "entrega-ayuda"
+      : longitudActual === 0
+        ? "entrega-ayuda"
+        : longitudActual < MIN_DIRECCION
+          ? "entrega-ayuda entrega-alerta-min"
+          : "entrega-ayuda entrega-exito-min";
+
+    const ayuda = el("p", { className: claseInicialAyuda }, textoInicialAyuda);
+
     const area = el("textarea", {
       id,
       className: "entrega-campo",
       rows: "3",
       maxlength: String(MAX_DIRECCION),
-      placeholder: conGps
-        ? "Ej.: edificio azul, piso 3, apto 3-B"
-        : usaGps(metodo)
-          ? "Ej.: urbanización, calle, casa o edificio y un punto de referencia"
-          : "Ej.: Carabobo, Valencia, oficina de la agencia más cercana",
+      placeholder,
       autocomplete: "street-address",
       oninput: (ev) => {
         state.entrega.direccion = ev.target.value;
+        const len = ev.target.value.trim().length;
+        if (!conGps) {
+          if (len === 0) {
+            ayuda.textContent = `Mínimo ${MIN_DIRECCION} caracteres (indica estado, ciudad y dirección o agencia).`;
+            ayuda.className = "entrega-ayuda";
+          } else if (len < MIN_DIRECCION) {
+            ayuda.textContent = `Faltan ${MIN_DIRECCION - len} caracteres para completar la dirección (mínimo ${MIN_DIRECCION}).`;
+            ayuda.className = "entrega-ayuda entrega-alerta-min";
+          } else {
+            ayuda.textContent = `Dirección lista (${len} caracteres).`;
+            ayuda.className = "entrega-ayuda entrega-exito-min";
+          }
+        }
         alCambiar();
       },
     });
     area.value = state.entrega.direccion || "";
-    return el("div", { className: "entrega-grupo" }, el("label", { for: id, className: "entrega-etiqueta" }, etiqueta), area);
+    return el("div", { className: "entrega-grupo" }, el("label", { for: id, className: "entrega-etiqueta" }, etiqueta), area, ayuda);
   }
 
   function bloqueMapaGps() {

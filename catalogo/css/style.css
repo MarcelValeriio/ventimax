@@ -1768,6 +1768,17 @@ select {
 .entrega-error {
   font-size: 0.8125rem;
   color: var(--tinta-3);
+  margin-top: 4px;
+}
+
+.entrega-ayuda.entrega-alerta-min {
+  color: #d97706;
+  font-weight: 500;
+}
+
+.entrega-ayuda.entrega-exito-min {
+  color: var(--exito, #10b981);
+  font-weight: 500;
 }
 
 .entrega-error {
