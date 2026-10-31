@@ -76,6 +76,42 @@ export async function obtenerInfo() {
 }
 
 /**
+ * Geocodificación inversa pública (F2d): convierte lat/lon a dirección descriptiva.
+ */
+export async function geocodificarCoordenadas(lat, lon) {
+  const base = obtenerBaseUrl();
+  try {
+    const res = await fetch(`${base}/api/public/geocodificar?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) return "";
+    const data = await res.json();
+    return data?.direccion || "";
+  } catch (_e) {
+    return "";
+  }
+}
+
+/**
+ * Búsqueda predictiva de calles/zonas en Caracas para el mapa (F2d).
+ */
+export async function buscarDireccion(query) {
+  const q = String(query || "").trim();
+  if (q.length < 3) return [];
+  const base = obtenerBaseUrl();
+  try {
+    const res = await fetch(`${base}/api/public/buscar-direccion?q=${encodeURIComponent(q)}`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data?.resultados) ? data.resultados : [];
+  } catch (_e) {
+    return [];
+  }
+}
+
+/**
  * Envía el carrito para generar el pedido web y obtener el enlace a WhatsApp.
  * Gestiona errores con mensajes amables sin exponer detalles técnicos [R13].
  */

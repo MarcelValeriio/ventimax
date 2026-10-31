@@ -36,6 +36,8 @@ import { ajustarIndice, indiceDesdeScroll } from "./galeria.js";
 
 import { entregaCompleta, armarEntrega, costoEntrega, enlaceMapa, usaGps, empresasDe, logoEmpresa, MAX_DIRECCION } from "./entrega.js";
 
+import { montarSelectorMapa } from "./mapa.js";
+
 /** Solo se abre un enlace de WhatsApp (wa.me); cualquier otra cosa que llegara de la API se ignora. */
 function esEnlaceWhatsApp(url) {
   return typeof url === "string" && url.startsWith("https://wa.me/");
@@ -1461,6 +1463,45 @@ function seccionEntrega(metodos, alCambiar) {
     return el("div", { className: "entrega-grupo" }, el("label", { for: id, className: "entrega-etiqueta" }, etiqueta), area);
   }
 
+  function bloqueMapaGps() {
+    const contenedor = el("div", { className: "entrega-grupo" });
+    const wrap = el("div", { className: "entrega-mapa-seccion" });
+    contenedor.appendChild(wrap);
+
+    const latIni = state.entrega.gps?.latitud;
+    const lonIni = state.entrega.gps?.longitud;
+
+    setTimeout(() => {
+      montarSelectorMapa(wrap, {
+        latInicial: latIni,
+        lonInicial: lonIni,
+        alSeleccionar: ({ latitud, longitud, direccion }) => {
+          state.entrega.gps = { latitud, longitud };
+          state.entrega.estadoGps = "listo";
+          state.entrega.direccionMapa = direccion || "";
+
+          const area = document.getElementById("entrega-direccion-input");
+          if (area) {
+            const val = area.value.trim();
+            if (!val || val === state.entrega.ultimaDireccionAutocompletada) {
+              area.value = direccion;
+              state.entrega.direccion = direccion;
+              state.entrega.ultimaDireccionAutocompletada = direccion;
+            }
+          } else {
+            if (!state.entrega.direccion || state.entrega.direccion === state.entrega.ultimaDireccionAutocompletada) {
+              state.entrega.direccion = direccion;
+              state.entrega.ultimaDireccionAutocompletada = direccion;
+            }
+          }
+          alCambiar();
+        },
+      });
+    }, 0);
+
+    return contenedor;
+  }
+
   function bloqueGps() {
     if (!gpsDisponible()) return null;
     const { gps, estadoGps } = state.entrega;
@@ -1618,10 +1659,15 @@ function seccionEntrega(metodos, alCambiar) {
       );
     }
 
-    // La ubicación del teléfono sirve para entregas en la ciudad; para envíos nacionales basta con los datos escritos
+    // La ubicación interactiva con mapa para entregas en la ciudad (delivery)
     if (usaGps(m)) {
-      const gps = bloqueGps();
-      if (gps) detalle.appendChild(gps);
+      if (typeof window.L !== "undefined") {
+        const mapa = bloqueMapaGps();
+        if (mapa) detalle.appendChild(mapa);
+      } else {
+        const gps = bloqueGps();
+        if (gps) detalle.appendChild(gps);
+      }
     }
     detalle.appendChild(campoDireccion(m));
   }

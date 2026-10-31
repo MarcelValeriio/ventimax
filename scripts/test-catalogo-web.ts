@@ -248,13 +248,15 @@ async function runTests() {
       const esEnlaceMapa = jsFile === "entrega.js" && url.startsWith("https://maps.google.com/?q=");
       // Enlace al Instagram del negocio (validado en app.js): se abre en otra pestaña, no se carga en la página
       const esEnlaceInstagram = jsFile === "app.js" && url.startsWith("https://www.instagram.com/");
+      // Mosaicos de OpenStreetMap para el mapa del carrito (F2d)
+      const esTileOsm = url.includes("tile.openstreetmap.org");
       const esLocal = url.includes("localhost") || url.includes("127.0.0.1");
       // El espacio de nombres SVG es un identificador de XML (createElementNS), no un recurso que se descarga
       const esEspacioSvg = url === "http://www.w3.org/2000/svg";
       // Aviso de licencia de Lucide en la cabecera del archivo generado (comentario, no se carga)
       const esLicenciaLucide = jsFile === "lucide.js" && url.startsWith("https://lucide.dev");
       assert.ok(
-        esCloudinary || esEnlaceWhatsApp || esEnlaceMapa || esEnlaceInstagram || esLocal || esEspacioSvg || esLicenciaLucide,
+        esCloudinary || esEnlaceWhatsApp || esEnlaceMapa || esEnlaceInstagram || esTileOsm || esLocal || esEspacioSvg || esLicenciaLucide,
         `En catalogo/js/${jsFile}: URL externa no permitida: ${url}`
       );
     }

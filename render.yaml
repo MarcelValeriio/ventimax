@@ -90,7 +90,7 @@ services:
       - path: /*
         name: Content-Security-Policy
         # Nota: https://ventimax.onrender.com (<API_URL>) se cambia por la URL del servidor de cada cliente
-        value: "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://res.cloudinary.com https://ventimax.onrender.com; connect-src 'self' https://ventimax.onrender.com; object-src 'none'; frame-ancestors 'none'; base-uri 'self'"
+        value: "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://res.cloudinary.com https://ventimax.onrender.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org; connect-src 'self' https://ventimax.onrender.com; object-src 'none'; frame-ancestors 'none'; base-uri 'self'"
       - path: /*
         name: Strict-Transport-Security
         value: max-age=31536000; includeSubDomains; preload

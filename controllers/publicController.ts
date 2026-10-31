@@ -551,6 +551,13 @@ export async function postPedidoWeb(req: any, res: any) {
         return res.status(400).json({ error: entrega.error });
       }
       entregaGuardar = entrega.value;
+      if (entregaGuardar.latitud !== null && (!entregaGuardar.direccion || entregaGuardar.direccion.trim() === "")) {
+        try {
+          const { reverseGeocode } = require("../services/geocodingService");
+          const dirMap = await reverseGeocode(entregaGuardar.latitud, entregaGuardar.longitud);
+          if (dirMap) entregaGuardar.direccion = dirMap;
+        } catch (_err) {}
+      }
       totalUsd += entregaGuardar.costo;
     }
 
@@ -650,5 +657,44 @@ export async function postPedidoWeb(req: any, res: any) {
   } catch (error: any) {
     console.error("❌ Error en postPedidoWeb:", error);
     return res.status(500).json({ error: "Error al procesar el pedido web" });
+  }
+}
+
+/**
+ * GET /api/public/geocodificar?lat=...&lon=...
+ * Geocodificación inversa pública para el mapa del carrito web.
+ */
+export async function getGeocodificar(req: any, res: any) {
+  try {
+    const lat = parseFloat(req.query.lat);
+    const lon = parseFloat(req.query.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      return res.status(400).json({ error: "Coordenadas lat y lon requeridas y válidas" });
+    }
+    const { reverseGeocode } = require("../services/geocodingService");
+    const direccion = await reverseGeocode(lat, lon);
+    return res.status(200).json({ ok: true, direccion });
+  } catch (error: any) {
+    console.error("❌ Error en getGeocodificar:", error);
+    return res.status(500).json({ error: "Error al geocodificar coordenadas" });
+  }
+}
+
+/**
+ * GET /api/public/buscar-direccion?q=...
+ * Búsqueda predictiva de direcciones en Caracas para el mapa del carrito web.
+ */
+export async function getBuscarDireccion(req: any, res: any) {
+  try {
+    const q = String(req.query.q || "").trim();
+    if (q.length < 3) {
+      return res.status(200).json({ ok: true, resultados: [] });
+    }
+    const { searchAddress } = require("../services/geocodingService");
+    const resultados = await searchAddress(q);
+    return res.status(200).json({ ok: true, resultados });
+  } catch (error: any) {
+    console.error("❌ Error en getBuscarDireccion:", error);
+    return res.status(500).json({ error: "Error al buscar dirección" });
   }
 }
