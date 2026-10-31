@@ -515,9 +515,17 @@ export async function postPedidoWeb(req: any, res: any) {
         const stockDisponible = Number(prod.stock) || 0;
         if (stockDisponible < cantidad) {
           await registrarEventoCatalogo("producto");
-          console.warn(`⚠️ [Catálogo] POST /api/public/pedidos: producto '${prod.name}' sin stock suficiente`);
+          console.warn(`⚠️ [Catálogo] POST /api/public/pedidos: producto '${prod.name}' sin stock suficiente (solicitado: ${cantidad}, disponible: ${stockDisponible})`);
+          if (stockDisponible <= 0) {
+            return res.status(400).json({
+              error: `El producto '${prod.name}' está agotado.`,
+            });
+          }
+          const unidad = stockDisponible === 1
+            ? (configManager.get("settings.sales.unitSingular") || "unidad")
+            : (configManager.get("settings.sales.unitPlural") || "unidades");
           return res.status(400).json({
-            error: `El producto '${prod.name}' no tiene disponibilidad suficiente.`,
+            error: `Solo quedan ${stockDisponible} ${unidad} disponibles de '${prod.name}' (solicitaste ${cantidad}). Por favor ajusta la cantidad en el carrito.`,
           });
         }
       }

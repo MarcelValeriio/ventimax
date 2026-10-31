@@ -1478,9 +1478,12 @@ class ChatFlowService {
                 await chatFlow.mostrarCategorias(from, io);
                 return;
               }
+              const unidad = disponible === 1
+                ? (configManager.get("settings.sales.unitSingular") || "unidad")
+                : (configManager.get("settings.sales.unitPlural") || "unidades");
               await this._sendYGuardar(
                 from,
-                `⚠️ Solo quedan *${disponible}* unidades de *${prod.name}*. Por favor ajusta la cantidad.`,
+                `⚠️ Solo quedan *${disponible}* ${unidad} de *${prod.name}*. Por favor ajusta la cantidad.`,
                 io,
               );
               return;
@@ -2732,8 +2735,10 @@ class ChatFlowService {
           if (stockDisponible <= 0) {
             avisosCambios.push(`• *${prod.name}* se agotó.`);
           } else {
-            // Nunca se dice el stock exacto (R4); solo que no alcanza
-            avisosCambios.push(`• *${prod.name}* no tiene disponibilidad suficiente para ${cantidad} ${configManager.get("settings.sales.unitPlural") || "unidades"}.`);
+            const unidad = stockDisponible === 1
+              ? (configManager.get("settings.sales.unitSingular") || "unidad")
+              : (configManager.get("settings.sales.unitPlural") || "unidades");
+            avisosCambios.push(`• *${prod.name}*: solo quedan *${stockDisponible}* ${unidad} disponibles (solicitaste ${cantidad}). Por favor ajusta la cantidad.`);
           }
           continue;
         }

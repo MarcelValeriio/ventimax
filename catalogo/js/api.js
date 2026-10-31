@@ -113,10 +113,13 @@ export async function enviarPedidoWeb(payload) {
     }
 
     if (res.status === 400) {
+      const errData = await res.json().catch(() => null);
       return {
         ok: false,
         status: 400,
-        mensaje: "No pudimos procesar tu pedido. Por favor revisa los productos y cantidades en tu carrito.",
+        mensaje:
+          errData?.error ||
+          "No pudimos procesar tu pedido. Por favor revisa los productos y cantidades en tu carrito.",
       };
     }
 
