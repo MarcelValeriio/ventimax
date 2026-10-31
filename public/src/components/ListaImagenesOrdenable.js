@@ -27,6 +27,7 @@ export function ListaImagenesOrdenable({
   alt = (idx) => `Imagen ${idx + 1}`,
   className = "grid grid-cols-5 gap-2",
   aspecto = "1 / 1",
+  mostrarFlechas = false,
   renderSuperpuesto,
   renderDebajo,
 }) {
@@ -129,12 +130,14 @@ export function ListaImagenesOrdenable({
             "Principal"
           ),
         renderSuperpuesto ? renderSuperpuesto(img, idx) : null,
-        e(
-          "div",
-          { className: "absolute bottom-1 inset-x-1 z-20 flex justify-between gap-1" },
-          flecha(idx, -1),
-          flecha(idx, 1)
-        )
+        mostrarFlechas
+          ? e(
+              "div",
+              { className: "absolute bottom-1 inset-x-1 z-20 flex justify-between gap-1" },
+              flecha(idx, -1),
+              flecha(idx, 1)
+            )
+          : null
       ),
       renderDebajo ? renderDebajo(img, idx) : null
     );

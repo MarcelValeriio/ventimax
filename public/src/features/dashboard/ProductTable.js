@@ -1104,12 +1104,14 @@ const ProductTable = () => {
                               alt: (idx) => `Foto ${idx + 1}`,
                               className: "grid grid-cols-5 gap-2 mt-2",
                               aspecto: "1 / 1",
+                              mostrarFlechas: false,
                               renderSuperpuesto: (img, idx) =>
                                 e(
                                   "div",
                                   {
                                     className:
-                                      "absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1 pb-8",
+                                      "absolute inset-0 z-20 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 p-1.5",
+                                    onDragStart: (ev) => ev.stopPropagation(),
                                   },
                                   idx > 0 &&
                                     e(
@@ -1117,22 +1119,30 @@ const ProductTable = () => {
                                       {
                                         type: "button",
                                         title: "Marcar como principal",
-                                        onClick: () => handleSetPrimaryImage(idx),
+                                        onClick: (ev) => {
+                                          ev.stopPropagation();
+                                          handleSetPrimaryImage(idx);
+                                        },
                                         className:
-                                          "p-1 bg-emerald-600 text-white rounded text-[10px] hover:bg-emerald-700 w-full font-bold",
+                                          "p-1 bg-emerald-600 text-white rounded text-[10px] hover:bg-emerald-700 w-full font-bold shadow flex items-center justify-center gap-1",
                                       },
-                                      e(Icono, { nombre: "star", className: "inline mr-1 fill-current" }), " Principal"
+                                      e(Icono, { nombre: "star", className: "inline fill-current text-[11px]" }),
+                                      " Principal"
                                     ),
                                   e(
                                     "button",
                                     {
                                       type: "button",
                                       title: "Eliminar foto",
-                                      onClick: () => handleDeleteImage(idx),
+                                      onClick: (ev) => {
+                                        ev.stopPropagation();
+                                        handleDeleteImage(idx);
+                                      },
                                       className:
-                                        "p-1 bg-red-600 text-white rounded text-[10px] hover:bg-red-700 w-full font-bold",
+                                        "p-1 bg-red-600 text-white rounded text-[10px] hover:bg-red-700 w-full font-bold shadow flex items-center justify-center gap-1",
                                     },
-                                    "Borrar"
+                                    e(Icono, { nombre: "trash", className: "inline text-[11px]" }),
+                                    " Eliminar"
                                   )
                                 ),
                             }
