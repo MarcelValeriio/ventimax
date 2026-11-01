@@ -119,6 +119,9 @@ export async function getMarca(req: any, res: any) {
         }
       : null;
 
+    const rawDescripcionAliados = configManager.get("settings.descripcionAliados");
+    const descripcionAliados = typeof rawDescripcionAliados === "string" ? rawDescripcionAliados.trim() : "";
+
     return res.status(200).json({
       brandName,
       theme: {
@@ -128,6 +131,7 @@ export async function getMarca(req: any, res: any) {
         productBrandLogoUrl,
       },
       ayuda,
+      descripcionAliados,
     });
   } catch (error: any) {
     console.error("❌ Error en getMarca pública:", error);

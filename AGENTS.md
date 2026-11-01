@@ -2602,6 +2602,26 @@ En la ficha (`#/producto/:id`), debajo de la tarjeta con el precio y los botones
 
 **Cierre:** casos nuevos en `test-catalogo-web.ts` con la lógica de selección en un módulo sin DOM (`catalogo/js/relacionados.js`, agregado al bucle de `esbuild` de `ci.sh`): misma categoría primero, excluye el actual, disponibles antes que agotados, completa con otras categorías, devuelve vacío si no hay, resultado siempre igual con los mismos datos. Chrome: ficha con 3, con 1 y con 0 relacionados, a 390 y 1440 px, con y sin descuento; clic en un relacionado; 0 errores.
 
+### F2l · Pie de página (footer) estilado y funcional — Backend + Frontend · `Pendiente`
+
+Hoy el pie es una línea de texto con la marca, una nota fija y dos enlaces. Queda como un pie de varias columnas, con el contenido que ya existe en el sistema (nada se escribe a mano en el código). **Reglas:** las de este tablero (sin `innerHTML` con datos, sin scripts en línea, sin CDN, Lucide, nada de marca escrita en el código, móvil primero, 44 px táctiles). Todo bloque sin datos **no se muestra**.
+
+**Contenido (todo sale de `GET /api/public/info`, `/api/public/marca` y Datos del negocio):**
+1. **Marca:** logo y nombre (de `/marca`) y una frase corta del negocio (`businessDescription`, solo si existe).
+2. **Navegar:** Inicio, categorías (las del catálogo), Ofertas (si hay descuentos), Aliados (si hay), Preguntas frecuentes (si hay). Mismas reglas de visibilidad que la barra del encabezado.
+3. **Contacto:** WhatsApp (el número público de Datos del negocio, **nunca** `ADMIN_PHONE_NUMBER`; enlace `https://wa.me/…`), Instagram (el que ya envía el servidor), correo y sitio web si están cargados, y la **dirección del punto de retiro** con su horario si hay un método de retiro activo.
+4. **Horario de atención:** el que ya expone `info.horario`, en texto legible.
+5. **Cómo comprar y pagar:** los pasos de compra en 3 líneas (elegir, pedir por WhatsApp con el código, pagar) y los **nombres de los métodos de pago activos** (`info.pagos`, solo nombres, nunca cuentas) y de envío (`info.envios`), como etiquetas pequeñas. Texto en español neutro.
+6. **Legal:** Política de privacidad (ya existe), razón social y RIF si están cargados en Datos del negocio (`© <año> <razón social o marca>`; el año se calcula, no se escribe).
+7. **Marca del producto:** logo de Fortunne/`productBrandLogoUrl` si existe, como sello discreto.
+8. Botón **"Volver arriba"** (Lucide `arrow-up`, 44 px, `aria-label`), visible al bajar; con `prefers-reduced-motion` salta sin animar.
+
+**Servidor:** `/api/public/info` agrega `contacto: { whatsapp, email, website, instagram }`, `legal: { razonSocial, rif }` y `retiro: { nombre, direccion, horario } | null`, con lista blanca (solo lo que se muestra; nada interno). Si Datos del negocio no tiene un campo, va vacío y el pie no lo pinta. Actualizar el esquema de claves de `test-preguntas-frecuentes.ts`.
+
+**Diseño:** 4 columnas en escritorio, 2 en tableta y acordeón o columna única en celular (sin ocultar el contacto). Fondo oscuro con el color de marca de `/marca` (sin hexadecimales de marca escritos; solo variables CSS), contraste AA, enlaces con foco visible. Barra inferior con derechos y legal. Respetar `DESIGN.md`; revisar con Impeccable antes de entregar.
+
+**Cierre:** suite con casos de `info` (lista blanca, sin `ADMIN_PHONE_NUMBER`, campos vacíos omitidos, retiro `null` sin método) y casos en `test-catalogo-web.ts` (sin `innerHTML`, sin script en línea, sin marca escrita, sin año fijo). Chrome a 390 y 1440 px: pie completo, pie con solo lo mínimo (sin aliados, sin retiro, sin correo), "Volver arriba"; 0 errores de CSP. `./scripts/ci.sh` en verde.
+
 ---
 
 ## Dudas para Claude

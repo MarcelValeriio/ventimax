@@ -171,7 +171,7 @@ async function main() {
 
       const json = await res.json();
       assert.strictEqual(json.brandName, "VentiMax");
-      assert.deepStrictEqual(Object.keys(json).sort(), ["ayuda", "brandName", "theme"]);
+      assert.deepStrictEqual(Object.keys(json).sort(), ["ayuda", "brandName", "descripcionAliados", "theme"]);
       assert.deepStrictEqual(
         Object.keys(json.theme).sort(),
         ["logoUrl", "primaryColor", "productBrandLogoUrl", "secondaryColor"].sort()

@@ -390,21 +390,37 @@ async function main() {
   console.log("  ✅ Test 5 superado");
 
   // ---------------------------------------------------------------------------
-  console.log("▶ Test 6: Integridad de la tienda y frontend (sin innerHTML)...");
+  console.log("▶ Test 6: Integridad de la tienda, ruta directa y frontend (sin innerHTML)...");
   {
     const appSrc = fs.readFileSync(path.join(__dirname, "../catalogo/js/app.js"), "utf8");
     const htmlSrc = fs.readFileSync(path.join(__dirname, "../catalogo/index.html"), "utf8");
     const cssSrc = fs.readFileSync(path.join(__dirname, "../catalogo/css/style.css"), "utf8");
 
-    // Redirección en enrutador
+    // Ruta directa #/aliados sin state.info previo: no debe redirigir a #/ prematuramente
+    assert.ok(
+      appSrc.includes('if (!state.info)') && appSrc.includes('appRoot.appendChild(siluetasCatalogo());'),
+      "enrutar() y renderizarAliados() deben esperar state.info con siluetas antes de decidir redirección"
+    );
+    assert.ok(
+      appSrc.includes('if (window.location.hash.startsWith("#/aliados")) enrutar();'),
+      "cargarDatos() debe volver a enrutar cuando llegue la info pública"
+    );
+
+    // Redirección en enrutador solo si state.info ya cargó y lista está vacía
     assert.ok(
       appSrc.includes('hash === "#/aliados"') && appSrc.includes('window.location.hash = "#/";'),
-      "enrutar() debe redirigir a #/ si no hay aliados activos"
+      "enrutar() debe redirigir a #/ si no hay aliados activos una vez cargada la info"
     );
 
     // renderizarAliados
     assert.ok(appSrc.includes("function renderizarAliados"), "renderizarAliados debe estar implementada");
     assert.ok(appSrc.includes("aliados-cuadricula"), "renderizarAliados debe armar la cuadrícula");
+
+    // Intro de aliados desde marca con textContent (0 innerHTML)
+    assert.ok(
+      appSrc.includes("state.marca?.descripcionAliados") && appSrc.includes("pIntro.textContent = intro.trim();"),
+      "renderizarAliados debe leer descripcionAliados de la marca y pintar con textContent"
+    );
 
     // Seguridad: 0 innerHTML
     assert.ok(!appSrc.includes("innerHTML"), "catalogo/js/app.js no debe usar innerHTML");
@@ -422,8 +438,42 @@ async function main() {
   }
   console.log("  ✅ Test 6 superado");
 
+  // ---------------------------------------------------------------------------
+  console.log("▶ Test 7: AyudaTamanoImagen y reordenamiento con posiciones explícitas en AliadosTab...");
+  {
+    const tabSrc = fs.readFileSync(
+      path.join(__dirname, "../public/src/features/inventory/components/AliadosTab.js"),
+      "utf8"
+    );
+
+    // AyudaTamanoImagen
+    assert.ok(
+      tabSrc.includes('import { AyudaTamanoImagen } from "../../../components/AyudaTamanoImagen.js";'),
+      "AliadosTab debe importar AyudaTamanoImagen"
+    );
+    assert.ok(
+      tabSrc.includes('medidas: "400 × 200 px (horizontal)"'),
+      "AliadosTab debe indicar medidas de 400 × 200 px (horizontal)"
+    );
+    assert.ok(
+      tabSrc.includes('detalle: "JPG, PNG o WebP, hasta 2 MB"'),
+      "AliadosTab debe indicar detalle de JPG, PNG o WebP, hasta 2 MB"
+    );
+
+    // Reordenamiento sin 'Number(orden) || destino'
+    assert.ok(
+      !tabSrc.includes("Number(orden) || destino") && !tabSrc.includes("Number(adyacente.orden) || destino"),
+      "AliadosTab no debe usar fallback '|| destino' que trata 0 como vacío"
+    );
+    assert.ok(
+      tabSrc.includes("copia.splice(index, 1)") && tabSrc.includes("copia.splice(destino, 0, movido)"),
+      "AliadosTab debe reordenar el arreglo con posiciones explícitas"
+    );
+  }
+  console.log("  ✅ Test 7 superado");
+
   console.log("\n================================================================================");
-  console.log("🎉 TODOS LOS TESTS DE ALIADOS COMERCIALES PASARON EXITOSAMENTE (6/6)");
+  console.log("🎉 TODOS LOS TESTS DE ALIADOS COMERCIALES PASARON EXITOSAMENTE (7/7)");
   console.log("================================================================================\n");
 }
 

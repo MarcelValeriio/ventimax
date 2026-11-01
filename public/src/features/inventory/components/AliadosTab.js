@@ -1,4 +1,5 @@
 import { Icono } from "../../../components/Icono.js";
+import { AyudaTamanoImagen } from "../../../components/AyudaTamanoImagen.js";
 /**
  * public/src/features/inventory/components/AliadosTab.js
  * Módulo de gestión de aliados comerciales (F2j) - Pure JS Version
@@ -204,17 +205,19 @@ const AliadosTab = () => {
     const destino = index + direccion;
     if (destino < 0 || destino >= aliados.length) return;
 
-    const actual = aliados[index];
-    const adyacente = aliados[destino];
-
-    const nuevoOrdenActual = Number(adyacente.orden) || destino;
-    const nuevoOrdenAdyacente = Number(actual.orden) || index;
+    const copia = [...aliados];
+    const [movido] = copia.splice(index, 1);
+    copia.splice(destino, 0, movido);
 
     try {
-      await Promise.all([
-        apiClient.put(`/api/admin/aliados/${actual._id}`, { orden: nuevoOrdenActual }),
-        apiClient.put(`/api/admin/aliados/${adyacente._id}`, { orden: nuevoOrdenAdyacente }),
-      ]);
+      await Promise.all(
+        copia.map((aliado, pos) => {
+          if (aliado.orden !== pos) {
+            return apiClient.put(`/api/admin/aliados/${aliado._id}`, { orden: pos });
+          }
+          return Promise.resolve();
+        })
+      );
       fetchAliados();
     } catch (err) {
       const msg = err.response?.data?.error || err.message;
@@ -585,11 +588,10 @@ const AliadosTab = () => {
                         "Quitar logo",
                       ),
                   ),
-                  e(
-                    "p",
-                    { className: "text-[10px] text-gray-400 leading-tight" },
-                    "Recomendado fondo transparente (PNG/WebP) o blanco. Hasta 2 MB. Subida inmediata.",
-                  ),
+                  e(AyudaTamanoImagen, {
+                    medidas: "400 × 200 px (horizontal)",
+                    detalle: "JPG, PNG o WebP, hasta 2 MB",
+                  }),
                 ),
               ),
               e("input", {

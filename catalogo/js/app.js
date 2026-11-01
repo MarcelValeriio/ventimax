@@ -308,6 +308,9 @@ function aplicarIdentidadMarca(marca) {
 
   // El logo se crea solo cuando hay uno: un <img> sin src se vería como imagen rota mientras carga la marca
   const logoUrl = resolverUrlRecurso(theme.productBrandLogoUrl || theme.logoUrl);
+  // El mismo logo sirve de ícono de la pestaña; sin logo se queda el ícono vacío por defecto
+  const faviconLink = document.getElementById("favicon-link");
+  if (logoUrl && faviconLink) faviconLink.setAttribute("href", logoUrl);
   if (logoUrl && brandLink && !brandLink.querySelector(".marca-logo")) {
     const logo = el("img", { className: "marca-logo", src: logoUrl, alt: marca.brandName || "" });
     // Si el logo no carga, queda el nombre de la marca en texto
@@ -2329,7 +2332,12 @@ function renderizarConfirmacion(codigo) {
 function renderizarAliados() {
   limpiarElemento(appRoot);
 
-  const lista = state.info?.aliados || [];
+  if (!state.info) {
+    appRoot.appendChild(siluetasCatalogo());
+    return;
+  }
+
+  const lista = state.info.aliados || [];
   if (!Array.isArray(lista) || lista.length === 0) {
     window.location.hash = "#/";
     return;
@@ -2342,10 +2350,10 @@ function renderizarAliados() {
     el("h1", { className: "aliados-titulo", id: "aliados-titulo" }, "Aliados comerciales"),
   );
 
-  const intro = state.info?.descripcionAliados || state.marca?.descripcionAliados || "";
-  if (intro && typeof intro === "string") {
+  const intro = state.marca?.descripcionAliados || "";
+  if (intro && typeof intro === "string" && intro.trim()) {
     const pIntro = el("p", { className: "aliados-intro" });
-    pIntro.textContent = intro;
+    pIntro.textContent = intro.trim();
     cabecera.appendChild(pIntro);
   }
 
@@ -2446,6 +2454,13 @@ function enrutar() {
     renderizarDetalleProducto(pid);
   } else if (hash === "#/aliados" || hash.startsWith("#/aliados?")) {
     state.soloOfertas = false;
+    // Si la información pública aún no ha llegado, esperar sin redirigir de inmediato
+    if (!state.info) {
+      state.vista = "aliados";
+      limpiarElemento(appRoot);
+      appRoot.appendChild(siluetasCatalogo());
+      return;
+    }
     const listaAliados = state.info?.aliados || [];
     if (!Array.isArray(listaAliados) || listaAliados.length === 0) {
       window.location.hash = "#/";
@@ -2491,7 +2506,7 @@ async function cargarDatos() {
   state.cargando = false;
   enrutar();
 
-  if (state.catalogo && !state.info) {
+  if (!state.info) {
     obtenerInfo()
       .then((info) => {
         state.info = info;
@@ -2513,7 +2528,11 @@ async function cargarDatos() {
         if (state.vista === "carrito") renderizarCarrito();
         if (window.location.hash.startsWith("#/aliados")) enrutar();
       })
-      .catch((err) => console.warn("[Catálogo] No se pudo cargar la información de la tienda:", err));
+      .catch((err) => {
+        console.warn("[Catálogo] No se pudo cargar la información de la tienda:", err);
+        state.info = { aliados: [] };
+        if (window.location.hash.startsWith("#/aliados")) enrutar();
+      });
   }
 }
 
