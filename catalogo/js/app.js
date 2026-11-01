@@ -2236,8 +2236,7 @@ function renderizarCarrito() {
   const valorTotal = el("dd", {});
   const filaSucursalResumen = el("div", { className: "resumen-sucursal hidden" });
   const sucursalResumenTexto = el("strong", {});
-  const sucursalResumenDir = el("span", { className: "resumen-sucursal-dir" });
-  filaSucursalResumen.append(sucursalResumenTexto, sucursalResumenDir);
+  filaSucursalResumen.append(sucursalResumenTexto);
 
   function refrescarResumen() {
     const costo = pideEntrega ? costoEntrega(state.entrega.metodo) : { tipo: "pendiente", monto: 0 };
@@ -2260,11 +2259,9 @@ function renderizarCarrito() {
     if (state.entrega.sucursal) {
       filaSucursalResumen.classList.remove("hidden");
       sucursalResumenTexto.textContent = `Sucursal: ${formatearDetalleSucursal(state.entrega.sucursal)}`;
-      sucursalResumenDir.textContent = state.entrega.sucursal.direccion || "";
     } else {
       filaSucursalResumen.classList.add("hidden");
       sucursalResumenTexto.textContent = "";
-      sucursalResumenDir.textContent = "";
     }
 
     const lista = !pideEntrega || entregaCompleta(state.entrega);

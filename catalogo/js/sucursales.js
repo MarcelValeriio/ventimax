@@ -67,14 +67,14 @@ export function formatearOpcionSucursal(sucursal) {
 }
 
 /**
- * Formato resumido para la vista previa del carrito: "código · nombre (ciudad)".
+ * Formato resumido para la vista previa del carrito: "código · nombre (dirección)".
  */
 export function formatearDetalleSucursal(sucursal) {
   if (!sucursal) return "";
   const codigo = String(sucursal.codigo || "").trim();
   const nombre = String(sucursal.nombre || "").trim();
-  const ciudad = String(sucursal.ciudad || "").trim();
-  return `${codigo} · ${nombre} (${ciudad})`;
+  const direccion = String(sucursal.direccion || "").trim();
+  return `${codigo} · ${nombre} (${direccion})`;
 }
 
 /**

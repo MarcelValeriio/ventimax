@@ -714,8 +714,8 @@ async function runTests() {
     "101 · Centro — Caracas"
   );
   assert.strictEqual(
-    formatearDetalleSucursal({ codigo: "101", nombre: "Centro", ciudad: "Caracas" }),
-    "101 · Centro (Caracas)"
+    formatearDetalleSucursal({ codigo: "101", nombre: "Centro", ciudad: "Caracas", direccion: "Av. Principal" }),
+    "101 · Centro (Av. Principal)"
   );
 
   const stateEntrega = {
