@@ -25,7 +25,16 @@ process.env.ADMIN_PHONE_NUMBER_2 = "584240000000";
 const dbLocal = require("../services/dbLocal");
 const chatFlowService = require("../services/chatFlowService");
 const orderService = require("../services/orderService");
+const horarioService = require("../services/horarioService");
 const { esFinDeSemanaCaracas } = require("../utils/helpers");
+
+// Asegurar que la suite sea determinista cualquier día de la semana (evitar transición automática a fin de semana)
+horarioService.setHorarioEnMemoria({
+  zonaHoraria: "America/Caracas",
+  dias: [0, 1, 2, 3, 4, 5, 6],
+  apertura: "00:00",
+  cierre: "23:59",
+});
 
 async function runWhatsAppEdgeCasesTest() {
   console.log("================================================================================");

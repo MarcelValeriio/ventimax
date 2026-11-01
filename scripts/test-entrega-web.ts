@@ -18,6 +18,15 @@ const chatFlowService = require("../services/chatFlowService");
 const chatFlow = require("../controllers/chatFlowController");
 const orderService = require("../services/orderService");
 const publicRoutes = require("../routes/publicRoutes");
+const horarioService = require("../services/horarioService");
+
+// Suite determinista: evitar interrupciones por día no laborable
+horarioService.setHorarioEnMemoria({
+  zonaHoraria: "America/Caracas",
+  dias: [0, 1, 2, 3, 4, 5, 6],
+  apertura: "00:00",
+  cierre: "23:59",
+});
 
 import { entregaCompleta, armarEntrega, costoEntrega, enlaceMapa, redondearCoordenada, empresasDe } from "../catalogo/js/entrega.js";
 import { armarCuerpoPedido } from "../catalogo/js/carrito.js";

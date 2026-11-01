@@ -12,6 +12,7 @@ const { normalizarEmpresas, nombresEmpresas } = require("../services/empresasEnv
 const { precioVigente, descuentoVigente } = require("../services/precios");
 const { getBannerTiendaSync } = require("../services/bannerTiendaService");
 const { getBannerLateralSync } = require("../services/bannerLateralService");
+const { getSliderTiendaPublico } = require("../services/sliderTiendaService");
 
 let Producto = require("../models/Producto");
 let Categoria = require("../models/Categoria");
@@ -424,8 +425,9 @@ export async function getInfo(req: any, res: any) {
 
     const banner = await resolverBannerTienda();
     const bannerLateral = await resolverBannerLateral();
+    const slider = await getSliderTiendaPublico();
 
-    return res.status(200).json({ preguntas, pagos, envios, horario, banner, bannerLateral, instagram: obtenerInstagramPublico() });
+    return res.status(200).json({ preguntas, pagos, envios, horario, banner, bannerLateral, slider, instagram: obtenerInstagramPublico() });
   } catch (error: any) {
     console.error("❌ Error en getInfo público:", error);
     return res.status(500).json({ error: "Error al obtener la información de la tienda" });

@@ -7,6 +7,15 @@ process.env.NODE_ENV = 'test';
 const chatFlowService = require('../services/chatFlowService');
 const orderService = require('../services/orderService');
 const mongoose = require('mongoose');
+const horarioService = require('../services/horarioService');
+
+// Suite determinista: evitar interrupciones por día no laborable
+horarioService.setHorarioEnMemoria({
+  zonaHoraria: "America/Caracas",
+  dias: [0, 1, 2, 3, 4, 5, 6],
+  apertura: "00:00",
+  cierre: "23:59",
+});
 
 // Cada comprobación fallida imprime "❌ Error: …"; se cuentan para terminar con código 1 (CI).
 let fallos = 0;

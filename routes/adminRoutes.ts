@@ -46,6 +46,46 @@ const handleUploadProductoImagen = (req: any, res: any, next: any) => {
   });
 };
 
+// Imagen de slider de tienda (F2i): JPG, PNG o WebP, hasta 3 MB
+const uploadSliderImagen = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (req: any, file: any, cb: any) => {
+    const allowedMimes = ["image/jpeg", "image/png", "image/webp"];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      const err: any = new Error("Solo se permiten imágenes en formato JPG, PNG o WebP");
+      err.code = "INVALID_FILE_TYPE";
+      cb(err, false);
+    }
+  },
+});
+
+const handleUploadSliderImagen = (req: any, res: any, next: any) => {
+  uploadSliderImagen.single("imagen")(req, res, (err: any) => {
+    if (err) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          success: false,
+          error: "La imagen no puede exceder 3 MB",
+        });
+      }
+      if (err.code === "INVALID_FILE_TYPE") {
+        return res.status(400).json({
+          success: false,
+          error: err.message,
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        error: err.message || "Error al procesar la imagen",
+      });
+    }
+    next();
+  });
+};
+
 // Logo de empresa de envío (F2f): JPG, PNG o WebP, hasta 2 MB
 const uploadLogoEnvio = multer({
   storage: multer.memoryStorage(),
@@ -281,6 +321,26 @@ module.exports = function (io) {
     isAuthenticated,
     authorize(["config:manage"]),
     configAdminController.deleteBannerLateralImagen,
+  );
+  // Slider de portada de la tienda (F2i, solo Admin con config:manage)
+  router.get(
+    "/config/slider-tienda",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.getSliderTiendaConfig,
+  );
+  router.put(
+    "/config/slider-tienda",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.updateSliderTiendaConfig,
+  );
+  router.post(
+    "/config/slider-tienda/imagen",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    handleUploadSliderImagen,
+    configAdminController.postSliderTiendaImagen,
   );
   router.get(
     "/config/catalogo/abuso",

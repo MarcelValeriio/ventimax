@@ -440,6 +440,11 @@ mongoose
     await initBannerLateral();
     console.log("✅ Banner lateral de la tienda inicializado");
 
+    // Slider de portada de la tienda (F2i): la API pública lo lee de memoria
+    const { init: initSliderTienda } = require("./services/sliderTiendaService");
+    await initSliderTienda();
+    console.log("✅ Slider de portada de la tienda inicializado");
+
     // Preguntas frecuentes de la tienda (F2b): la API pública las lee de memoria
     const { init: initPreguntasFrecuentes } = require("./services/preguntasFrecuentesService");
     await initPreguntasFrecuentes();

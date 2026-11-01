@@ -26,6 +26,22 @@ const normalizarBannerLateral = (b) => ({
     : [],
 });
 
+// Slider de portada (F2i): carrusel gestionado desde el panel
+const normalizarSliderTienda = (s) => ({
+  activo: s?.activo === true,
+  autoavance: s?.autoavance !== false,
+  segundos: Number.isInteger(Number(s?.segundos)) && Number(s.segundos) >= 3 && Number(s.segundos) <= 15 ? Number(s.segundos) : 6,
+  slides: Array.isArray(s?.slides) ? s.slides.map((sl) => ({
+    url: sl.url || "",
+    urlMovil: sl.urlMovil || null,
+    publicId: sl.publicId || "",
+    publicIdMovil: sl.publicIdMovil || null,
+    alt: sl.alt || "",
+    productoId: sl.productoId || null,
+    categoriaSlug: sl.categoriaSlug || null,
+  })) : [],
+});
+
 // Días de la semana ordenados de Lunes a Domingo para una mejor UX
 const DAYS_OF_WEEK = [
   { id: 1, name: "Lunes", short: "Lun" },
@@ -373,6 +389,16 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
   const [bannerLatProductoNuevo, setBannerLatProductoNuevo] = useState("");
   const bannerLatFileRef = useRef(null);
 
+  // Slider de portada de la tienda (F2i)
+  const [sliderTienda, setSliderTienda] = useState({ activo: false, autoavance: true, segundos: 6, slides: [] });
+  const [sliderLoading, setSliderLoading] = useState(false);
+  const [sliderSaving, setSliderSaving] = useState(false);
+  const [sliderUploading, setSliderUploading] = useState(false);
+  const [categoriasSlider, setCategoriasSlider] = useState([]);
+  const sliderNuevoFileRef = useRef(null);
+  const sliderCambiarFileRef = useRef(null);
+  const [sliderCambioPendiente, setSliderCambioPendiente] = useState(null);
+
   const [abusoLoading, setAbusoLoading] = useState(false);
 
   const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
@@ -599,6 +625,38 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       }
     };
     fetchBannerLateral();
+  }, [isAdmin]);
+
+  // Carga el slider de portada y categorías de la tienda (F2i, solo admin)
+  useEffect(() => {
+    if (!isAdmin) return;
+    const fetchSliderTienda = async () => {
+      try {
+        setSliderLoading(true);
+        const client = window.apiClient || apiClient;
+        const res = await client.get("/api/admin/config/slider-tienda");
+        if (res.data?.success && res.data?.slider) {
+          setSliderTienda(normalizarSliderTienda(res.data.slider));
+        }
+      } catch (err) {
+        console.warn("No se pudo cargar el slider de portada:", err);
+      } finally {
+        setSliderLoading(false);
+      }
+    };
+    const fetchCategorias = async () => {
+      try {
+        const client = window.apiClient || apiClient;
+        const res = await client.get("/api/admin/categorias");
+        if (res.data?.success && Array.isArray(res.data?.data)) {
+          setCategoriasSlider(res.data.data.filter((c) => c && c.activo !== false));
+        }
+      } catch (err) {
+        console.warn("No se pudo cargar las categorías:", err);
+      }
+    };
+    fetchSliderTienda();
+    fetchCategorias();
   }, [isAdmin]);
 
   const toast = (msg, type) => {
@@ -939,6 +997,136 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       // Se reordena la lista local para no perder los enlaces a producto que todavía no se han guardado
       setBannerLat((prev) => ({ ...prev, imagenes: orden.map((i) => prev.imagenes[i]) }));
       toast("Orden del banner guardado", "success");
+    }
+  };
+
+  const handleAgregarSlide = async (archivo) => {
+    if (sliderTienda.slides.length >= 8) {
+      toast("El slider admite como máximo 8 diapositivas", "error");
+      return;
+    }
+    setSliderUploading(true);
+    try {
+      const client = window.apiClient || apiClient;
+      const data = new FormData();
+      data.append("imagen", archivo);
+      const res = await client.post("/api/admin/config/slider-tienda/imagen", data, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (res.data?.success && res.data?.url && res.data?.publicId) {
+        const nuevaSlide = {
+          url: res.data.url,
+          urlMovil: null,
+          publicId: res.data.publicId,
+          publicIdMovil: null,
+          alt: "",
+          productoId: null,
+          categoriaSlug: null,
+        };
+        setSliderTienda((prev) => ({
+          ...prev,
+          slides: [...prev.slides, nuevaSlide],
+        }));
+        toast("Slide agregada al carrusel", "success");
+      }
+    } catch (err) {
+      console.error("Error subiendo imagen de portada:", err);
+      toast(err.response?.data?.error || err.message || "Error al subir la imagen", "error");
+    } finally {
+      setSliderUploading(false);
+    }
+  };
+
+  const handleCambiarImagenSlide = async (archivo) => {
+    if (!sliderCambioPendiente) return;
+    const { index, tipo } = sliderCambioPendiente;
+    setSliderUploading(true);
+    try {
+      const client = window.apiClient || apiClient;
+      const data = new FormData();
+      data.append("imagen", archivo);
+      const res = await client.post("/api/admin/config/slider-tienda/imagen", data, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (res.data?.success && res.data?.url && res.data?.publicId) {
+        setSliderTienda((prev) => {
+          const nuevas = [...prev.slides];
+          if (nuevas[index]) {
+            if (tipo === "movil") {
+              nuevas[index] = { ...nuevas[index], urlMovil: res.data.url, publicIdMovil: res.data.publicId };
+            } else {
+              nuevas[index] = { ...nuevas[index], url: res.data.url, publicId: res.data.publicId };
+            }
+          }
+          return { ...prev, slides: nuevas };
+        });
+        toast("Imagen actualizada", "success");
+      }
+    } catch (err) {
+      console.error("Error actualizando imagen de slide:", err);
+      toast(err.response?.data?.error || err.message || "Error al subir la imagen", "error");
+    } finally {
+      setSliderUploading(false);
+      setSliderCambioPendiente(null);
+    }
+  };
+
+  const handleQuitarImagenMovil = (index) => {
+    setSliderTienda((prev) => {
+      const nuevas = [...prev.slides];
+      if (nuevas[index]) {
+        nuevas[index] = { ...nuevas[index], urlMovil: null, publicIdMovil: null };
+      }
+      return { ...prev, slides: nuevas };
+    });
+    toast("Imagen de celular quitada (se usará la de escritorio)", "info");
+  };
+
+  const handleEliminarSlide = (index) => {
+    if (!window.confirm("¿Seguro que deseas eliminar esta diapositiva del slider?")) return;
+    setSliderTienda((prev) => ({
+      ...prev,
+      slides: prev.slides.filter((_, i) => i !== index),
+    }));
+    toast("Slide eliminada", "info");
+  };
+
+  const handleMoverSlide = (index, direccion) => {
+    const nuevoIndice = index + direccion;
+    setSliderTienda((prev) => {
+      if (nuevoIndice < 0 || nuevoIndice >= prev.slides.length) return prev;
+      const nuevas = [...prev.slides];
+      const temp = nuevas[index];
+      nuevas[index] = nuevas[nuevoIndice];
+      nuevas[nuevoIndice] = temp;
+      return { ...prev, slides: nuevas };
+    });
+  };
+
+  const handleActualizarSlide = (index, campo, valor) => {
+    setSliderTienda((prev) => {
+      const nuevas = [...prev.slides];
+      if (nuevas[index]) {
+        nuevas[index] = { ...nuevas[index], [campo]: valor };
+      }
+      return { ...prev, slides: nuevas };
+    });
+  };
+
+  const handleGuardarSlider = async () => {
+    setSliderSaving(true);
+    try {
+      const client = window.apiClient || apiClient;
+      const res = await client.put("/api/admin/config/slider-tienda", sliderTienda);
+      if (res.data?.success && res.data?.slider) {
+        setSliderTienda(normalizarSliderTienda(res.data.slider));
+        toast("Slider de portada guardado correctamente", "success");
+      }
+    } catch (err) {
+      console.error("Error guardando el slider de portada:", err);
+      toast(err.response?.data?.error || err.message || "Error al guardar el slider", "error");
+    } finally {
+      setSliderSaving(false);
     }
   };
 
@@ -1691,6 +1879,237 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
           },
             bannerLatSaving && e(Icono, { nombre: "loader-circle", girar: true }),
             bannerLatSaving ? "Guardando..." : "Guardar banner lateral"
+          )
+        )
+      )
+    ),
+    e("section", { key: "slider-tienda", className: "space-y-3" },
+      e("h3", { className: "text-[11px] font-black uppercase tracking-widest text-gray-400 px-1" }, "Slider de portada"),
+      e("div", { className: "bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-6 space-y-6" },
+        e("div", { className: "flex items-start justify-between gap-4" },
+          e("div", { className: "flex items-center gap-3" },
+            e("div", { className: `w-10 h-10 rounded-2xl flex items-center justify-center text-sm ${ICON_TONES.emerald}` },
+              e(Icono, { nombre: "image" })
+            ),
+            e("div", null,
+              e("h4", { className: "text-sm font-bold text-gray-800 dark:text-gray-100" }, "Mostrar slider en la portada de la tienda"),
+              e("p", { className: "text-xs text-gray-500 dark:text-gray-400 mt-0.5" },
+                sliderTienda.activo
+                  ? "Activo: la tienda muestra el carrusel de imágenes en la portada (#/)."
+                  : "Desactivado: la tienda no muestra el slider de portada."
+              ),
+              e("p", { className: "text-xs text-gray-500 dark:text-gray-400 mt-1" },
+                "Escritorio: recomendada 1920×600 (~16:5). Celular: opcional, recomendada 1080×1080 (1:1) o 1080×1350 (4:5). Si falta la de celular, se usa la de escritorio."
+              )
+            )
+          ),
+          e("label", { className: "relative inline-flex items-center cursor-pointer" },
+            e("input", {
+              type: "checkbox",
+              checked: sliderTienda.activo,
+              onChange: (ev) => setSliderTienda({ ...sliderTienda, activo: ev.target.checked }),
+              className: "sr-only peer",
+            }),
+            e("div", {
+              className: "w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600",
+            })
+          )
+        ),
+        e("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-gray-700" },
+          e("label", { className: "flex items-center gap-3 cursor-pointer select-none" },
+            e("input", {
+              type: "checkbox",
+              checked: sliderTienda.autoavance,
+              onChange: (ev) => setSliderTienda({ ...sliderTienda, autoavance: ev.target.checked }),
+              className: "w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500",
+            }),
+            e("span", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Autoavance automático")
+          ),
+          e("div", { className: "flex items-center gap-2" },
+            e("label", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Segundos por slide:"),
+            e("input", {
+              type: "number",
+              min: 3,
+              max: 15,
+              value: sliderTienda.segundos,
+              onChange: (ev) => {
+                const val = parseInt(ev.target.value, 10);
+                setSliderTienda({ ...sliderTienda, segundos: isNaN(val) ? 6 : val });
+              },
+              className: "w-20 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
+            }),
+            e("span", { className: "text-xs text-gray-400" }, "(3 a 15 s)")
+          )
+        ),
+        e("div", { className: "flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700" },
+          e("p", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Diapositivas"),
+          e("span", { className: "text-[11px] text-gray-400 font-semibold" }, `${sliderTienda.slides.length}/8`)
+        ),
+        e("input", {
+          ref: sliderNuevoFileRef,
+          type: "file",
+          accept: "image/jpeg,image/png,image/webp",
+          className: "hidden",
+          onChange: (ev) => {
+            const archivo = ev.target.files && ev.target.files[0];
+            ev.target.value = "";
+            if (archivo) handleAgregarSlide(archivo);
+          },
+        }),
+        e("input", {
+          ref: sliderCambiarFileRef,
+          type: "file",
+          accept: "image/jpeg,image/png,image/webp",
+          className: "hidden",
+          onChange: (ev) => {
+            const archivo = ev.target.files && ev.target.files[0];
+            ev.target.value = "";
+            if (archivo) handleCambiarImagenSlide(archivo);
+          },
+        }),
+        sliderTienda.slides.length > 0
+          ? e("div", { className: "space-y-4" },
+              sliderTienda.slides.map((slide, i) =>
+                e("div", { key: `slide-${i}`, className: "p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 space-y-4" },
+                  e("div", { className: "flex items-center justify-between" },
+                    e("span", { className: "text-xs font-black uppercase tracking-wider text-gray-600 dark:text-gray-300" }, `Slide ${i + 1}`),
+                    e("div", { className: "flex items-center gap-1.5" },
+                      e("button", {
+                        type: "button",
+                        onClick: () => handleMoverSlide(i, -1),
+                        disabled: i === 0,
+                        title: "Mover arriba",
+                        className: "p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 disabled:opacity-30",
+                      }, e(Icono, { nombre: "arrow-up" })),
+                      e("button", {
+                        type: "button",
+                        onClick: () => handleMoverSlide(i, 1),
+                        disabled: i === sliderTienda.slides.length - 1,
+                        title: "Mover abajo",
+                        className: "p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 disabled:opacity-30",
+                      }, e(Icono, { nombre: "arrow-down" })),
+                      e("button", {
+                        type: "button",
+                        onClick: () => handleEliminarSlide(i),
+                        title: "Eliminar slide",
+                        className: "p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 dark:text-rose-400",
+                      }, e(Icono, { nombre: "trash" }))
+                    )
+                  ),
+                  e("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4" },
+                    e("div", { className: "space-y-1.5" },
+                      e("span", { className: "text-[11px] font-bold text-gray-500 uppercase" }, "Imagen Escritorio (16:5)"),
+                      e("div", { className: "relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 aspect-[16/5] bg-gray-100 dark:bg-gray-900 flex items-center justify-center" },
+                        slide.url
+                          ? e("img", { src: slide.url, alt: slide.alt || "Escritorio", className: "w-full h-full object-cover" })
+                          : e("span", { className: "text-xs text-gray-400" }, "Sin imagen")
+                      ),
+                      e("button", {
+                        type: "button",
+                        onClick: () => triggerCambiarImagen(i, "escritorio"),
+                        disabled: sliderUploading,
+                        className: "text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1",
+                      }, e(Icono, { nombre: "upload" }), "Cambiar imagen de escritorio")
+                    ),
+                    e("div", { className: "space-y-1.5" },
+                      e("div", { className: "flex items-center justify-between" },
+                        e("span", { className: "text-[11px] font-bold text-gray-500 uppercase" }, "Imagen Celular (1:1 / 4:5)"),
+                        slide.urlMovil && e("button", {
+                          type: "button",
+                          onClick: () => handleQuitarImagenMovil(i),
+                          className: "text-[10px] font-bold text-rose-500 hover:underline",
+                        }, "Quitar")
+                      ),
+                      e("div", { className: "relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 aspect-[16/5] bg-gray-100 dark:bg-gray-900 flex items-center justify-center" },
+                        slide.urlMovil
+                          ? e("img", { src: slide.urlMovil, alt: slide.alt || "Celular", className: "w-full h-full object-cover" })
+                          : e("span", { className: "text-xs text-gray-400" }, "Usa la de escritorio")
+                      ),
+                      e("button", {
+                        type: "button",
+                        onClick: () => triggerCambiarImagen(i, "movil"),
+                        disabled: sliderUploading,
+                        className: "text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1",
+                      }, e(Icono, { nombre: "upload" }), slide.urlMovil ? "Cambiar imagen de celular" : "Subir imagen de celular")
+                    )
+                  ),
+                  e("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-gray-200 dark:border-gray-700" },
+                    e("div", { className: "space-y-1" },
+                      e("div", { className: "flex items-center justify-between" },
+                        e("label", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Texto alternativo:"),
+                        e("span", { className: "text-[10px] text-gray-400" }, `${(slide.alt || "").length}/120`)
+                      ),
+                      e("input", {
+                        type: "text",
+                        maxLength: 120,
+                        value: slide.alt || "",
+                        placeholder: "Descripción breve de la promoción o slide",
+                        onChange: (ev) => handleActualizarSlide(i, "alt", ev.target.value),
+                        className: "w-full px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
+                      })
+                    ),
+                    e("div", { className: "space-y-1" },
+                      e("label", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Destino al hacer clic:"),
+                      e("div", { className: "flex gap-2" },
+                        e("select", {
+                          value: slide.productoId ? "producto" : slide.categoriaSlug ? "categoria" : "ninguno",
+                          onChange: (ev) => {
+                            const tipo = ev.target.value;
+                            if (tipo === "ninguno") {
+                              handleActualizarSlide(i, "productoId", null);
+                              handleActualizarSlide(i, "categoriaSlug", null);
+                            } else if (tipo === "producto") {
+                              handleActualizarSlide(i, "productoId", productosBanner[0]?.id || null);
+                              handleActualizarSlide(i, "categoriaSlug", null);
+                            } else if (tipo === "categoria") {
+                              handleActualizarSlide(i, "productoId", null);
+                              handleActualizarSlide(i, "categoriaSlug", categoriasSlider[0]?.slug || null);
+                            }
+                          },
+                          className: "w-1/3 px-2 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
+                        },
+                          e("option", { value: "ninguno" }, "Ninguno"),
+                          e("option", { value: "producto" }, "Producto"),
+                          e("option", { value: "categoria" }, "Categoría")
+                        ),
+                        slide.productoId ? e("select", {
+                          value: slide.productoId,
+                          onChange: (ev) => handleActualizarSlide(i, "productoId", ev.target.value),
+                          className: "flex-1 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
+                        },
+                          ...productosBanner.map((p) => e("option", { key: p.id, value: p.id }, p.name))
+                        ) : slide.categoriaSlug ? e("select", {
+                          value: slide.categoriaSlug,
+                          onChange: (ev) => handleActualizarSlide(i, "categoriaSlug", ev.target.value),
+                          className: "flex-1 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500",
+                        },
+                          ...categoriasSlider.map((c) => e("option", { key: c.slug, value: c.slug }, c.nombre))
+                        ) : e("div", { className: "flex-1 px-3 py-1.5 text-xs text-gray-400 italic flex items-center" }, "Sin enlace al hacer clic")
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          : e("p", { className: "text-xs text-gray-500 dark:text-gray-400" }, "Todavía no hay diapositivas en el slider de portada."),
+        e("div", { className: "flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700" },
+          e("button", {
+            type: "button",
+            onClick: () => sliderNuevoFileRef.current && sliderNuevoFileRef.current.click(),
+            disabled: sliderUploading || sliderLoading || sliderTienda.slides.length >= 8,
+            className: "px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 transition disabled:opacity-50 flex items-center gap-2",
+          },
+            e(Icono, { nombre: sliderUploading ? "loader-circle" : "plus", girar: sliderUploading }),
+            sliderUploading ? "Subiendo..." : "+ Agregar slide"
+          ),
+          e("button", {
+            type: "button",
+            onClick: handleGuardarSlider,
+            disabled: sliderSaving || sliderLoading,
+            className: "px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 transition disabled:opacity-50 flex items-center gap-2",
+          },
+            sliderSaving && e(Icono, { nombre: "loader-circle", girar: true }),
+            sliderSaving ? "Guardando..." : "Guardar slider de portada"
           )
         )
       )

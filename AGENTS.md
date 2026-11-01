@@ -2468,6 +2468,106 @@ Pedido por el dueño el 2026-10-29: fuera Font Awesome y los íconos genéricos;
 
 ---
 
+## Tablero Fase 2 · Tienda: slider, encabezado, aliados y relacionados (pedido del dueño, 2026-11-01)
+
+Referencia visual del dueño: una tienda con encabezado de dos niveles (fila de marca, buscador y acciones; debajo una barra de navegación) y un slider grande de imágenes bajo el encabezado. Las tres tareas son de la tienda (`catalogo/`) más su gestión en el panel. **Orden:** F2i → F2j → F2k (F2j usa la barra de navegación de F2i). **Reglas que valen para las tres** (aprendidas en F2f, M-5 y F2-3):
+
+- Sin `innerHTML` con datos, sin `<script>` en línea ni `on*=`, sin CDN. Íconos solo de Lucide (`catalogo/js/iconos.js`, `Icono` en el panel). Sin emojis como ícono.
+- Nada de la marca escrito en el código: nombre, colores y logos salen de `/api/public/marca` y de lo que cargue el dueño.
+- Todo dato nuevo del panel pasa por: validador (`configValidators.ts` o Zod), `authorize(["config:manage"])`, auditoría y `500` genérico. **Todo `tipoRecurso` nuevo que se audite se añade al enum de `models/Auditoria.ts`** (en M-5 se perdían auditorías por no hacerlo; la suite `test-auditoria.ts` lo comprueba).
+- Imágenes: Cloudinary, carpeta `<BRAND_NAME>/<carpeta>`, JPG/PNG/WebP. Al quitar o reemplazar una imagen se borra de Cloudinary, y el servidor **solo acepta `publicId` que empiecen por la carpeta de esa función** (en F2f un `publicId` ajeno permitía borrar fotos de productos). Sin Cloudinary configurado, el panel muestra el error "Cloudinary no está configurado" sin romperse.
+- Lo que ve el público sale de `GET /api/public/info` con lista blanca: nunca `_id`, `publicId` ni campos internos. Si una sección no tiene datos, **no se muestra** (ni su enlace ni su ruta).
+- Nada aleatorio en pantalla (lección de F0-13). Móvil primero (390 px), botones táctiles de 44 px, `prefers-reduced-motion` respetado.
+- Cierre de cada tarea: suite nueva en `SUITES` de `ci.sh`, `./scripts/ci.sh` en verde, `esbuild --bundle` en los archivos tocados, y recorrido en Chrome a 390 y 1440 px con la consola abierta (**0 errores de CSP**), con la lista de pantallas en la entrega.
+
+### F2i · Slider de portada y encabezado mejorado — Backend + Frontend · `Lista para revisión`
+
+**1. Slider de portada (gestionado desde el panel).**
+- No sustituye ni toca lo que ya existe: el **cintillo** (cinta de ofertas) y el **banner lateral** (`bannerLateral`, `services/bannerLateralService.ts`) siguen igual, con sus ajustes actuales. El slider es un tercer elemento, independiente.
+- `Setting` con `key: "sliderTienda"`, `value: { activo, autoavance, segundos, slides: [{ url, urlMovil, publicId, publicIdMovil, alt, productoId, categoriaSlug }] }`. Servicio con caché e `init()` en `index.ts` (patrón de `bannerLateralService`; **no olvidar el `init()`**, ver F0-4).
+- Reglas: hasta **8 slides**; `url` obligatoria (imagen de escritorio, recomendada 1920×600); `urlMovil` opcional (recomendada 1080×1080 o 4:5; si falta, se usa la de escritorio); `alt` ≤ 120; el destino es opcional y solo uno: `productoId` (id de texto, debe existir y estar activo al publicarse) **o** `categoriaSlug` (debe existir); `segundos` entre 3 y 15 (por defecto 6). Validador con mensajes claros.
+- Endpoints (`config:manage`, auditoría): `GET`/`PUT /api/admin/config/slider-tienda` y `POST /api/admin/config/slider-tienda/imagen` (multipart, campo `imagen`, JPG/PNG/WebP, hasta 3 MB, carpeta `<marca>/slider`). `tipoRecurso` nuevo: `slider_tienda`.
+- Público: `GET /api/public/info` agrega `slider: null | { autoavance, segundos, slides: [{ url, urlMovil, alt, destino }] }`. `destino` es una ruta ya resuelta (`#/producto/<id>` o `#/categoria/<slug>`) o `null`; los destinos que ya no existen se quitan sin romper la slide. Sin slides o inactivo → `null`.
+- Panel (Configuración → Catálogo web, bloque nuevo "Slider de portada"): interruptor, autoavance y segundos, lista de slides como tarjetas con vista previa de las dos imágenes, "Subir/Cambiar imagen de escritorio", "Subir/Cambiar imagen de celular", texto alternativo, selector de destino (ninguno / producto / categoría), subir y bajar de orden, eliminar con confirmación, "+ Agregar slide" (contador N/8). Muestra el error del servidor tal cual. Ayuda con las medidas recomendadas.
+- Tienda: aparece **solo en el inicio** (`#/`), debajo del encabezado y encima del cintillo y del catálogo; no aparece en categoría, ficha ni carrito. Ancho del contenedor de la tienda, bordes redondeados como las tarjetas, proporción fija (escritorio ≈ 16:5, celular 1:1 o 4:5 según `urlMovil`) para que **no salte el contenido al cargar** (reservar la altura). Flechas ‹ › de 44 px (se apagan en los extremos o dan la vuelta, a elección), puntos de posición (clicables), deslizar con el dedo (scroll-snap, como la galería de la ficha), flechas del teclado. Autoavance solo si `autoavance` y hay 2 o más slides; se **pausa** con el mouse encima, con el foco dentro y cuando la pestaña no está visible; con `prefers-reduced-motion` no avanza solo. Con una sola slide no hay flechas ni puntos. Primera imagen con carga inmediata, las demás `loading="lazy"`. Slide con destino = enlace; sin destino = imagen sin enlace. Lógica del carrusel en un módulo sin DOM (`catalogo/js/slider.js`) para probarla con Node. Reutilizar lo posible de `galeria.js`.
+- **No debe interferir** con el banner lateral: el slider va por encima de `.catalogo-layout`, a todo el ancho del contenedor; el banner lateral y el cintillo conservan su posición pegajosa (`sticky`) y su cálculo con la altura del encabezado. Comprobar en Chrome con los tres activos a la vez.
+
+**2. Encabezado mejorado.** Hoy es una sola fila (marca, buscador, Instagram, carrito). Queda de dos niveles, sin textos de marca en el código y con los colores de `/api/public/marca`:
+- **Fila principal:** logo (más grande que hoy, con altura máxima y sin deformarse), buscador más ancho con botón de búsqueda visible, Instagram (solo si el servidor lo envía, como hoy) y carrito con contador y **total en dólares** al lado en pantallas anchas.
+- **Barra de navegación** debajo (como la referencia): Inicio, **Categorías** (menú desplegable con las categorías del catálogo, accesible con teclado y táctil), Ofertas (solo si hay productos con descuento; lleva a la lista filtrada por descuento o al cintillo, lo más simple que funcione), Preguntas frecuentes (si hay), y, cuando exista F2j, **Aliados** (solo si hay aliados). Los enlaces que no tengan contenido no se muestran.
+- Celular: la barra pasa a un botón de menú (hamburguesa, Lucide `menu`) que abre un panel con los mismos enlaces; el buscador queda en su propia fila. Cerrar con Escape y al navegar; el foco no se pierde.
+- El encabezado sigue fijo y la variable CSS con su altura real (`app.js`, cálculo existente) se actualiza también al abrir/cerrar el menú o cambiar de tamaño, porque el cintillo y el banner lateral dependen de ella.
+- Se respeta `DESIGN.md` y `PRODUCT.md`; se revisa con la herramienta de diseño del repo (Impeccable) antes de entregar, y el detector de diseño no debe dar hallazgos.
+
+**Cierre:** suite nueva `scripts/test-slider-tienda.ts`: validador (más de 8, `alt` largo, destino doble, destino inexistente, `segundos` fuera de rango), `PUT` con auditoría y permiso, `publicId` ajeno rechazado, `info.slider` con lista blanca (sin `publicId`) y `null` cuando está apagado o vacío, destino caído quitado sin romper la slide, y lógica de `slider.js` (siguiente, anterior, puntos, pausa). Casos nuevos en `test-catalogo-web.ts` (sin `innerHTML`, sin script en línea, sin marca escrita). Chrome: slider con 1, 3 y 8 slides; con los tres elementos (slider, cintillo y banner lateral) activos a la vez en 390 y 1440 px; menú de categorías y menú móvil.
+
+#### Entrega y verificación (Antigravity)
+- **Archivos tocados y creados:**
+  - `models/Auditoria.ts` y `types/models.d.ts`: tipo de recurso `"slider_tienda"`.
+  - `services/cloudinaryService.ts`: métodos `subirImagenSlider` y `esPublicIdDeSlider` aislados en `<marca>/slider/`.
+  - `services/configValidators.ts`: tipos `SlideTienda`, `SliderTienda` y validador `validarSliderTienda`.
+  - `services/sliderTiendaService.ts`: servicio con caché en memoria, `init()`, getters/setters y resolución de rutas de destino públicas (`#/producto/<id>`, `#/categoria/<slug>` o `null` si fue desactivado).
+  - `index.ts`: inicialización de `sliderTiendaService.init()`.
+  - `controllers/configAdminController.ts`: endpoints GET, PUT y POST imagen con auditoría y limpieza de Cloudinary.
+  - `routes/adminRoutes.ts`: middleware multer de 3 MB y rutas `/config/slider-tienda` (GET, PUT) y `/config/slider-tienda/imagen` (POST).
+  - `controllers/publicController.ts`: campo `slider` añadido en `GET /api/public/info`.
+  - `public/src/features/dashboard/SettingsPanel.js`: panel de gestión de slider en Catálogo web (interruptor, autoavance, segundos, tarjetas de slides con previsualización, selector de destinos, ordenación, eliminación y guardado).
+  - `catalogo/js/lucide.js` y `catalogo/js/iconos.js`: íconos `chevron-down` y `menu`.
+  - `catalogo/js/slider.js`: módulo puro sin DOM para lógica del carrusel (ajuste de índices, autoavance, scroll snap, teclado).
+  - `catalogo/index.html`: estructura de encabezado de dos niveles, buscador con botón submit, badge con monto total en USD, cajón y fondo de navegación móvil.
+  - `catalogo/js/app.js`: renderizado de barra de navegación, menú desplegable accesible, cajón móvil, badge con total en USD, montaje de slider en portada y observador de altura dinámica `--alto-encabezado`.
+  - `catalogo/css/style.css`: diseño adaptativo del slider (16:5 escritorio, 1:1 celular), controles táctiles de 44 px, puntos accesibles, estilos del encabezado de 2 niveles y cajón móvil.
+  - `scripts/test-slider-tienda.ts`: suite unitaria y de integración completa (6/6).
+  - `scripts/test-catalogo-web.ts`: Test 17 agregado validando markup, 0 innerHTML, slider y estilos (17/17).
+  - `scripts/ci.sh`: incorporación de `test-slider-tienda.ts` a la lista de suites obligatorias.
+- **Evidencia de verificación:**
+  ```text
+  $ npm run build
+  > ventimax@1.0.0 build
+  > tsc && node -e "const fs = require('fs'); if (fs.existsSync('config')) fs.cpSync('config', 'dist/config', { recursive: true });"
+
+  $ NODE_ENV=test npx tsx scripts/test-slider-tienda.ts
+  🎉 TODOS LOS TESTS DE SLIDER TIENDA PASARON EXITOSAMENTE (6/6)
+
+  $ NODE_ENV=test npx tsx scripts/test-catalogo-web.ts
+  🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (17/17)
+
+  $ npx --yes esbuild@0.23.0 public/src/features/dashboard/SettingsPanel.js --bundle --external:'https://*' --outfile=/dev/null
+  ⚡ Done in 19ms
+
+  $ ./scripts/ci.sh
+  ▶ Build
+  ...
+  ✅ Build, 40 suites e imports del panel en verde.
+  ```
+- **Desviaciones:** Ninguna. Listo para revisión de Claude.
+
+### F2j · Aliados comerciales — Backend + Frontend · `Pendiente`
+
+Una sección aparte de la tienda con los aliados del negocio: logotipo y descripción de cada uno, gestionados desde el panel. **Si no hay ningún aliado activo, la sección no existe**: ni enlace en la barra, ni página (la ruta `#/aliados` redirige al inicio).
+
+- **Modelo** `models/Aliado.ts` (+ tipos, mock en `dbLocal`/`dbMock`): `nombre` (obligatorio, ≤ 60), `descripcion` (obligatoria, ≤ 400), `logoUrl`, `logoPublicId`, `orden` (número), `activo` (por defecto `true`). Máximo **30** aliados. Un aliado sin logo es válido (la tienda muestra el nombre).
+- **Panel:** pestaña **Aliados** en Inventario (mismo patrón que Envíos) con tarjetas: logo con vista previa, nombre, descripción, interruptor activo/inactivo, subir/cambiar/quitar logo (subida inmediata, como las empresas de envío de F2f), subir y bajar de orden, editar y borrar con confirmación. Estado vacío con texto que explique que sin aliados la sección no se muestra en la tienda. Contador N/30. Muestra el error del servidor tal cual.
+- **Endpoints** `/api/admin/aliados` (GET, POST, PUT `/:id`, DELETE `/:id`) y `POST /api/admin/aliados/logo` (multipart, campo `logo`, JPG/PNG/WebP, hasta 2 MB, carpeta `<marca>/aliados`), todos con `config:manage` y auditoría (`tipoRecurso: "aliado"`, **añadirlo al enum del modelo de auditoría**). Al borrar un aliado o cambiar su logo se borra el logo de Cloudinary; solo se aceptan `publicId` de `<marca>/aliados/`. Ids mal formados → 404, errores de validación → 400 con su motivo, el resto → 500 genérico (ayudante como el de pagos y envíos, M-2).
+- **Público:** `GET /api/public/info` agrega `aliados: [{ nombre, descripcion, logoUrl }]` (solo activos, por `orden`; arreglo vacío si no hay). Sin ids ni `publicId`.
+- **Tienda:** ruta `#/aliados` con título "Aliados comerciales" y un texto introductorio corto desde la API de marca si existe (si no, sin introducción: nada de marca en el código). Cuadrícula de tarjetas: logo centrado (altura fija, `object-fit: contain`, fondo blanco, sin deformar), nombre y descripción completa. 1 columna en celular, 2 en tableta, 3 o 4 en escritorio. Logo que no carga → muestra el nombre. Los textos se pintan con `textContent` (los aliados son datos del dueño, no HTML). El enlace "Aliados" de la barra de F2i aparece solo si `info.aliados.length > 0`; el pie de página también puede enlazarlo. Enrutador: añadir la ruta sin romper las existentes (`#/`, `#/categoria/`, `#/producto/`, `#/carrito`, `#/confirmacion/`).
+- El botón flotante de WhatsApp se comporta en esta página igual que en el inicio.
+
+**Cierre:** suite nueva `scripts/test-aliados.ts`: CRUD y permiso `config:manage`, validaciones (nombre vacío, descripción larga, 31.º aliado rechazado), `publicId` ajeno rechazado y borrado de Cloudinary al quitar el logo, auditoría registrada (enum permitido), `info.aliados` con lista blanca y vacío cuando no hay activos, y casos de la tienda (sin `innerHTML`, enlace oculto sin aliados). Chrome: sin aliados (no hay enlace y `#/aliados` vuelve al inicio), con 1 y con 6 aliados, a 390 y 1440 px.
+
+### F2k · Artículos relacionados en la ficha del producto — Frontend · `Pendiente`
+
+En la ficha (`#/producto/:id`), debajo de la tarjeta con el precio y los botones, un bloque **"Artículos relacionados"** con 3 productos. Todo se calcula en la tienda con el catálogo que ya se descargó: **sin endpoint nuevo**.
+
+- **Selección (determinista, nada aleatorio):** de la misma categoría principal del producto (la primera de sus `categorias`). Se excluye el producto actual y los inactivos (el catálogo público ya no los trae). Orden: primero los disponibles, luego los agotados; dentro de cada grupo, el precio más cercano al del producto actual y, a igualdad, por nombre. Si la categoría no alcanza para 3, se completa con productos de las otras categorías del producto, con el mismo criterio. Si no hay ninguno, el bloque no se muestra. Menos de 3 es válido (se muestran los que haya).
+- **Aspecto:** tarjeta compacta (foto, nombre en máximo 2 líneas, precio en dólares y Bs, etiqueta "-X%" con precio anterior tachado si tiene descuento, "Agotado" si no hay stock) que enlaza a su ficha. Reutilizar la tarjeta del listado o una variante pequeña, sin duplicar lógica de precios ni de agotado. Escritorio: en la columna derecha, bajo la caja de compra (la caja es fija al desplazarse: el bloque no debe taparse con ella ni romper su comportamiento; si hace falta, el bloque va fuera de la parte fija). Celular: después de la caja de compra y antes de las características, en una columna o tarjetas horizontales con desplazamiento.
+- Al abrir un relacionado, la ficha nueva empieza arriba (scroll al inicio) y el carrusel de fotos se reinicia.
+- Texto en español neutro; el título no es una cadena de marca. Íconos de Lucide.
+
+**Cierre:** casos nuevos en `test-catalogo-web.ts` con la lógica de selección en un módulo sin DOM (`catalogo/js/relacionados.js`, agregado al bucle de `esbuild` de `ci.sh`): misma categoría primero, excluye el actual, disponibles antes que agotados, completa con otras categorías, devuelve vacío si no hay, resultado siempre igual con los mismos datos. Chrome: ficha con 3, con 1 y con 0 relacionados, a 390 y 1440 px, con y sin descuento; clic en un relacionado; 0 errores.
+
+---
+
 ## Dudas para Claude
 
 _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde debajo.)_
@@ -2501,6 +2601,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-11-01 | — | Tareas nuevas F2i (slider de portada gestionado desde el panel, independiente del cintillo y del banner lateral, y encabezado de dos niveles con menú de categorías), F2j (aliados comerciales con logo y descripción; sin aliados, la sección no se muestra) y F2k (3 artículos relacionados en la ficha), pedidas por el dueño — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-30 | 03:00 | F2g: el descuento no se guardaba desde el panel (el controlador no lo leía) y el cintillo pasa a ser una cinta en movimiento con todos los productos en descuento, que se pausa con el mouse y enlaza a cada ficha; subagente Haiku, revisado por Claude — Ejecutado por **Claude** + subagente | Claude (Cerebro) | Completado |
 | 2026-10-30 | 02:00 | F2h: una sola lista de preguntas frecuentes para la tienda y el bot (`FAQ.mostrarEnTienda`, migración automática de las preguntas de la tienda con palabras clave que no tapan otras respuestas); subagente Haiku, revisado por Claude — Ejecutado por **Claude** + subagente | Claude (Cerebro) | Completado |
 | 2026-10-30 | 00:30 | F2g: descuentos por producto (precio vigente único en tienda, bot, ventas y pedido web) y cintillo promocional configurable; 3 subagentes Haiku en paralelo, revisado por Claude — Ejecutado por **Claude** + subagentes | Claude (Cerebro) | Completado |

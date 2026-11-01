@@ -38,6 +38,8 @@ import { entregaCompleta, armarEntrega, costoEntrega, enlaceMapa, usaGps, empres
 
 import { montarSelectorMapa } from "./mapa.js";
 
+import { crearControladorSlider, indiceDesdeScroll as indiceDesdeScrollSlider } from "./slider.js";
+
 /** Solo se abre un enlace de WhatsApp (wa.me); cualquier otra cosa que llegara de la API se ignora. */
 function esEnlaceWhatsApp(url) {
   return typeof url === "string" && url.startsWith("https://wa.me/");
@@ -52,6 +54,7 @@ const state = {
   carrito: cargarCarritoDesdeStorage(),
   busqueda: "",
   categoriaActiva: "todas",
+  soloOfertas: false,
   orden: "relevancia",
   ultimoPedido: null,
   vista: "",
@@ -171,6 +174,17 @@ function actualizarBadge() {
   cartBadge.textContent = String(total);
   cartBadge.classList.toggle("hidden", total === 0);
   document.getElementById("cart-btn")?.setAttribute("aria-label", total ? `Ver tu pedido, ${total} productos` : "Ver tu pedido");
+
+  const totalEl = document.getElementById("cart-total-text");
+  if (totalEl) {
+    if (total > 0) {
+      totalEl.textContent = formatearUsd(totalOrientativo());
+      totalEl.classList.remove("hidden");
+    } else {
+      totalEl.textContent = "";
+      totalEl.classList.add("hidden");
+    }
+  }
 }
 
 /** Total orientativo del pedido con los precios del catálogo; el que vale lo calcula el servidor. */
@@ -320,10 +334,53 @@ function pintarInstagram(instagram) {
   boton.classList.remove("hidden");
 }
 
+/** Abre el cajón del menú de navegación en celular. */
+function abrirMenuMovil() {
+  const panel = document.getElementById("menu-movil");
+  const backdrop = document.getElementById("menu-backdrop");
+  const btn = document.getElementById("menu-btn");
+  if (!panel || !backdrop) return;
+  panel.classList.remove("hidden");
+  backdrop.classList.remove("hidden");
+  btn?.setAttribute("aria-expanded", "true");
+  document.body.style.overflow = "hidden";
+  document.getElementById("menu-cerrar-btn")?.focus();
+}
+
+/** Cierra el cajón del menú de navegación en celular. */
+function cerrarMenuMovil() {
+  const panel = document.getElementById("menu-movil");
+  const backdrop = document.getElementById("menu-backdrop");
+  const btn = document.getElementById("menu-btn");
+  if (!panel || !backdrop) return;
+  panel.classList.add("hidden");
+  backdrop.classList.add("hidden");
+  btn?.setAttribute("aria-expanded", "false");
+  document.body.style.overflow = "";
+  btn?.focus();
+}
+
 /** Íconos fijos del encabezado y enlace a la política de privacidad del servidor. */
 function prepararMarco() {
   document.getElementById("cart-icon")?.appendChild(icono("carrito"));
   document.getElementById("buscador-icono")?.appendChild(icono("buscar"));
+  document.getElementById("buscador-btn-icon")?.appendChild(icono("buscar"));
+  document.getElementById("menu-icon")?.appendChild(icono("menu"));
+  document.getElementById("menu-cerrar-icon")?.appendChild(icono("cerrar"));
+
+  document.getElementById("menu-btn")?.addEventListener("click", abrirMenuMovil);
+  document.getElementById("menu-cerrar-btn")?.addEventListener("click", cerrarMenuMovil);
+  document.getElementById("menu-backdrop")?.addEventListener("click", cerrarMenuMovil);
+
+  window.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") {
+      const panel = document.getElementById("menu-movil");
+      if (panel && !panel.classList.contains("hidden")) {
+        cerrarMenuMovil();
+      }
+    }
+  });
+
   const privacidad = document.getElementById("footer-privacy");
   const base = obtenerBaseUrl();
   if (privacidad && base) {
@@ -341,6 +398,7 @@ function prepararMarco() {
   // El buscador del encabezado filtra desde cualquier vista: si no estás en el catálogo, te lleva a él
   buscadorInput?.addEventListener("input", () => {
     state.busqueda = buscadorInput.value.toLowerCase().trim();
+    state.soloOfertas = false;
     if (state.vista !== "catalogo") {
       state.categoriaActiva = "todas";
       window.location.hash = "#/";
@@ -350,6 +408,14 @@ function prepararMarco() {
   });
   buscadorForm?.addEventListener("submit", (ev) => {
     ev.preventDefault();
+    state.busqueda = buscadorInput?.value.toLowerCase().trim() || "";
+    state.soloOfertas = false;
+    if (state.vista !== "catalogo") {
+      state.categoriaActiva = "todas";
+      window.location.hash = "#/";
+    } else {
+      renderizarCatalogo();
+    }
     buscadorInput?.blur();
   });
 }
@@ -593,6 +659,9 @@ function pasosCompra() {
 
 function productosFiltrados() {
   const filtrados = productosDelCatalogo().filter((prod) => {
+    if (state.soloOfertas && !(prod.descuentoPct > 0 || (prod.precioOfertaUsd && prod.precioOfertaUsd < prod.precioUsd))) {
+      return false;
+    }
     if (state.categoriaActiva !== "todas") {
       const prodCats = Array.isArray(prod.categorias) ? prod.categorias : [];
       if (!prodCats.includes(state.categoriaActiva)) return false;
@@ -673,10 +742,457 @@ function crearBannerLateral(imagenes) {
 }
 
 /**
+ * Slider de portada (carrusel de imágenes F2i). Aparece solo en el inicio (#/).
+ * Sin inserción de texto HTML; utiliza el controlador de slider.js.
+ */
+function crearSliderPortada(sliderData) {
+  if (!sliderData || !Array.isArray(sliderData.slides) || sliderData.slides.length === 0) {
+    return null;
+  }
+
+  const slides = sliderData.slides;
+  const total = slides.length;
+
+  const seccion = el(
+    "section",
+    {
+      className: "slider-portada",
+      role: "region",
+      "aria-label": "Promociones destacadas",
+      "aria-roledescription": "carrusel",
+      tabindex: "0",
+    }
+  );
+
+  const pista = el("div", {
+    className: "slider-pista",
+    role: "group",
+    "aria-live": "polite",
+  });
+
+  slides.forEach((slide, idx) => {
+    const srcEscritorio = resolverUrlRecurso(slide.url);
+    const srcMovil = slide.urlMovil ? resolverUrlRecurso(slide.urlMovil) : null;
+    const altTexto = slide.alt || "";
+
+    const img = el("img", {
+      className: "slider-imagen",
+      src: srcEscritorio,
+      alt: altTexto,
+      loading: idx === 0 ? "eager" : "lazy",
+    });
+
+    let elementoVisual = img;
+    if (srcMovil) {
+      const picture = el("picture", { className: "slider-picture" });
+      const source = el("source", {
+        media: "(max-width: 640px)",
+        srcset: srcMovil,
+      });
+      picture.appendChild(source);
+      picture.appendChild(img);
+      elementoVisual = picture;
+    }
+
+    const slideEl = el(
+      "div",
+      {
+        className: "slider-slide",
+        role: "group",
+        "aria-roledescription": "slide",
+        "aria-label": `${idx + 1} de ${total}`,
+      }
+    );
+
+    if (slide.destino) {
+      const enlace = el(
+        "a",
+        {
+          className: "slider-enlace",
+          href: slide.destino,
+          "aria-label": altTexto || `Ver promoción ${idx + 1}`,
+        },
+        elementoVisual
+      );
+      slideEl.appendChild(enlace);
+    } else {
+      slideEl.appendChild(elementoVisual);
+    }
+
+    pista.appendChild(slideEl);
+  });
+
+  seccion.appendChild(pista);
+
+  if (total >= 2) {
+    let botonesPuntos = [];
+
+    const actualizarVisual = (nuevoIndice) => {
+      botonesPuntos.forEach((btn, i) => {
+        const activo = i === nuevoIndice;
+        btn.classList.toggle("slider-punto-activo", activo);
+        if (activo) {
+          btn.setAttribute("aria-current", "true");
+        } else {
+          btn.removeAttribute("aria-current");
+        }
+      });
+    };
+
+    const controlador = crearControladorSlider({
+      total,
+      autoavance: sliderData.autoavance !== false,
+      segundos: sliderData.segundos || 6,
+      darVuelta: true,
+      onCambio: (nuevoIndice) => {
+        const ancho = pista.clientWidth;
+        pista.scrollTo({ left: nuevoIndice * ancho, behavior: "smooth" });
+        actualizarVisual(nuevoIndice);
+      },
+    });
+
+    // Flechas anterior y siguiente (44 px)
+    const btnPrev = el(
+      "button",
+      {
+        type: "button",
+        className: "slider-flecha slider-flecha-prev",
+        "aria-label": "Slide anterior",
+        onclick: () => controlador.anterior(),
+      },
+      icono("anterior")
+    );
+
+    const btnNext = el(
+      "button",
+      {
+        type: "button",
+        className: "slider-flecha slider-flecha-next",
+        "aria-label": "Slide siguiente",
+        onclick: () => controlador.siguiente(),
+      },
+      icono("siguiente")
+    );
+
+    seccion.appendChild(btnPrev);
+    seccion.appendChild(btnNext);
+
+    // Puntos de posición
+    const navPuntos = el("nav", {
+      className: "slider-puntos",
+      "aria-label": "Posición de las diapositivas",
+    });
+
+    botonesPuntos = slides.map((_, i) => {
+      const btn = el("button", {
+        type: "button",
+        className: `slider-punto ${i === 0 ? "slider-punto-activo" : ""}`,
+        "aria-label": `Ir a diapositiva ${i + 1}`,
+        "aria-current": i === 0 ? "true" : null,
+        onclick: () => controlador.irA(i),
+      });
+      navPuntos.appendChild(btn);
+      return btn;
+    });
+
+    seccion.appendChild(navPuntos);
+
+    // Eventos táctiles y de scroll nativo
+    let scrollTimeout = null;
+    pista.addEventListener("scroll", () => {
+      if (scrollTimeout) cancelAnimationFrame(scrollTimeout);
+      scrollTimeout = requestAnimationFrame(() => {
+        const ancho = pista.clientWidth;
+        const indiceActual = indiceDesdeScrollSlider(pista.scrollLeft, ancho, total);
+        controlador.irA(indiceActual);
+        actualizarVisual(indiceActual);
+      });
+    }, { passive: true });
+
+    // Teclado: flechas izquierda y derecha
+    seccion.addEventListener("keydown", (ev) => {
+      if (ev.key === "ArrowLeft") {
+        ev.preventDefault();
+        controlador.anterior();
+      } else if (ev.key === "ArrowRight") {
+        ev.preventDefault();
+        controlador.siguiente();
+      }
+    });
+
+    // Pausa en hover y foco
+    seccion.addEventListener("mouseenter", () => controlador.pausar());
+    seccion.addEventListener("mouseleave", () => controlador.reanudar());
+    seccion.addEventListener("focusin", () => controlador.pausar());
+    seccion.addEventListener("focusout", () => controlador.reanudar());
+
+    // Visibilidad de la pestaña
+    const onVisibilidad = () => {
+      controlador.setPestanaOculta(document.hidden);
+    };
+    document.addEventListener("visibilitychange", onVisibilidad);
+
+    // Prefers-reduced-motion
+    const mediaMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    controlador.setReducedMotion(mediaMotion.matches);
+    if (typeof mediaMotion.addEventListener === "function") {
+      mediaMotion.addEventListener("change", (e) => controlador.setReducedMotion(e.matches));
+    }
+  }
+
+  return seccion;
+}
+
+/**
+ * Pinta la barra de navegación de dos niveles (Escritorio) y el panel lateral (Celular).
+ */
+function pintarNavegacion() {
+  const navLista = document.getElementById("nav-lista");
+  const menuMovilCuerpo = document.getElementById("menu-movil-cuerpo");
+  if (!navLista && !menuMovilCuerpo) return;
+
+  if (navLista) limpiarElemento(navLista);
+  if (menuMovilCuerpo) limpiarElemento(menuMovilCuerpo);
+
+  const categorias = state.catalogo?.categorias || [];
+  const hayDescuentos = (state.catalogo?.productos || []).some((p) => {
+    return p.descuentoPct > 0 || (p.precioOfertaUsd && p.precioOfertaUsd < p.precioUsd);
+  });
+  const hayFaq = Array.isArray(state.info?.preguntas) && state.info.preguntas.length > 0;
+  const hayAliados = Array.isArray(state.info?.aliados) && state.info.aliados.length > 0;
+
+  const esInicio = state.categoriaActiva === "todas" && !state.busqueda && !state.soloOfertas;
+
+  // --- 1. Escritorio (navLista) ---
+  if (navLista) {
+    // Inicio
+    const liInicio = el("li", { className: "nav-item" },
+      el("a", {
+        className: `nav-enlace ${esInicio ? "nav-enlace-activo" : ""}`,
+        href: "#/",
+        onclick: () => {
+          state.soloOfertas = false;
+          state.categoriaActiva = "todas";
+          state.busqueda = "";
+        },
+      }, "Inicio")
+    );
+    navLista.appendChild(liInicio);
+
+    // Categorías (Desplegable accesible)
+    if (categorias.length > 0) {
+      const btnCategorias = el("button", {
+        type: "button",
+        className: "nav-desplegable-btn",
+        "aria-expanded": "false",
+        "aria-haspopup": "menu",
+      }, el("span", {}, "Categorías"), icono("abajo", "nav-flecha"));
+
+      const menuCategorias = el("div", {
+        className: "nav-desplegable-menu hidden",
+        role: "menu",
+      },
+        el("a", {
+          href: "#/",
+          role: "menuitem",
+          className: `nav-desplegable-item ${state.categoriaActiva === "todas" && !state.soloOfertas ? "nav-item-activo" : ""}`,
+          onclick: () => {
+            state.categoriaActiva = "todas";
+            state.soloOfertas = false;
+            cerrarDesplegable();
+          },
+        }, "Todas las categorías"),
+        categorias.map((c) =>
+          el("a", {
+            href: `#/categoria/${encodeURIComponent(c.slug)}`,
+            role: "menuitem",
+            className: `nav-desplegable-item ${state.categoriaActiva === c.slug ? "nav-item-activo" : ""}`,
+            onclick: () => {
+              state.categoriaActiva = c.slug;
+              state.soloOfertas = false;
+              cerrarDesplegable();
+            },
+          }, c.nombre)
+        )
+      );
+
+      const cerrarDesplegable = () => {
+        menuCategorias.classList.add("hidden");
+        btnCategorias.setAttribute("aria-expanded", "false");
+      };
+
+      btnCategorias.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        const abierto = !menuCategorias.classList.contains("hidden");
+        if (abierto) {
+          cerrarDesplegable();
+        } else {
+          menuCategorias.classList.remove("hidden");
+          btnCategorias.setAttribute("aria-expanded", "true");
+        }
+      });
+
+      document.addEventListener("click", (ev) => {
+        if (!liCategorias.contains(ev.target)) {
+          cerrarDesplegable();
+        }
+      });
+
+      document.addEventListener("keydown", (ev) => {
+        if (ev.key === "Escape" && !menuCategorias.classList.contains("hidden")) {
+          cerrarDesplegable();
+          btnCategorias.focus();
+        }
+      });
+
+      const liCategorias = el("li", { className: "nav-item nav-item-desplegable" }, btnCategorias, menuCategorias);
+      navLista.appendChild(liCategorias);
+    }
+
+    // Ofertas
+    if (hayDescuentos) {
+      const liOfertas = el("li", { className: "nav-item" },
+        el("a", {
+          className: `nav-enlace nav-enlace-ofertas ${state.soloOfertas ? "nav-enlace-activo" : ""}`,
+          href: "#/?ofertas=1",
+          onclick: (ev) => {
+            ev.preventDefault();
+            state.soloOfertas = true;
+            state.categoriaActiva = "todas";
+            state.busqueda = "";
+            window.location.hash = "#/";
+            renderizarCatalogo();
+          },
+        }, icono("etiqueta", "nav-item-icono"), el("span", {}, "Ofertas"))
+      );
+      navLista.appendChild(liOfertas);
+    }
+
+    // Preguntas frecuentes
+    if (hayFaq) {
+      const liFaq = el("li", { className: "nav-item" },
+        el("a", {
+          className: "nav-enlace",
+          href: "#/?faq=1",
+          onclick: (ev) => {
+            if (state.vista === "catalogo") {
+              ev.preventDefault();
+              document.querySelector(".preguntas")?.scrollIntoView({ behavior: "smooth" });
+            }
+          },
+        }, "Preguntas frecuentes")
+      );
+      navLista.appendChild(liFaq);
+    }
+
+    // Aliados
+    if (hayAliados) {
+      const liAliados = el("li", { className: "nav-item" },
+        el("a", {
+          className: "nav-enlace",
+          href: "#/aliados",
+        }, "Aliados")
+      );
+      navLista.appendChild(liAliados);
+    }
+  }
+
+  // --- 2. Móvil (menuMovilCuerpo) ---
+  if (menuMovilCuerpo) {
+    const navMovil = el("nav", { className: "menu-movil-nav", "aria-label": "Menú móvil" });
+
+    // Inicio
+    navMovil.appendChild(
+      el("a", {
+        href: "#/",
+        className: `menu-movil-enlace ${esInicio ? "menu-movil-enlace-activo" : ""}`,
+        onclick: () => {
+          state.soloOfertas = false;
+          state.categoriaActiva = "todas";
+          cerrarMenuMovil();
+        },
+      }, "Inicio")
+    );
+
+    // Ofertas (si hay)
+    if (hayDescuentos) {
+      navMovil.appendChild(
+        el("a", {
+          href: "#/?ofertas=1",
+          className: `menu-movil-enlace menu-movil-enlace-ofertas ${state.soloOfertas ? "menu-movil-enlace-activo" : ""}`,
+          onclick: (ev) => {
+            ev.preventDefault();
+            state.soloOfertas = true;
+            state.categoriaActiva = "todas";
+            state.busqueda = "";
+            cerrarMenuMovil();
+            window.location.hash = "#/";
+            renderizarCatalogo();
+          },
+        }, icono("etiqueta", "nav-item-icono"), el("span", {}, "Ofertas"))
+      );
+    }
+
+    // Categorías (Lista desplegable en móvil)
+    if (categorias.length > 0) {
+      const catTitulo = el("div", { className: "menu-movil-seccion-titulo" }, "Categorías");
+      navMovil.appendChild(catTitulo);
+
+      categorias.forEach((c) => {
+        navMovil.appendChild(
+          el("a", {
+            href: `#/categoria/${encodeURIComponent(c.slug)}`,
+            className: `menu-movil-subenlace ${state.categoriaActiva === c.slug ? "menu-movil-enlace-activo" : ""}`,
+            onclick: () => {
+              state.categoriaActiva = c.slug;
+              state.soloOfertas = false;
+              cerrarMenuMovil();
+            },
+          }, c.nombre)
+        );
+      });
+    }
+
+    // Preguntas frecuentes
+    if (hayFaq) {
+      navMovil.appendChild(
+        el("a", {
+          href: "#/?faq=1",
+          className: "menu-movil-enlace",
+          onclick: (ev) => {
+            cerrarMenuMovil();
+            if (state.vista === "catalogo") {
+              ev.preventDefault();
+              setTimeout(() => {
+                document.querySelector(".preguntas")?.scrollIntoView({ behavior: "smooth" });
+              }, 150);
+            }
+          },
+        }, "Preguntas frecuentes")
+      );
+    }
+
+    // Aliados
+    if (hayAliados) {
+      navMovil.appendChild(
+        el("a", {
+          href: "#/aliados",
+          className: "menu-movil-enlace",
+          onclick: () => cerrarMenuMovil(),
+        }, "Aliados")
+      );
+    }
+
+    menuMovilCuerpo.appendChild(navMovil);
+  }
+}
+
+/**
  * Vista de Catálogo Principal / Filtrado por Categoría.
  */
 function renderizarCatalogo() {
   limpiarElemento(appRoot);
+  pintarNavegacion();
 
   if (!state.catalogo) {
     if (state.cargando) {
@@ -694,11 +1210,17 @@ function renderizarCatalogo() {
     return;
   }
 
-  const esInicio = state.categoriaActiva === "todas" && !state.busqueda;
+  const esInicio = state.categoriaActiva === "todas" && !state.busqueda && !state.soloOfertas;
   const categorias = state.catalogo.categorias || [];
   const categoria = categorias.find((c) => c.slug === state.categoriaActiva);
 
-  // Cintillo promocional (F2g): debajo del buscador, antes de los pasos y las categorías
+  // Slider de portada (F2i): aparece solo en el inicio (#/), arriba del cintillo y del catálogo
+  if (esInicio) {
+    const slider = crearSliderPortada(state.info?.slider);
+    if (slider) appRoot.appendChild(slider);
+  }
+
+  // Cintillo promocional (F2g): debajo del slider, antes de los pasos y las categorías
   const cintillo = crearCintillo(state.info?.banner);
   if (cintillo) appRoot.appendChild(cintillo);
 
@@ -732,9 +1254,11 @@ function renderizarCatalogo() {
   const lista = productosFiltrados();
   const titulo = state.busqueda
     ? `Resultados para “${buscadorInput?.value.trim() || state.busqueda}”`
-    : categoria
-      ? categoria.nombre
-      : "Todos los productos";
+    : state.soloOfertas
+      ? "Productos en oferta"
+      : categoria
+        ? categoria.nombre
+        : "Todos los productos";
 
   const selectorOrden = el(
     "select",
@@ -1821,29 +2345,46 @@ function enrutar() {
   const vistaAnterior = state.vista;
   let productoEnVista = null;
 
+  cerrarMenuMovil();
+
   if (hash === "#/" || hash === "" || hash.startsWith("#/?")) {
     state.categoriaActiva = "todas";
     state.vista = "catalogo";
+    if (hash.includes("ofertas=1")) {
+      state.soloOfertas = true;
+    } else {
+      state.soloOfertas = false;
+    }
     renderizarCatalogo();
+    if (hash.includes("faq=1")) {
+      setTimeout(() => {
+        document.querySelector(".preguntas")?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
   } else if (hash.startsWith("#/categoria/")) {
+    state.soloOfertas = false;
     const slug = decodeURIComponent(hash.replace("#/categoria/", "")).split("?")[0];
     state.categoriaActiva = slug || "todas";
     state.vista = "catalogo";
     renderizarCatalogo();
   } else if (hash.startsWith("#/producto/")) {
+    state.soloOfertas = false;
     const pid = decodeURIComponent(hash.replace("#/producto/", "")).split("?")[0];
     productoEnVista = productosDelCatalogo().find((p) => p.id === pid)?.nombre || null;
     state.vista = "producto";
     renderizarDetalleProducto(pid);
   } else if (hash === "#/carrito") {
+    state.soloOfertas = false;
     state.vista = "carrito";
     renderizarCarrito();
   } else if (hash.startsWith("#/confirmacion/")) {
+    state.soloOfertas = false;
     const cod = decodeURIComponent(hash.replace("#/confirmacion/", "")).split("?")[0];
     state.vista = "confirmacion";
     renderizarConfirmacion(cod);
   } else {
     // Ruta desconocida: fallback al catálogo
+    state.soloOfertas = false;
     window.location.hash = "#/";
     return;
   }
@@ -1866,6 +2407,7 @@ async function cargarDatos() {
     console.error("[Catálogo] No se pudo cargar el catálogo:", err);
     return null;
   });
+  pintarNavegacion();
   state.cargando = false;
   enrutar();
 
@@ -1874,7 +2416,8 @@ async function cargarDatos() {
       .then((info) => {
         state.info = info;
         pintarInstagram(info?.instagram);
-        // El cintillo (F2g) llega con esta información: si el catálogo está en pantalla, se vuelve a pintar
+        pintarNavegacion();
+        // El cintillo (F2g) y el slider (F2i) llegan con esta información: si el catálogo está en pantalla, se vuelve a pintar
         if (state.vista === "catalogo") renderizarCatalogo();
         else pintarPreguntas();
         // El carrito muestra las formas de entrega que llegan con esta información

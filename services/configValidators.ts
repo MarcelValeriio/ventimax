@@ -558,3 +558,167 @@ export function validarBannerLateral(val: unknown): ResultadoValidacionBannerLat
 
   return { ok: true, value: { activo, imagenes } };
 }
+
+// ==========================================
+// Slider de portada de la tienda (F2i)
+// ==========================================
+
+export interface SlideTienda {
+  url: string;
+  urlMovil: string | null;
+  publicId: string;
+  publicIdMovil: string | null;
+  alt: string;
+  productoId: string | null;
+  categoriaSlug: string | null;
+}
+
+export interface SliderTienda {
+  activo: boolean;
+  autoavance: boolean;
+  segundos: number;
+  slides: SlideTienda[];
+}
+
+export type ResultadoValidacionSlider =
+  | { ok: true; value: SliderTienda }
+  | { ok: false; error: string };
+
+const SLUG_REGEX = /^[a-z0-9-]+$/;
+
+export function validarSliderTienda(val: unknown): ResultadoValidacionSlider {
+  if (!val || typeof val !== "object") {
+    return { ok: false, error: "Datos del slider inválidos." };
+  }
+
+  const v = val as Record<string, unknown>;
+
+  if (v.activo !== undefined && typeof v.activo !== "boolean") {
+    return { ok: false, error: "El interruptor del slider debe ser verdadero o falso." };
+  }
+  const activo = v.activo === true;
+
+  if (v.autoavance !== undefined && typeof v.autoavance !== "boolean") {
+    return { ok: false, error: "El autoavance del slider debe ser verdadero o falso." };
+  }
+  const autoavance = v.autoavance !== false;
+
+  let segundos = 6;
+  if (v.segundos !== undefined && v.segundos !== null) {
+    const num = Number(v.segundos);
+    if (!Number.isInteger(num) || num < 3 || num > 15) {
+      return { ok: false, error: "El tiempo de autoavance debe ser un número entero entre 3 y 15 segundos." };
+    }
+    segundos = num;
+  }
+
+  if (!Array.isArray(v.slides)) {
+    return { ok: false, error: "Las slides del slider deben ser una lista." };
+  }
+  if (v.slides.length > 8) {
+    return { ok: false, error: "El slider admite como máximo 8 slides." };
+  }
+
+  const slides: SlideTienda[] = [];
+  for (let i = 0; i < v.slides.length; i++) {
+    const raw = v.slides[i];
+    const s = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+
+    // url de escritorio obligatoria
+    if (typeof s.url !== "string" || s.url.length > 500 || !/^https:\/\/\S+$/.test(s.url)) {
+      return {
+        ok: false,
+        error: `La dirección de la imagen de escritorio de la slide ${i + 1} debe ser https y tener como máximo 500 caracteres.`,
+      };
+    }
+
+    // publicId de escritorio obligatorio
+    if (typeof s.publicId !== "string" || s.publicId.length > 200 || !s.publicId.trim()) {
+      return {
+        ok: false,
+        error: `El identificador de la imagen de escritorio de la slide ${i + 1} no es válido.`,
+      };
+    }
+
+    // urlMovil opcional
+    let urlMovil: string | null = null;
+    if (s.urlMovil !== undefined && s.urlMovil !== null && s.urlMovil !== "") {
+      if (typeof s.urlMovil !== "string" || s.urlMovil.length > 500 || !/^https:\/\/\S+$/.test(s.urlMovil)) {
+        return {
+          ok: false,
+          error: `La dirección de la imagen móvil de la slide ${i + 1} debe ser https y tener como máximo 500 caracteres.`,
+        };
+      }
+      urlMovil = s.urlMovil;
+    }
+
+    // publicIdMovil opcional
+    let publicIdMovil: string | null = null;
+    if (s.publicIdMovil !== undefined && s.publicIdMovil !== null && s.publicIdMovil !== "") {
+      if (typeof s.publicIdMovil !== "string" || s.publicIdMovil.length > 200) {
+        return {
+          ok: false,
+          error: `El identificador de la imagen móvil de la slide ${i + 1} no es válido.`,
+        };
+      }
+      publicIdMovil = s.publicIdMovil;
+    }
+
+    // alt (texto alternativo <= 120 caracteres)
+    let alt = "";
+    if (s.alt !== undefined && s.alt !== null) {
+      if (typeof s.alt !== "string") {
+        return { ok: false, error: `El texto alternativo de la slide ${i + 1} debe ser texto.` };
+      }
+      const altTrim = s.alt.trim();
+      if (altTrim.length > 120) {
+        return { ok: false, error: `El texto alternativo de la slide ${i + 1} no puede exceder 120 caracteres.` };
+      }
+      alt = altTrim;
+    }
+
+    // Destino: productoId o categoriaSlug (mutuamente excluyentes)
+    let productoId: string | null = null;
+    if (s.productoId !== undefined && s.productoId !== null && s.productoId !== "") {
+      if (typeof s.productoId !== "string" || s.productoId.length > 60 || !PRODUCTO_ID_REGEX.test(s.productoId)) {
+        return { ok: false, error: `El producto enlazado a la slide ${i + 1} no es válido.` };
+      }
+      productoId = s.productoId;
+    }
+
+    let categoriaSlug: string | null = null;
+    if (s.categoriaSlug !== undefined && s.categoriaSlug !== null && s.categoriaSlug !== "") {
+      if (typeof s.categoriaSlug !== "string" || s.categoriaSlug.length > 60 || !SLUG_REGEX.test(s.categoriaSlug)) {
+        return { ok: false, error: `La categoría enlazada a la slide ${i + 1} no es válida.` };
+      }
+      categoriaSlug = s.categoriaSlug;
+    }
+
+    if (productoId && categoriaSlug) {
+      return {
+        ok: false,
+        error: `La slide ${i + 1} no puede tener simultáneamente un producto y una categoría como destino.`,
+      };
+    }
+
+    slides.push({
+      url: s.url,
+      urlMovil,
+      publicId: s.publicId,
+      publicIdMovil,
+      alt,
+      productoId,
+      categoriaSlug,
+    });
+  }
+
+  return {
+    ok: true,
+    value: {
+      activo,
+      autoavance,
+      segundos,
+      slides,
+    },
+  };
+}

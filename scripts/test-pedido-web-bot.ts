@@ -30,6 +30,15 @@ const orderService = require("../services/orderService");
 const configManager = require("../services/configManager");
 const whatsappService = require("../services/whatsapp");
 const publicRoutes = require("../routes/publicRoutes");
+const horarioService = require("../services/horarioService");
+
+// Suite determinista: evitar interrupciones por día no laborable
+horarioService.setHorarioEnMemoria({
+  zonaHoraria: "America/Caracas",
+  dias: [0, 1, 2, 3, 4, 5, 6],
+  apertura: "00:00",
+  cierre: "23:59",
+});
 
 async function runTests() {
   console.log("================================================================================");

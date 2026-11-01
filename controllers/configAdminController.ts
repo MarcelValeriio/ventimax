@@ -2,16 +2,25 @@ import { Request, Response } from "express";
 const axios = require("axios");
 const { configStore, EDITABLE_KEYS, SECRET_KEYS, getConfig, setConfig } = require("../services/configStore");
 const { registrarAuditoria } = require("../services/auditService");
-const { validarValorConfig, validarHorarioAtencion, validarFlujoNoLaborable, validarDatosNegocio, validarConfigCatalogo, validarBannerTienda, validarBannerLateral } = require("../services/configValidators");
+const { validarValorConfig, validarHorarioAtencion, validarFlujoNoLaborable, validarDatosNegocio, validarConfigCatalogo, validarBannerTienda, validarBannerLateral, validarSliderTienda } = require("../services/configValidators");
 const { getHorario, setHorario, formatearHorarioAtencion } = require("../services/horarioService");
 const { getFlujoNoLaborable, setFlujoNoLaborable } = require("../services/flujoNoLaborableService");
 const { getDatosNegocio, setDatosNegocio } = require("../services/datosNegocioService");
 const { getConfigCatalogo, setConfigCatalogo } = require("../services/catalogoConfigService");
 const { getBannerTienda, setBannerTienda } = require("../services/bannerTiendaService");
 const { getBannerLateral, setBannerLateral } = require("../services/bannerLateralService");
+const { getSliderTienda, setSliderTienda } = require("../services/sliderTiendaService");
 const cloudinaryService = require("../services/cloudinaryService");
 import { esOrdenValido } from "../utils/ordenImagenes";
 const { obtenerReporteAbuso } = require("../services/catalogoAbusoService");
+
+function getProductoModel() {
+  return process.env.NODE_ENV === "test" ? require("../services/dbLocal").getProductoModel() : require("../models/Producto");
+}
+
+function getCategoriaModel() {
+  return process.env.NODE_ENV === "test" ? require("../services/dbLocal").getCategoriaModel() : require("../models/Categoria");
+}
 
 /**
  * Obtiene la configuración completa para el panel administrativo.
@@ -602,6 +611,138 @@ export const reorderBannerLateralImagenes = async (req: Request, res: Response) 
   }
 };
 
+// ==========================================
+// Slider de portada de la tienda (F2i)
+// ==========================================
+
+export const getSliderTiendaConfig = async (req: Request, res: Response) => {
+  try {
+    const slider = await getSliderTienda();
+    res.json({ success: true, slider });
+  } catch (error: any) {
+    console.error("❌ Error obteniendo el slider de portada:", error);
+    res.status(500).json({ success: false, error: "Error al obtener el slider de portada" });
+  }
+};
+
+export const updateSliderTiendaConfig = async (req: Request, res: Response) => {
+  try {
+    const validacion = validarSliderTienda(req.body);
+    if (!validacion.ok) {
+      return res.status(400).json({ success: false, error: validacion.error });
+    }
+
+    const Producto = getProductoModel();
+    const Categoria = getCategoriaModel();
+
+    // Validar que los destinos enlazados existan en la BD
+    for (let i = 0; i < validacion.value.slides.length; i++) {
+      const slide = validacion.value.slides[i];
+      if (slide.productoId) {
+        const prod = await Producto.findOne({ id: slide.productoId });
+        if (!prod || prod.activo === false) {
+          return res.status(400).json({
+            success: false,
+            error: `El producto enlazado en la slide ${i + 1} no existe o no está activo.`,
+          });
+        }
+      } else if (slide.categoriaSlug) {
+        const cat = await Categoria.findOne({ slug: slide.categoriaSlug });
+        if (!cat) {
+          return res.status(400).json({
+            success: false,
+            error: `La categoría enlazada en la slide ${i + 1} no existe.`,
+          });
+        }
+      }
+
+      // Validar que los publicId pertenezcan a la carpeta de slider de la marca
+      if (!cloudinaryService.esPublicIdDeSlider(slide.publicId)) {
+        return res.status(400).json({
+          success: false,
+          error: `El identificador de la imagen de escritorio de la slide ${i + 1} no pertenece a la carpeta autorizada.`,
+        });
+      }
+      if (slide.publicIdMovil && !cloudinaryService.esPublicIdDeSlider(slide.publicIdMovil)) {
+        return res.status(400).json({
+          success: false,
+          error: `El identificador de la imagen móvil de la slide ${i + 1} no pertenece a la carpeta autorizada.`,
+        });
+      }
+    }
+
+    const anterior = await getSliderTienda();
+
+    // Borrar de Cloudinary las imágenes que ya no están en las slides
+    const publicIdsNuevos = new Set<string>();
+    for (const s of validacion.value.slides) {
+      if (s.publicId) publicIdsNuevos.add(s.publicId);
+      if (s.publicIdMovil) publicIdsNuevos.add(s.publicIdMovil);
+    }
+
+    for (const s of anterior.slides) {
+      if (s.publicId && !publicIdsNuevos.has(s.publicId)) {
+        if (cloudinaryService.esPublicIdDeSlider(s.publicId)) {
+          cloudinaryService.borrarImagen(s.publicId).catch(() => undefined);
+        }
+      }
+      if (s.publicIdMovil && !publicIdsNuevos.has(s.publicIdMovil)) {
+        if (cloudinaryService.esPublicIdDeSlider(s.publicIdMovil)) {
+          cloudinaryService.borrarImagen(s.publicIdMovil).catch(() => undefined);
+        }
+      }
+    }
+
+    const guardado = await setSliderTienda(validacion.value);
+
+    await registrarAuditoria(req, {
+      tipoRecurso: "slider_tienda",
+      accion: "actualizar_slider_tienda",
+      recursoId: "sliderTienda",
+      detalles: `Slider de portada actualizado (${guardado.slides.length} slides, activo: ${guardado.activo})`,
+      anterior,
+      nuevo: guardado,
+    });
+
+    res.json({
+      success: true,
+      message: "Slider de portada guardado correctamente",
+      slider: guardado,
+    });
+  } catch (error: any) {
+    console.error("❌ Error actualizando el slider de portada:", error);
+    res.status(500).json({ success: false, error: "Error al guardar el slider de portada" });
+  }
+};
+
+export const postSliderTiendaImagen = async (req: any, res: Response) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ success: false, error: "No se proporcionó ningún archivo de imagen" });
+    }
+
+    let subida;
+    try {
+      subida = await cloudinaryService.subirImagenSlider(req.file.buffer);
+    } catch (cloudErr: any) {
+      console.error("❌ Error subiendo imagen del slider de portada:", cloudErr?.message || cloudErr);
+      if (cloudErr?.message === "Cloudinary no está configurado") {
+        return res.status(400).json({ success: false, error: "Cloudinary no está configurado" });
+      }
+      return res.status(500).json({ success: false, error: "Error al subir la imagen a Cloudinary" });
+    }
+
+    res.status(201).json({
+      success: true,
+      url: subida.url,
+      publicId: subida.publicId,
+    });
+  } catch (error: any) {
+    console.error("❌ Error subiendo imagen del slider de portada:", error);
+    res.status(500).json({ success: false, error: "Error al subir la imagen del slider" });
+  }
+};
+
 module.exports = {
   getConfigAdmin,
   updateConfigAdmin,
@@ -622,4 +763,7 @@ module.exports = {
   postBannerLateralImagen,
   deleteBannerLateralImagen,
   reorderBannerLateralImagenes,
+  getSliderTiendaConfig,
+  updateSliderTiendaConfig,
+  postSliderTiendaImagen,
 };

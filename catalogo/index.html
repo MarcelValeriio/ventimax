@@ -17,13 +17,22 @@
 
   <header class="encabezado">
     <div class="encabezado-fila">
-      <a href="#/" class="marca" id="brand-link" aria-label="Ir al inicio">
-        <span id="brand-title" class="marca-nombre"></span>
-      </a>
+      <div class="encabezado-marca-grupo">
+        <button type="button" class="menu-hamburguesa" id="menu-btn" aria-label="Abrir menú de navegación" aria-expanded="false" aria-controls="menu-movil">
+          <span class="menu-icono" id="menu-icon"></span>
+        </button>
+        <a href="#/" class="marca" id="brand-link" aria-label="Ir al inicio">
+          <span id="brand-title" class="marca-nombre"></span>
+        </a>
+      </div>
       <form class="buscador" id="buscador" role="search">
         <label class="sr-only" for="buscador-input">Buscar productos</label>
-        <input id="buscador-input" class="buscador-input" type="search" placeholder="Buscar productos" autocomplete="off" enterkeyhint="search">
         <span class="buscador-icono" id="buscador-icono"></span>
+        <input id="buscador-input" class="buscador-input" type="search" placeholder="Buscar productos" autocomplete="off" enterkeyhint="search">
+        <button type="submit" class="buscador-boton" id="buscador-btn" aria-label="Buscar productos">
+          <span class="buscador-btn-icono" id="buscador-btn-icon"></span>
+          <span class="buscador-btn-texto">Buscar</span>
+        </button>
       </form>
       <div class="encabezado-acciones">
         <a class="ig-boton hidden" id="ig-btn" target="_blank" rel="noopener noreferrer">
@@ -33,10 +42,27 @@
         <a href="#/carrito" class="carrito-boton" id="cart-btn" aria-label="Ver tu pedido">
           <span id="cart-icon" class="carrito-icono"></span>
           <span class="carrito-contador hidden" id="cart-badge">0</span>
+          <span class="carrito-total-texto hidden" id="cart-total-text"></span>
         </a>
       </div>
     </div>
+    <nav class="encabezado-nav" id="encabezado-nav" aria-label="Navegación principal">
+      <div class="encabezado-nav-interior">
+        <ul class="nav-lista" id="nav-lista"></ul>
+      </div>
+    </nav>
   </header>
+
+  <div class="menu-movil-backdrop hidden" id="menu-backdrop"></div>
+  <div class="menu-movil-panel hidden" id="menu-movil" role="dialog" aria-modal="true" aria-label="Menú de navegación">
+    <div class="menu-movil-cabecera">
+      <span class="menu-movil-titulo">Menú</span>
+      <button type="button" class="menu-movil-cerrar" id="menu-cerrar-btn" aria-label="Cerrar menú">
+        <span id="menu-cerrar-icon"></span>
+      </button>
+    </div>
+    <div class="menu-movil-cuerpo" id="menu-movil-cuerpo"></div>
+  </div>
 
   <main id="app-root" class="contenido" tabindex="-1"></main>
 

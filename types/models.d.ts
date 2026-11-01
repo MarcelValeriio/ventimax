@@ -366,7 +366,9 @@ export type TipoRecursoAuditoria =
   | "categoria"
   | "usuario"
   | "config"
-  | "metodo_pago";
+  | "metodo_pago"
+  | "metodo_envio"
+  | "slider_tienda";
 
 export type FAQType = "estatica" | "dinamica";
 

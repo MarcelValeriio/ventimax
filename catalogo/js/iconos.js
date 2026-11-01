@@ -18,6 +18,8 @@ const NOMBRES = {
   basura: "trash",
   anterior: "chevron-left",
   siguiente: "chevron-right",
+  abajo: "chevron-down",
+  menu: "menu",
   check: "check",
   listo: "circle-check",
   copiar: "copy",

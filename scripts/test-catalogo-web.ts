@@ -502,8 +502,42 @@ async function runTests() {
   assert.ok(cssSrc.includes("min-height: 44px") && cssSrc.includes(".cintillo-item-enlace:focus-visible"), "tamaño táctil de 44 px y foco visible en los items");
   console.log("  ✅ Test 16 superado (cinta con animación infinita, pausa en hover y foco, reducir movimiento y copia oculta)");
 
+  // --------------------------------------------------------------------------
+  // TEST 17 (F2i): Slider de portada y encabezado mejorado de 2 niveles
+  // --------------------------------------------------------------------------
+  console.log("\n▶ Test 17: Slider de portada y encabezado de dos niveles (F2i)...");
+  const htmlIndex = fs.readFileSync(path.join(catalogoDir, "index.html"), "utf8");
+
+  // 17a: Encabezado de dos niveles en index.html
+  assert.ok(htmlIndex.includes('id="encabezado-nav"'), "encabezado debe tener contenedor de navegación");
+  assert.ok(htmlIndex.includes('menu-hamburguesa') && htmlIndex.includes('id="menu-btn"'), "encabezado debe tener botón hamburguesa para móvil");
+  assert.ok(htmlIndex.includes('buscador-boton') && htmlIndex.includes('id="buscador-btn"'), "buscador debe tener botón de búsqueda visible");
+  assert.ok(htmlIndex.includes('id="cart-total-text"') && htmlIndex.includes('carrito-total-texto'), "carrito debe tener contenedor de total en dólares");
+  assert.ok(htmlIndex.includes('id="menu-movil"') && htmlIndex.includes('menu-movil-panel'), "debe existir el panel de navegación móvil");
+  assert.ok(htmlIndex.includes('id="menu-backdrop"') && htmlIndex.includes('menu-movil-backdrop'), "debe existir el telón de fondo del menú móvil");
+
+  // 17b: Módulo slider.js existe y no contiene innerHTML
+  const sliderJsPath = path.join(catalogoDir, "js", "slider.js");
+  assert.ok(fs.existsSync(sliderJsPath), "catalogo/js/slider.js debe existir");
+  const sliderJsSrc = fs.readFileSync(sliderJsPath, "utf8");
+  assert.ok(!sliderJsSrc.includes("innerHTML"), "slider.js no debe contener innerHTML");
+
+  // 17c: Renderizado y lógica de slider en app.js
+  assert.ok(appSrc.includes("crearSliderPortada(state.info?.slider)"), "renderizarCatalogo debe invocar crearSliderPortada");
+  assert.ok(appSrc.includes("crearControladorSlider"), "app.js debe integrar crearControladorSlider");
+  assert.ok(appSrc.includes('setProperty("--alto-encabezado"'), "app.js debe recalcular la altura del encabezado");
+  assert.ok(appSrc.includes("cerrarMenuMovil"), "app.js debe implementar cierre de menú móvil");
+
+  // 17d: CSS del slider y encabezado
+  assert.ok(cssSrc.includes(".slider-portada"), "CSS debe tener estilos de slider-portada");
+  assert.ok(cssSrc.includes("aspect-ratio: 16 / 5"), "CSS debe contemplar proporción panorámica 16:5 para escritorio");
+  assert.ok(cssSrc.includes(".slider-flecha") && cssSrc.includes("min-width: 44px"), "flechas del slider deben tener al menos 44 px");
+  assert.ok(cssSrc.includes(".encabezado-nav") && cssSrc.includes(".nav-lista"), "CSS debe estilizar barra de navegación de segundo nivel");
+
+  console.log("  ✅ Test 17 superado (Encabezado 2 niveles, slider con el(), controles accesibles y sin innerHTML)");
+
   console.log("\n================================================================================");
-  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (16/16)");
+  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (17/17)");
   console.log("================================================================================\n");
 }
 
