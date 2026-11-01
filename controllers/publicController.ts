@@ -19,6 +19,7 @@ let Categoria = require("../models/Categoria");
 let CarritoWeb = require("../models/CarritoWeb");
 let MetodoPago = require("../models/MetodoPago");
 let MetodoEnvio = require("../models/MetodoEnvio");
+let Aliado = require("../models/Aliado");
 
 if (process.env.NODE_ENV === "test") {
   const dbLocal = require("../services/dbLocal");
@@ -27,6 +28,7 @@ if (process.env.NODE_ENV === "test") {
   CarritoWeb = dbLocal.getCarritoWebModel();
   MetodoPago = dbLocal.getMetodoPagoModel();
   MetodoEnvio = dbLocal.getMetodoEnvioModel();
+  Aliado = dbLocal.getAliadoModel();
 }
 
 const ALFABETO_CODIGO = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -427,7 +429,16 @@ export async function getInfo(req: any, res: any) {
     const bannerLateral = await resolverBannerLateral();
     const slider = await getSliderTiendaPublico();
 
-    return res.status(200).json({ preguntas, pagos, envios, horario, banner, bannerLateral, slider, instagram: obtenerInstagramPublico() });
+    const aliadosDb = await Aliado.find({ activo: true }).sort({ orden: 1, createdAt: 1 });
+    const aliados = (aliadosDb || [])
+      .filter((a: any) => a && a.activo !== false)
+      .map((a: any) => ({
+        nombre: String(a.nombre || ""),
+        descripcion: String(a.descripcion || ""),
+        logoUrl: String(a.logoUrl || ""),
+      }));
+
+    return res.status(200).json({ preguntas, pagos, envios, horario, banner, bannerLateral, slider, aliados, instagram: obtenerInstagramPublico() });
   } catch (error: any) {
     console.error("❌ Error en getInfo público:", error);
     return res.status(500).json({ error: "Error al obtener la información de la tienda" });

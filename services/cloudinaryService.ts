@@ -238,6 +238,60 @@ const subirLogoEnvio = async (buffer) => {
 };
 
 /**
+ * Sube el logo de un aliado comercial (F2j) a la carpeta <BRAND_NAME>/aliados.
+ * @param {Buffer} buffer - Buffer de la imagen (JPG, PNG o WebP; la ruta ya lo valida)
+ * @returns {Promise<{ url: string, publicId: string }>}
+ */
+const subirLogoAliado = async (buffer) => {
+  if (process.env.NODE_ENV === "test" && process.env.FORZAR_CLOUDINARY_DESCONFIGURADO === "true") {
+    throw new Error("Cloudinary no está configurado");
+  }
+
+  if (process.env.NODE_ENV === "test") {
+    const brand = process.env.BRAND_NAME || "default";
+    const publicId = `${brand}/aliados/mock_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    return {
+      url: `https://res.cloudinary.com/test-cloud/image/upload/v12345/${publicId}.png`,
+      publicId,
+    };
+  }
+
+  if (!estanCredencialesConfiguradas()) {
+    throw new Error("Cloudinary no está configurado");
+  }
+
+  const brand = process.env.BRAND_NAME || "default";
+  const folder = `${brand}/aliados`;
+
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: "image" },
+      (error, result) => {
+        if (result) {
+          resolve({
+            url: result.secure_url,
+            publicId: result.public_id,
+          });
+        } else {
+          reject(error);
+        }
+      }
+    );
+    stream.end(buffer);
+  });
+};
+
+/**
+ * True si el publicId está dentro de la carpeta de aliados de esta marca.
+ * Se usa antes de borrar: nunca se borra una imagen ajena.
+ */
+const esPublicIdDeAliado = (publicId) => {
+  if (typeof publicId !== "string" || !publicId) return false;
+  const brand = process.env.BRAND_NAME || "default";
+  return publicId.startsWith(`${brand}/aliados/`);
+};
+
+/**
  * Elimina una imagen de Cloudinary por su publicId
  * @param {string} publicId - ID público de la imagen
  * @returns {Promise<any>}
@@ -273,6 +327,8 @@ module.exports = {
   esPublicIdDeBanner,
   subirImagenSlider,
   esPublicIdDeSlider,
+  subirLogoAliado,
+  esPublicIdDeAliado,
   borrarImagen,
   estanCredencialesConfiguradas,
 };

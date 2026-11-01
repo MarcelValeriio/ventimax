@@ -368,7 +368,8 @@ export type TipoRecursoAuditoria =
   | "config"
   | "metodo_pago"
   | "metodo_envio"
-  | "slider_tienda";
+  | "slider_tienda"
+  | "aliado";
 
 export type FAQType = "estatica" | "dinamica";
 
@@ -549,4 +550,22 @@ export interface IContadorCatalogo {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+// ==========================================
+// 20. IAliado (models/Aliado.ts) - F2j
+// ==========================================
+
+export interface IAliado {
+  _id?: string;
+  nombre: string;
+  descripcion: string;
+  logoUrl?: string;
+  logoPublicId?: string;
+  orden?: number;
+  activo?: boolean;
+  brand?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 

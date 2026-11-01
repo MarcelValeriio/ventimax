@@ -3377,3 +3377,132 @@ body.con-ayuda.con-barra .pie-interior {
   font-weight: 500;
   color: var(--tinta);
 }
+
+/* ==========================================================================
+   Aliados comerciales (F2j)
+   ========================================================================== */
+.pie-enlaces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+}
+
+.aliados-seccion {
+  padding-top: 2rem;
+  padding-bottom: 3rem;
+}
+
+.aliados-cabecera {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.aliados-titulo {
+  font-size: 1.875rem;
+  font-weight: 800;
+  color: var(--tinta);
+  letter-spacing: -0.02em;
+}
+
+.aliados-intro {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  color: var(--tinta-2);
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.5;
+}
+
+.aliados-cuadricula {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .aliados-cuadricula {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .aliados-cuadricula {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.75rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .aliados-cuadricula {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.tarjeta-aliado {
+  background-color: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-lg);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.tarjeta-aliado:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.aliado-logo-contenedor {
+  width: 100%;
+  height: 96px;
+  background-color: #ffffff;
+  border-radius: var(--radio);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.aliado-logo-imagen {
+  max-width: 100%;
+  max-height: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.aliado-nombre-respaldo {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--tinta-2);
+  padding: 0.5rem;
+}
+
+.aliado-cuerpo {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+}
+
+.aliado-nombre {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--tinta);
+  margin-bottom: 0.5rem;
+}
+
+.aliado-descripcion {
+  font-size: 0.875rem;
+  color: var(--tinta-2);
+  line-height: 1.5;
+  word-break: break-word;
+}
+

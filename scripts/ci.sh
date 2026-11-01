@@ -32,6 +32,7 @@ SUITES=(
   test-catalogo-panel.ts
   test-banner-lateral.ts
   test-slider-tienda.ts
+  test-aliados.ts
   test-descuentos.ts
   test-auditoria.ts
   test-cortesia-social.ts

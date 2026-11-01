@@ -787,6 +787,141 @@ class DbLocal {
     };
   }
 
+  getAliadoModel() {
+    const self = this;
+    const matchAliadoQuery = (a: any, query: any) => {
+      if (!query || Object.keys(query).length === 0) return true;
+      for (const [key, val] of Object.entries(query)) {
+        if (key === "_id" && String(a._id) !== String(val)) return false;
+        if (key === "activo" && Boolean(a.activo) !== Boolean(val)) return false;
+        if (key === "brand" && a.brand !== val) return false;
+      }
+      return true;
+    };
+
+    const findQuery = (query: any) => {
+      const exec = () => {
+        const data = self.read();
+        let aliados = (data.aliados || []).filter((a: any) => matchAliadoQuery(a, query));
+        return Promise.resolve(aliados);
+      };
+      return {
+        sort: (sortObj: any) => {
+          const sortedExec = () =>
+            exec().then((aliados) => {
+              const copy = [...aliados];
+              copy.sort((a, b) => {
+                const aOrden = Number(a.orden) || 0;
+                const bOrden = Number(b.orden) || 0;
+                if (aOrden !== bOrden) return aOrden - bOrden;
+                return (a.nombre || "").localeCompare(b.nombre || "");
+              });
+              return copy;
+            });
+          return {
+            then: (onFulfilled: any, onRejected?: any) => sortedExec().then(onFulfilled, onRejected),
+            catch: (onRejected: any) => sortedExec().catch(onRejected),
+            lean: () => ({
+              then: (onFulfilled: any, onRejected?: any) => sortedExec().then(onFulfilled, onRejected),
+              catch: (onRejected: any) => sortedExec().catch(onRejected),
+            }),
+          };
+        },
+        lean: () => ({
+          then: (onFulfilled: any, onRejected?: any) => exec().then(onFulfilled, onRejected),
+          catch: (onRejected: any) => exec().catch(onRejected),
+        }),
+        then: (onFulfilled: any, onRejected?: any) => exec().then(onFulfilled, onRejected),
+        catch: (onRejected: any) => exec().catch(onRejected),
+      };
+    };
+
+    return {
+      find: (query: any) => findQuery(query),
+      findOne: (query: any) => {
+        const queryObj = findQuery(query);
+        return {
+          sort: (sortObj: any) => {
+            const sorted = queryObj.sort(sortObj);
+            return {
+              lean: () => sorted.then((res: any) => (res && res.length > 0 ? res[0] : null)),
+              then: (onFulfilled: any, onRejected?: any) =>
+                sorted.then((res: any) => (res && res.length > 0 ? res[0] : null)).then(onFulfilled, onRejected),
+              catch: (onRejected: any) => sorted.catch(onRejected),
+            };
+          },
+          lean: () => queryObj.then((res: any) => (res && res.length > 0 ? res[0] : null)),
+          then: (onFulfilled: any, onRejected?: any) =>
+            queryObj.then((res: any) => (res && res.length > 0 ? res[0] : null)).then(onFulfilled, onRejected),
+          catch: (onRejected: any) => queryObj.catch(onRejected),
+        };
+      },
+      findById: (id: any) => {
+        const data = self.read();
+        const aliados = data.aliados || [];
+        const result = aliados.find((a: any) => String(a._id) === String(id)) || null;
+        return {
+          lean: () => Promise.resolve(result),
+          then: (onFulfilled: any, onRejected?: any) => Promise.resolve(result).then(onFulfilled, onRejected),
+          catch: (onRejected: any) => Promise.resolve(result).catch(onRejected),
+        };
+      },
+      create: async (doc: any) => {
+        const data = self.read();
+        if (!data.aliados) data.aliados = [];
+        const newDoc = {
+          _id: "aliado-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+          activo: true,
+          orden: 0,
+          logoUrl: "",
+          logoPublicId: "",
+          brand: "ventimax",
+          ...doc,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        data.aliados.push(newDoc);
+        self.write(data);
+        return newDoc;
+      },
+      findByIdAndUpdate: async (id: any, update: any, options: any = {}) => {
+        const data = self.read();
+        if (!data.aliados) data.aliados = [];
+        const idx = data.aliados.findIndex((a: any) => String(a._id) === String(id));
+        if (idx === -1) return null;
+        const updateData = update.$set || update;
+        data.aliados[idx] = {
+          ...data.aliados[idx],
+          ...updateData,
+          updatedAt: new Date(),
+        };
+        self.write(data);
+        return data.aliados[idx];
+      },
+      findByIdAndDelete: async (id: any) => {
+        const data = self.read();
+        if (!data.aliados) data.aliados = [];
+        const idx = data.aliados.findIndex((a: any) => String(a._id) === String(id));
+        if (idx === -1) return null;
+        const [deleted] = data.aliados.splice(idx, 1);
+        self.write(data);
+        return deleted;
+      },
+      deleteMany: async (query: any = {}) => {
+        const data = self.read();
+        if (!data.aliados) data.aliados = [];
+        const prevLen = data.aliados.length;
+        data.aliados = data.aliados.filter((a: any) => !matchAliadoQuery(a, query));
+        self.write(data);
+        return { deletedCount: prevLen - data.aliados.length };
+      },
+      countDocuments: async (query: any = {}) => {
+        const data = self.read();
+        return (data.aliados || []).filter((a: any) => matchAliadoQuery(a, query)).length;
+      },
+    };
+  }
+
   getCounterModel() {
     return {
       findOneAndUpdate: async (query, update, options) => {

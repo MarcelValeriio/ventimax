@@ -2323,6 +2323,88 @@ function renderizarConfirmacion(codigo) {
 }
 
 /* ------------------------------------------------------------------------------------------------
+ * Vista: aliados comerciales (F2j)
+ * ---------------------------------------------------------------------------------------------- */
+
+function renderizarAliados() {
+  limpiarElemento(appRoot);
+
+  const lista = state.info?.aliados || [];
+  if (!Array.isArray(lista) || lista.length === 0) {
+    window.location.hash = "#/";
+    return;
+  }
+
+  // Título e intro
+  const cabecera = el(
+    "header",
+    { className: "aliados-cabecera" },
+    el("h1", { className: "aliados-titulo", id: "aliados-titulo" }, "Aliados comerciales"),
+  );
+
+  const intro = state.info?.descripcionAliados || state.marca?.descripcionAliados || "";
+  if (intro && typeof intro === "string") {
+    const pIntro = el("p", { className: "aliados-intro" });
+    pIntro.textContent = intro;
+    cabecera.appendChild(pIntro);
+  }
+
+  // Cuadrícula de tarjetas
+  const grilla = el("div", { className: "aliados-cuadricula" });
+
+  lista.forEach((aliado) => {
+    const tarjeta = el("article", { className: "tarjeta-aliado" });
+
+    // Contenedor del logo
+    const cajaLogo = el("div", { className: "aliado-logo-contenedor" });
+
+    if (aliado.logoUrl) {
+      const img = el("img", {
+        src: aliado.logoUrl,
+        alt: aliado.nombre || "Logo de aliado",
+        className: "aliado-logo-imagen",
+        loading: "lazy",
+      });
+      img.onerror = () => {
+        limpiarElemento(cajaLogo);
+        const span = el("span", { className: "aliado-nombre-respaldo" });
+        span.textContent = aliado.nombre || "";
+        cajaLogo.appendChild(span);
+      };
+      cajaLogo.appendChild(img);
+    } else {
+      const span = el("span", { className: "aliado-nombre-respaldo" });
+      span.textContent = aliado.nombre || "";
+      cajaLogo.appendChild(span);
+    }
+
+    tarjeta.appendChild(cajaLogo);
+
+    // Contenido textual (textContent para seguridad estricta XSS)
+    const cuerpo = el("div", { className: "aliado-cuerpo" });
+    const h2 = el("h2", { className: "aliado-nombre" });
+    h2.textContent = aliado.nombre || "";
+    cuerpo.appendChild(h2);
+
+    const desc = el("p", { className: "aliado-descripcion" });
+    desc.textContent = aliado.descripcion || "";
+    cuerpo.appendChild(desc);
+
+    tarjeta.appendChild(cuerpo);
+    grilla.appendChild(tarjeta);
+  });
+
+  const seccion = el(
+    "section",
+    { className: "aliados-seccion contenedor", "aria-labelledby": "aliados-titulo" },
+    cabecera,
+    grilla,
+  );
+
+  appRoot.appendChild(seccion);
+}
+
+/* ------------------------------------------------------------------------------------------------
  * Enrutador y arranque
  * ---------------------------------------------------------------------------------------------- */
 
@@ -2362,6 +2444,15 @@ function enrutar() {
     productoEnVista = productosDelCatalogo().find((p) => p.id === pid)?.nombre || null;
     state.vista = "producto";
     renderizarDetalleProducto(pid);
+  } else if (hash === "#/aliados" || hash.startsWith("#/aliados?")) {
+    state.soloOfertas = false;
+    const listaAliados = state.info?.aliados || [];
+    if (!Array.isArray(listaAliados) || listaAliados.length === 0) {
+      window.location.hash = "#/";
+      return;
+    }
+    state.vista = "aliados";
+    renderizarAliados();
   } else if (hash === "#/carrito") {
     state.soloOfertas = false;
     state.vista = "carrito";
@@ -2406,11 +2497,21 @@ async function cargarDatos() {
         state.info = info;
         pintarInstagram(info?.instagram);
         pintarNavegacion();
+        const enlaceAliadosPie = document.getElementById("footer-aliados");
+        if (enlaceAliadosPie) {
+          if (Array.isArray(info?.aliados) && info.aliados.length > 0) {
+            enlaceAliadosPie.classList.remove("hidden");
+          } else {
+            enlaceAliadosPie.classList.add("hidden");
+          }
+        }
         // El cintillo (F2g) y el slider (F2i) llegan con esta información: si el catálogo está en pantalla, se vuelve a pintar
         if (state.vista === "catalogo") renderizarCatalogo();
+        else if (state.vista === "aliados") renderizarAliados();
         else pintarPreguntas();
         // El carrito muestra las formas de entrega que llegan con esta información
         if (state.vista === "carrito") renderizarCarrito();
+        if (window.location.hash.startsWith("#/aliados")) enrutar();
       })
       .catch((err) => console.warn("[Catálogo] No se pudo cargar la información de la tienda:", err));
   }

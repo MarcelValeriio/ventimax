@@ -13,7 +13,8 @@ class DbMock {
       etiquetas: {},
       mensajes: [],
       productos: [],
-      categorias: []
+      categorias: [],
+      aliados: []
     };
   }
 
@@ -456,6 +457,38 @@ class DbMock {
           this.data.contadoresCatalogo = this.data.contadoresCatalogo.filter((c) => !matchQuery(c, query));
         }
         return { acknowledged: true, deletedCount: 1 };
+      },
+    };
+  }
+
+  getAliadoModel() {
+    return {
+      find: (query = {}) => {
+        let items = [...(this.data.aliados || [])];
+        if (query.activo !== undefined) items = items.filter((a) => a.activo === query.activo);
+        if (query.brand) items = items.filter((a) => a.brand === query.brand);
+        return {
+          sort: () => ({
+            lean: () => Promise.resolve(items),
+            then: (resolve) => Promise.resolve(items).then(resolve),
+          }),
+          lean: () => Promise.resolve(items),
+          then: (resolve) => Promise.resolve(items).then(resolve),
+        };
+      },
+      findById: (id) => {
+        const item = (this.data.aliados || []).find((a) => String(a._id) === String(id)) || null;
+        return {
+          lean: () => Promise.resolve(item),
+          then: (resolve) => Promise.resolve(item).then(resolve),
+        };
+      },
+      countDocuments: async () => (this.data.aliados || []).length,
+      create: async (doc) => {
+        if (!this.data.aliados) this.data.aliados = [];
+        const item = { _id: "aliado-" + Date.now(), orden: 0, activo: true, ...doc };
+        this.data.aliados.push(item);
+        return item;
       },
     };
   }

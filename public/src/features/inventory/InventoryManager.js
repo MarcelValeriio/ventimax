@@ -7,6 +7,7 @@ import React, { useState } from "https://cdn.skypack.dev/react";
 import ProductTab from "./components/ProductTab.js";
 import PaymentTab from "./components/PaymentTab.js";
 import ShippingTab from "./components/ShippingTab.js";
+import AliadosTab from "./components/AliadosTab.js";
 
 const e = React.createElement;
 
@@ -58,6 +59,19 @@ const InventoryManager = () => {
         },
         e(Icono, { nombre: "truck", className: "mr-2" }),
         "Envíos"
+      ),
+      e(
+        "button",
+        {
+          onClick: () => setActiveTab("aliados"),
+          className: `py-4 text-sm font-bold border-b-2 transition-all ${
+            activeTab === "aliados"
+              ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
+              : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+          }`
+        },
+        e(Icono, { nombre: "building", className: "mr-2" }),
+        "Aliados"
       )
     ),
     // Content
@@ -68,7 +82,9 @@ const InventoryManager = () => {
         ? e(ProductTab)
         : activeTab === "payments"
         ? e(PaymentTab)
-        : e(ShippingTab)
+        : activeTab === "shipping"
+        ? e(ShippingTab)
+        : e(AliadosTab)
     )
   );
 };

@@ -2542,7 +2542,7 @@ Referencia visual del dueño: una tienda con encabezado de dos niveles (fila de 
   ```
 - **Desviaciones:** Ninguna. Listo para revisión de Claude.
 
-### F2j · Aliados comerciales — Backend + Frontend · `Pendiente`
+### F2j · Aliados comerciales — Backend + Frontend · `Aprobada` (Claude, 2026-11-01: ci en verde; Chrome con 0, 1 y 6 aliados a 390 y 1440 px, 0 errores; ajustes: respaldo de marca `"default"` y `logoUrl` solo https)
 
 Una sección aparte de la tienda con los aliados del negocio: logotipo y descripción de cada uno, gestionados desde el panel. **Si no hay ningún aliado activo, la sección no existe**: ni enlace en la barra, ni página (la ruta `#/aliados` redirige al inicio).
 
@@ -2554,6 +2554,42 @@ Una sección aparte de la tienda con los aliados del negocio: logotipo y descrip
 - El botón flotante de WhatsApp se comporta en esta página igual que en el inicio.
 
 **Cierre:** suite nueva `scripts/test-aliados.ts`: CRUD y permiso `config:manage`, validaciones (nombre vacío, descripción larga, 31.º aliado rechazado), `publicId` ajeno rechazado y borrado de Cloudinary al quitar el logo, auditoría registrada (enum permitido), `info.aliados` con lista blanca y vacío cuando no hay activos, y casos de la tienda (sin `innerHTML`, enlace oculto sin aliados). Chrome: sin aliados (no hay enlace y `#/aliados` vuelve al inicio), con 1 y con 6 aliados, a 390 y 1440 px.
+
+#### Entrega y verificación (Antigravity)
+- **Archivos tocados y creados:**
+  - `models/Auditoria.ts` y `types/models.d.ts`: tipo de recurso `"aliado"` añadido en `tipoRecurso` enum e interfaz `IAliado`.
+  - `models/Aliado.ts`: modelo Mongoose con validaciones de longitud, índice compuesto y multi-marca.
+  - `services/dbLocal.ts` y `services/dbMock.ts`: soporte para modelo mock `Aliado` con consultas, filtrados, ordenamiento y conteo.
+  - `services/cloudinaryService.ts`: métodos `subirLogoAliado` y `esPublicIdDeAliado` aislando la carpeta `<marca>/aliados/`.
+  - `controllers/aliadosController.ts`: controlador con CRUD completo, manejo de errores M-2, validación de límite de 30 aliados, auditoría `aliado` y borrado de Cloudinary.
+  - `routes/adminRoutes.ts`: middleware multer de 2 MB y registro de rutas protegidas `/aliados` con `config:manage`.
+  - `controllers/publicController.ts`: exposición de lista blanca estricta `aliados: [{ nombre, descripcion, logoUrl }]` en `GET /api/public/info`.
+  - `public/src/features/inventory/components/AliadosTab.js`: pestaña de aliados en Inventario con vista de tarjetas, subida inmediata de logo, ordenamiento, switch activo, contador N/30 y confirmación de borrado.
+  - `public/src/features/inventory/InventoryManager.js`: integración de la pestaña "Aliados".
+  - `catalogo/index.html`: enlace opcional a aliados en pie de página.
+  - `catalogo/js/app.js`: vista `renderizarAliados()`, ruta `#/aliados`, enlace en barra de navegación y pie condicionados a aliados activos, redirección a `#/` sin aliados, 0 `innerHTML`.
+  - `catalogo/css/style.css`: cuadrícula adaptativa (1 col móvil, 2 tableta, 3-4 escritorio), tarjetas estilizadas y logos contenidos sin deformar.
+  - `scripts/test-aliados.ts`: suite completa de verificación (6/6).
+  - `scripts/test-preguntas-frecuentes.ts`: actualizado esquema de claves de info pública para incluir `aliados`.
+  - `scripts/ci.sh`: incorporación de `test-aliados.ts` a la lista de suites automáticas.
+- **Evidencia de verificación:**
+  ```text
+  $ npm run build
+  > ventimax@1.0.0 build
+  > tsc && node -e "const fs = require('fs'); if (fs.existsSync('config')) fs.cpSync('config', 'dist/config', { recursive: true });"
+
+  $ NODE_ENV=test npx tsx scripts/test-aliados.ts
+  🎉 TODOS LOS TESTS DE ALIADOS COMERCIALES PASARON EXITOSAMENTE (6/6)
+
+  $ npx --yes esbuild@0.23.0 public/src/features/inventory/InventoryManager.js --bundle --external:'https://*' --outfile=/dev/null
+  ⚡ Done in 6ms
+
+  $ ./scripts/ci.sh
+  ▶ Build
+  ...
+  ✅ Build, 41 suites e imports del panel en verde.
+  ```
+- **Desviaciones:** Ninguna. Listo para revisión de Claude.
 
 ### F2k · Artículos relacionados en la ficha del producto — Frontend · `Pendiente`
 
@@ -2601,6 +2637,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-11-01 | — | F2j: Aliados comerciales (modelo Aliado, CRUD /api/admin/aliados con config:manage y auditoría, pestaña Aliados en Inventario, /api/public/info con aliados y vista tienda #/aliados con 0 innerHTML); suite test-aliados.ts en CI — Ejecutado por **Antigravity** | Antigravity (TPM) | Lista para revisión |
 | 2026-11-01 | — | Tareas nuevas F2i (slider de portada gestionado desde el panel, independiente del cintillo y del banner lateral, y encabezado de dos niveles con menú de categorías), F2j (aliados comerciales con logo y descripción; sin aliados, la sección no se muestra) y F2k (3 artículos relacionados en la ficha), pedidas por el dueño — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-30 | 03:00 | F2g: el descuento no se guardaba desde el panel (el controlador no lo leía) y el cintillo pasa a ser una cinta en movimiento con todos los productos en descuento, que se pausa con el mouse y enlaza a cada ficha; subagente Haiku, revisado por Claude — Ejecutado por **Claude** + subagente | Claude (Cerebro) | Completado |
 | 2026-10-30 | 02:00 | F2h: una sola lista de preguntas frecuentes para la tienda y el bot (`FAQ.mostrarEnTienda`, migración automática de las preguntas de la tienda con palabras clave que no tapan otras respuestas); subagente Haiku, revisado por Claude — Ejecutado por **Claude** + subagente | Claude (Cerebro) | Completado |
