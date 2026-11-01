@@ -406,9 +406,47 @@ export async function sincronizarTodas(SucursalModel: any, simular = false) {
   return { zoom: rZoom, mrw: rMrw, tealca: rTealca };
 }
 
+/**
+ * Determina si una URI de MongoDB apunta exclusivamente a un host local (127.0.0.1 o localhost).
+ * - Quita credenciales (antes de @ en la sección de autoridad).
+ * - Extrae el host antes de '/', '?' o ':puerto'.
+ * - Para mongodb+srv:// no se admiten puertos.
+ * - Compara contra 127.0.0.1 o localhost exactos.
+ */
 export function esBaseLocal(uri: string): boolean {
   if (!uri || typeof uri !== "string") return false;
-  return uri.includes("127.0.0.1") || uri.includes("localhost");
+
+  const match = uri.match(/^mongodb(?:\+srv)?:\/\/(.*)$/i);
+  if (!match) return false;
+
+  const isSrv = uri.toLowerCase().startsWith("mongodb+srv://");
+  const rest = match[1];
+
+  // Extraer la parte de autoridad (antes de la ruta / o query string ?)
+  const authority = rest.split(/[/?]/)[0];
+  if (!authority) return false;
+
+  // Si la autoridad tiene más de un @, es ambigua o potencialmente maliciosa
+  const atMatches = authority.match(/@/g);
+  if (atMatches && atMatches.length > 1) {
+    return false;
+  }
+
+  // Quitar credenciales (...@)
+  const atIdx = authority.lastIndexOf("@");
+  const hostPart = atIdx !== -1 ? authority.slice(atIdx + 1) : authority;
+  if (!hostPart) return false;
+
+  // En mongodb+srv:// no se permiten puertos por especificación
+  if (isSrv && hostPart.includes(":")) {
+    return false;
+  }
+
+  // Soportar lista de hosts separados por comas (replica sets locales)
+  const hosts = hostPart.split(",").map((h) => h.split(":")[0].trim().toLowerCase());
+  if (hosts.length === 0 || hosts.some((h) => !h)) return false;
+
+  return hosts.every((h) => h === "127.0.0.1" || h === "localhost");
 }
 
 export function validarPermisoEjecucion({

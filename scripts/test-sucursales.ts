@@ -307,11 +307,35 @@ async function runTests() {
   const countTealca = await Sucursal.countDocuments({ empresa: "tealca" });
   assert.strictEqual(countTealca, 0, "--simular no debe escribir registros en BD");
 
-  // Protección contra escritura remota sin --confirmar (Claude, F2n corrección)
+  // Protección contra escritura remota sin --confirmar (Claude, F2n corrección y bypass fix)
   assert.strictEqual(esBaseLocal("mongodb://127.0.0.1:27017/ventimax"), true);
   assert.strictEqual(esBaseLocal("mongodb://localhost:27017/ventimax"), true);
+  assert.strictEqual(esBaseLocal("mongodb://127.0.0.1:27017/x"), true);
+  assert.strictEqual(esBaseLocal("mongodb://localhost/x"), true);
   assert.strictEqual(esBaseLocal("mongodb+srv://admin:pass@atlas.mongodb.net/ventimax"), false);
   assert.strictEqual(esBaseLocal("mongodb://servidor-remoto.com:27017/ventimax"), false);
+
+  // Casos de bypass prevenidos (Claude, 2026-11-01):
+  assert.strictEqual(
+    esBaseLocal("mongodb+srv://u:localhost@cluster.mongodb.net/ventimax"),
+    false,
+    "localhost en password/user no debe considerarse local"
+  );
+  assert.strictEqual(
+    esBaseLocal("mongodb+srv://u:p@cluster.mongodb.net/ventimax?appName=localhost"),
+    false,
+    "localhost en query param no debe considerarse local"
+  );
+  assert.strictEqual(
+    esBaseLocal("mongodb+srv://u:p@cluster.mongodb.net/ventimax?x=127.0.0.1"),
+    false,
+    "127.0.0.1 en query param no debe considerarse local"
+  );
+  assert.strictEqual(
+    esBaseLocal("mongodb://u@evil.com@localhost/x"),
+    false,
+    "Múltiples @ en la autoridad es ambiguo y debe ser false"
+  );
 
   const permisoLocal = validarPermisoEjecucion({ uri: "mongodb://127.0.0.1:27017/ventimax", simular: false, confirmar: false });
   assert.strictEqual(permisoLocal.ok, true, "Base local no requiere flag confirmar");
