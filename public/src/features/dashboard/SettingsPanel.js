@@ -1,5 +1,6 @@
 import { Icono } from "../../components/Icono.js";
 import { ListaImagenesOrdenable } from "../../components/ListaImagenesOrdenable.js";
+import { AyudaTamanoImagen } from "../../components/AyudaTamanoImagen.js";
 /**
  * public/src/features/dashboard/SettingsPanel.js
  * Panel de Configuración: navegación por secciones (lateral en escritorio, pestañas en móvil)
@@ -1835,6 +1836,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
               ),
             })
           : e("p", { className: "text-xs text-gray-500 dark:text-gray-400" }, "Todavía no hay imágenes en el banner lateral."),
+        e(AyudaTamanoImagen, { medidas: "900 × 1200 px (3:4, vertical)", detalle: "JPG, PNG o WebP, hasta 5 imágenes" }),
         e("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100 dark:border-gray-700" },
           e("div", { className: "space-y-1" },
             e("label", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Enlaza a producto (para la próxima imagen):"),
@@ -2009,7 +2011,8 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
                         onClick: () => triggerCambiarImagen(i, "escritorio"),
                         disabled: sliderUploading,
                         className: "text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1",
-                      }, e(Icono, { nombre: "upload" }), "Cambiar imagen de escritorio")
+                      }, e(Icono, { nombre: "upload" }), "Cambiar imagen de escritorio"),
+                      e(AyudaTamanoImagen, { medidas: "1920 × 600 px (16:5)", detalle: "JPG, PNG o WebP, hasta 3 MB" })
                     ),
                     e("div", { className: "space-y-1.5" },
                       e("div", { className: "flex items-center justify-between" },
@@ -2030,7 +2033,8 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
                         onClick: () => triggerCambiarImagen(i, "movil"),
                         disabled: sliderUploading,
                         className: "text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1",
-                      }, e(Icono, { nombre: "upload" }), slide.urlMovil ? "Cambiar imagen de celular" : "Subir imagen de celular")
+                      }, e(Icono, { nombre: "upload" }), slide.urlMovil ? "Cambiar imagen de celular" : "Subir imagen de celular"),
+                      e(AyudaTamanoImagen, { medidas: "1080 × 1080 px (cuadrada)", detalle: "si falta, se usa la de escritorio" })
                     )
                   ),
                   e("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-gray-200 dark:border-gray-700" },
@@ -2092,6 +2096,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
               )
             )
           : e("p", { className: "text-xs text-gray-500 dark:text-gray-400" }, "Todavía no hay diapositivas en el slider de portada."),
+        e(AyudaTamanoImagen, { medidas: "1920 × 600 px (escritorio, 16:5) y 1080 × 1080 px (celular)", detalle: "JPG, PNG o WebP, hasta 3 MB por imagen" }),
         e("div", { className: "flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700" },
           e("button", {
             type: "button",

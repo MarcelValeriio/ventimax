@@ -7,6 +7,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "https://cdn.skypack.dev/react";
 import { Icono } from "../../../components/Icono.js";
 import apiClient from "../../../services/apiClient.js";
+import { AyudaTamanoImagen } from "../../../components/AyudaTamanoImagen.js";
 
 const e = React.createElement;
 
@@ -165,6 +166,7 @@ function TarjetaEmpresa({ empresa, indice, onNombre, onSubir, onQuitarLogo, onEl
         e(Icono, { nombre: empresa.subiendo ? "loader-circle" : "upload", girar: empresa.subiendo }),
         empresa.subiendo ? "Subiendo…" : tieneLogo ? "Cambiar logo" : "Subir logo",
       ),
+      e(AyudaTamanoImagen, { className: "w-full", medidas: "400 × 200 px (horizontal)", detalle: "JPG, PNG o WebP, hasta 2 MB" }),
       tieneLogo
         ? e(
             "button",

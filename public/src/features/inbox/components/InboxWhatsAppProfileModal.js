@@ -1,4 +1,5 @@
 import { Icono } from "../../../components/Icono.js";
+import { AyudaTamanoImagen } from "../../../components/AyudaTamanoImagen.js";
 /**
  * public/src/features/inbox/components/InboxWhatsAppProfileModal.js
  * LOTE B6 — Administrador del Perfil de WhatsApp Business (WA-39 · disparador WA-45).
@@ -345,11 +346,7 @@ const InboxWhatsAppProfileModal = ({ isOpen, onClose }) => {
                           { key: "h4", className: "text-sm font-bold text-gray-900 dark:text-white" },
                           "Foto del Perfil",
                         ),
-                        e(
-                          "p",
-                          { key: "p", className: "text-xs text-gray-500 dark:text-gray-400" },
-                          "JPG o PNG recomendado, máximo 5MB.",
-                        ),
+                        e(AyudaTamanoImagen, { key: "p", medidas: "640 × 640 px (cuadrada)", detalle: "JPG o PNG, máximo 5 MB" }),
                         e("div", { key: "btn-wrap", className: "pt-1" }, [
                           e("input", {
                             key: "file-input",

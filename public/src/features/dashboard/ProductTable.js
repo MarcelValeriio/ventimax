@@ -8,6 +8,7 @@ import React, { useEffect, useState, useRef } from "https://cdn.skypack.dev/reac
 import { createBlendy } from "https://cdn.jsdelivr.net/npm/blendy/+esm";
 import apiClient from "../../services/apiClient.js";
 import { ListaImagenesOrdenable } from "../../components/ListaImagenesOrdenable.js";
+import { AyudaTamanoImagen } from "../../components/AyudaTamanoImagen.js";
 
 const e = React.createElement;
 
@@ -1066,6 +1067,7 @@ const ProductTable = () => {
                       uploadingImage ? "Subiendo..." : "Subir fotos"
                     )
                 ),
+                e(AyudaTamanoImagen, { medidas: "1000 × 1000 px (cuadrada)", detalle: "JPG, PNG o WebP, hasta 5 MB" }),
                 !editingProduct
                   ? e(
                       "div",

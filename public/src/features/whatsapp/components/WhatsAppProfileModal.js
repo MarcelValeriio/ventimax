@@ -11,6 +11,7 @@ import React, {
   useRef,
 } from "https://cdn.skypack.dev/react";
 import apiClient from "../../../services/apiClient.js";
+import { AyudaTamanoImagen } from "../../../components/AyudaTamanoImagen.js";
 
 const e = React.createElement;
 
@@ -283,7 +284,7 @@ const WhatsAppProfileModal = ({ isOpen, onClose }) => {
                       ),
                       e("div", { key: "avatar-actions", className: "flex-1 space-y-1.5" }, [
                         e("h4", { key: "h4", className: "text-sm font-bold text-gray-900 dark:text-white" }, "Foto del Perfil"),
-                        e("p", { key: "p", className: "text-xs text-gray-500 dark:text-gray-400" }, "JPG o PNG recomendado, máximo 5MB."),
+                        e(AyudaTamanoImagen, { key: "p", medidas: "640 × 640 px (cuadrada)", detalle: "JPG o PNG, máximo 5 MB" }),
                         e(
                           "div",
                           { key: "btn-wrap", className: "pt-1" },
