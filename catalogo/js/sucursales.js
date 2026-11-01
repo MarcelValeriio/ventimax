@@ -74,7 +74,7 @@ export function formatearDetalleSucursal(sucursal) {
   const codigo = String(sucursal.codigo || "").trim();
   const nombre = String(sucursal.nombre || "").trim();
   const direccion = String(sucursal.direccion || "").trim();
-  return `${codigo} · ${nombre} (${direccion})`;
+  return direccion ? `${codigo} · ${nombre} (${direccion})` : `${codigo} · ${nombre}`;
 }
 
 /**

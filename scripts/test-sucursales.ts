@@ -180,7 +180,7 @@ async function runTests() {
   assert.strictEqual(normTealca[0].lat, 10.2155);
   assert.strictEqual(normTealca[0].lng, -64.63);
   assert.strictEqual(normTealca[0].telefono, "04141234567");
-  assert.strictEqual(normTealca[0].direccion, "Oficina principal. Teléfono de contacto: 0414-1234567. Frente a plaza.");
+  assert.strictEqual(normTealca[0].direccion, "", "Tealca no publica dirección: no se toma el texto de acerca_de");
   console.log("  ✅ Tealca: limpia HTML, extrae teléfono y parsea coordenadas de url_google_map");
 
   /* ==============================================================================

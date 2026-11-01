@@ -258,8 +258,8 @@ export function normalizarTealca(rawOffices: any[]): SucursalNormalizada[] {
 
     const textoAcerca = limpiarHtml(fields.acerca_de);
     const telefono = extraerTelefonoTealca(textoAcerca);
-    // Usar texto descriptivo limpio como dirección de referencia si no hay campo calle
-    const direccion = textoAcerca.slice(0, 300);
+    // Tealca no publica dirección (no hay campo calle). El texto de acerca_de es publicidad, no dirección: queda vacío.
+    const direccion = "";
 
     salida.push({
       empresa: "tealca",
