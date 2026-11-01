@@ -639,8 +639,51 @@ async function runTests() {
 
   console.log("  ✅ Test 18 superado (Lógica determinista de selección, exclusión, disponibilidad, completado con otras categorías y UI)");
 
+  // --------------------------------------------------------------------------
+  // TEST 19: Pie de página (footer) estilado y funcional (F2l)
+  // --------------------------------------------------------------------------
+  console.log("\n▶ Test 19: Pie de página (footer) estilado y funcional (F2l)...");
+
+  // 19a: Integridad en catalogo/index.html
+  const htmlPie = fs.readFileSync(path.join(__dirname, "..", "catalogo", "index.html"), "utf8");
+  assert.ok(htmlPie.includes('class="pie"'), "index.html debe tener elemento footer con clase pie");
+  assert.ok(htmlPie.includes('id="footer-brand"'), "index.html debe conservar id footer-brand");
+  assert.ok(htmlPie.includes('id="footer-aliados"'), "index.html debe conservar id footer-aliados");
+  assert.ok(htmlPie.includes('id="footer-privacy"'), "index.html debe conservar id footer-privacy");
+  assert.ok(htmlPie.includes('id="btn-volver-arriba"'), "index.html debe tener botón btn-volver-arriba");
+  assert.ok(htmlPie.includes('aria-label="Volver arriba"'), "botón volver arriba debe tener aria-label");
+
+  // 19b: Lógica en catalogo/js/app.js
+  assert.ok(appSrc.includes("function pintarPiePagina()"), "app.js debe definir pintarPiePagina");
+  assert.ok(appSrc.includes("new Date().getFullYear()"), "app.js debe calcular el año dinámicamente con getFullYear()");
+  assert.ok(!/©\s*202\d/.test(appSrc), "app.js NO debe tener años fijos hardcodeados en el copyright");
+  assert.ok(!appSrc.includes("innerHTML"), "app.js no debe usar innerHTML");
+  assert.ok(appSrc.includes('btnVolverArriba.appendChild(icono("arriba"))'), "botón volver arriba debe usar ícono arriba de Lucide");
+  assert.ok(appSrc.includes("prefers-reduced-motion"), "botón volver arriba debe respetar prefers-reduced-motion");
+
+  // 19c: Estilos en catalogo/css/style.css
+  assert.ok(
+    cssSrc.includes("color-mix(in srgb, var(--primary-color) 14%, #121616)"),
+    "el pie debe usar fondo oscuro teñido con el color de marca (color-mix)"
+  );
+  assert.ok(cssSrc.includes(".pie-columnas"), "CSS debe definir .pie-columnas");
+  assert.ok(cssSrc.includes(".pie-columna"), "CSS debe definir .pie-columna");
+  assert.ok(cssSrc.includes(".pie-barra-inferior"), "CSS debe definir .pie-barra-inferior");
+  assert.ok(cssSrc.includes(".boton-volver-arriba"), "CSS debe definir .boton-volver-arriba");
+  assert.ok(
+    cssSrc.includes("width: 44px") && cssSrc.includes("height: 44px"),
+    "el botón volver arriba debe cumplir con el área táctil mínima de 44 px"
+  );
+  assert.ok(
+    cssSrc.includes(".tarjeta-relacionado-foto {\n  position: relative;\n  flex-shrink: 0;\n  width: 60px;\n  height: 60px;\n  border-radius: calc(var(--radio) - 2px);\n  overflow: hidden;\n  background: var(--superficie);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  border: 1px solid var(--linea);\n  text-decoration: none;\n}") ||
+      cssSrc.includes(".tarjeta-relacionado-foto {\n  position: relative;\n  flex-shrink: 0;\n  width: 60px;\n  height: 60px;\n  border-radius: calc(var(--radio) - 2px);\n  overflow: hidden;\n  background: var(--superficie);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  border: 1px solid var(--linea);\n  text-decoration: none;"),
+    ".tarjeta-relacionado-foto debe tener text-decoration: none"
+  );
+
+  console.log("  ✅ Test 19 superado (Pie de página responsivo, 0 innerHTML, año dinámico, volver arriba y estilos contrastados)");
+
   console.log("\n================================================================================");
-  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (18/18)");
+  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (19/19)");
   console.log("================================================================================\n");
 }
 

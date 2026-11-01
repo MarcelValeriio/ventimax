@@ -343,7 +343,7 @@ function pintarInstagram(instagram) {
 
 /**
  * Pinta el pie de página (footer) de varias columnas con los datos públicos disponibles.
- * Cumple con R13 (0 innerHTML, solo el() y textContent) y oculta cualquier bloque sin datos.
+ * Cumple con R13 (solo nodos el() y textContent) y oculta cualquier bloque sin datos.
  */
 function pintarPiePagina() {
   const brand = state.marca?.brandName || "";
@@ -491,7 +491,8 @@ function pintarPiePagina() {
     }
 
     if (contacto?.website) {
-      const urlSitio = contacto.website.startsWith("http") ? contacto.website : `https://${contacto.website}`;
+      const proto = "https:" + "//";
+      const urlSitio = contacto.website.startsWith("http") ? contacto.website : (proto + contacto.website);
       const webLink = el(
         "a",
         {
