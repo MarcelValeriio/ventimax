@@ -132,6 +132,15 @@ export function crearControladorSlider({
     return indice;
   }
 
+  /**
+   * Registra el índice que el usuario dejó con el scroll (arrastre o deslizar). No notifica
+   * (si notificara, el carrusel volvería a desplazarse y pelearía con el dedo) y no reinicia el autoavance.
+   */
+  function sincronizarDesdeScroll(nuevoIndice) {
+    indice = ajustarIndice(nuevoIndice, totalSlides);
+    return indice;
+  }
+
   function siguiente() {
     return irA(siguienteIndice(indice, totalSlides, darVuelta));
   }
@@ -167,6 +176,7 @@ export function crearControladorSlider({
     getIndice: () => indice,
     estaPausado: () => pausado,
     irA,
+    sincronizarDesdeScroll,
     siguiente,
     anterior,
     pausar,

@@ -1166,8 +1166,11 @@ function crearSliderPortada(sliderData) {
       segundos: sliderData.segundos || 6,
       darVuelta: true,
       onCambio: (nuevoIndice) => {
-        const ancho = pista.clientWidth;
-        pista.scrollTo({ left: nuevoIndice * ancho, behavior: "smooth" });
+        const destino = nuevoIndice * pista.clientWidth;
+        // Solo se desplaza si la pista no está ya ahí (evita pelear con el scroll del usuario)
+        if (Math.abs(pista.scrollLeft - destino) > 2) {
+          pista.scrollTo({ left: destino, behavior: "smooth" });
+        }
         actualizarVisual(nuevoIndice);
       },
     });
@@ -1225,8 +1228,10 @@ function crearSliderPortada(sliderData) {
       scrollTimeout = requestAnimationFrame(() => {
         const ancho = pista.clientWidth;
         const indiceActual = indiceDesdeScrollSlider(pista.scrollLeft, ancho, total);
-        controlador.irA(indiceActual);
-        actualizarVisual(indiceActual);
+        if (indiceActual !== controlador.getIndice()) {
+          controlador.sincronizarDesdeScroll(indiceActual);
+          actualizarVisual(indiceActual);
+        }
       });
     }, { passive: true });
 
