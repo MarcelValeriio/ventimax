@@ -1321,11 +1321,10 @@ function renderizarCatalogo() {
   const banner = crearBannerLateral(state.info?.bannerLateral);
   appRoot.appendChild(banner ? el("div", { className: "catalogo-layout" }, banner, principal) : principal);
 
-  if (esInicio) {
-    seccionPreguntas = el("div", { className: "preguntas-hueco" });
-    appRoot.appendChild(seccionPreguntas);
-    pintarPreguntas();
-  }
+  // Las preguntas frecuentes van al pie de todas las vistas del listado, para que el enlace de la barra funcione desde cualquiera
+  seccionPreguntas = el("div", { className: "preguntas-hueco" });
+  appRoot.appendChild(seccionPreguntas);
+  pintarPreguntas();
 }
 
 /* ------------------------------------------------------------------------------------------------
