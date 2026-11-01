@@ -40,6 +40,8 @@ import { montarSelectorMapa } from "./mapa.js";
 
 import { crearControladorSlider, indiceDesdeScroll as indiceDesdeScrollSlider } from "./slider.js";
 
+import { seleccionarRelacionados } from "./relacionados.js";
+
 /** Solo se abre un enlace de WhatsApp (wa.me); cualquier otra cosa que llegara de la API se ignora. */
 function esEnlaceWhatsApp(url) {
   return typeof url === "string" && url.startsWith("https://wa.me/");
@@ -1541,10 +1543,80 @@ function caracteristicas(descripcion) {
 }
 
 /**
+ * Crea una tarjeta compacta para la sección de artículos relacionados (F2k).
+ * Reutiliza las funciones de imagen, precios, descuentos y disponibilidad.
+ */
+function crearTarjetaRelacionado(prod) {
+  const enlace = `#/producto/${encodeURIComponent(prod.id)}`;
+  const imgUrl = Array.isArray(prod.imagenes) && prod.imagenes.length > 0 ? prod.imagenes[0] : "";
+
+  const foto = el(
+    "a",
+    { className: "tarjeta-relacionado-foto", href: enlace, tabindex: "-1", "aria-hidden": "true" },
+    imagenProducto(imgUrl, prod.nombre, "tarjeta-relacionado-imagen", { loading: "lazy" }),
+    insigniaDescuento(prod),
+    prod.disponible ? null : el("span", { className: "sello-agotado" }, "Agotado")
+  );
+
+  const conDescuento = pctDescuento(prod) > 0;
+  return el(
+    "article",
+    {
+      className: [
+        "tarjeta-relacionado",
+        prod.disponible ? "" : "tarjeta-agotada",
+        conDescuento ? "tarjeta-descuento" : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    },
+    foto,
+    el(
+      "div",
+      { className: "tarjeta-relacionado-cuerpo" },
+      el("h3", { className: "tarjeta-relacionado-nombre" }, el("a", { href: enlace }, prod.nombre)),
+      el(
+        "div",
+        { className: "tarjeta-relacionado-precios" },
+        precioUsd(prod.precioUsd),
+        precioAnteriorUsd(prod),
+        lineaBs(prod.precioBs)
+      )
+    )
+  );
+}
+
+/**
+ * Bloque "Artículos relacionados" en la ficha de producto (F2k).
+ * Si no hay productos, devuelve null.
+ */
+function crearBloqueRelacionados(relacionados) {
+  if (!Array.isArray(relacionados) || relacionados.length === 0) {
+    return null;
+  }
+
+  const lista = el(
+    "div",
+    { className: "ficha-relacionados-lista", role: "list" },
+    relacionados.map((p) =>
+      el("div", { className: "ficha-relacionados-item", role: "listitem" }, crearTarjetaRelacionado(p))
+    )
+  );
+
+  return el(
+    "section",
+    { className: "ficha-relacionados", "aria-labelledby": "relacionados-titulo" },
+    el("h2", { id: "relacionados-titulo", className: "ficha-subtitulo ficha-relacionados-titulo" }, "Artículos relacionados"),
+    lista
+  );
+}
+
+/**
  * Vista de Detalle de Producto (#/producto/:id).
  */
 function renderizarDetalleProducto(productoId) {
   limpiarElemento(appRoot);
+  window.scrollTo(0, 0);
 
   if (!state.catalogo) {
     renderizarCatalogo();
@@ -1668,7 +1740,18 @@ function renderizarDetalleProducto(productoId) {
       : null
   );
 
-  appRoot.appendChild(el("div", { className: "ficha" }, galleryEl, compra, info));
+  // Artículos relacionados (F2k): calculados con el catálogo descargado
+  const rels = seleccionarRelacionados(prod, state.catalogo, 3);
+  const bloqueRel = crearBloqueRelacionados(rels);
+
+  const lateral = el(
+    "div",
+    { className: "ficha-lateral" },
+    compra,
+    bloqueRel
+  );
+
+  appRoot.appendChild(el("div", { className: "ficha" }, galleryEl, lateral, info));
 }
 
 /* ------------------------------------------------------------------------------------------------

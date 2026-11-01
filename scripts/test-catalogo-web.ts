@@ -30,6 +30,7 @@ import {
 import { debeMostrarAyuda, textoAyuda, armarEnlaceAyuda } from "../catalogo/js/ayuda.js";
 import { ajustarIndice, indiceDesdeScroll } from "../catalogo/js/galeria.js";
 import { empresasDe, logoEmpresa } from "../catalogo/js/entrega.js";
+import { seleccionarRelacionados } from "../catalogo/js/relacionados.js";
 
 async function runTests() {
   console.log("================================================================================");
@@ -536,8 +537,110 @@ async function runTests() {
 
   console.log("  ✅ Test 17 superado (Encabezado 2 niveles, slider con el(), controles accesibles y sin innerHTML)");
 
+  // --------------------------------------------------------------------------
+  // TEST 18 (F2k): Artículos relacionados en la ficha de producto (relacionados.js y app.js)
+  // --------------------------------------------------------------------------
+  console.log("\n▶ Test 18: Artículos relacionados en la ficha de producto (F2k)...");
+
+  // 18a: Módulo relacionados.js existe y no contiene innerHTML ni URLs externas
+  const relJsPath = path.join(catalogoDir, "js", "relacionados.js");
+  assert.ok(fs.existsSync(relJsPath), "catalogo/js/relacionados.js debe existir");
+  const relJsSrc = fs.readFileSync(relJsPath, "utf8");
+  assert.ok(!relJsSrc.includes("innerHTML"), "relacionados.js no debe contener innerHTML");
+
+  // Catálogo de prueba para verificación exhaustiva
+  const catalogoPrueba = [
+    { id: "prod-actual", nombre: "Ventilador Actual", precioUsd: 40, categorias: ["mesa", "pared"], disponible: true },
+    { id: "p-mesa-1", nombre: "Ventilador Mesa Caro", precioUsd: 75, categorias: ["mesa"], disponible: true },
+    { id: "p-mesa-2", nombre: "Ventilador Mesa Cercano", precioUsd: 38, categorias: ["mesa"], disponible: true },
+    { id: "p-mesa-3", nombre: "Ventilador Mesa Medio", precioUsd: 45, categorias: ["mesa"], disponible: true },
+    { id: "p-mesa-agotado", nombre: "Ventilador Mesa Agotado Cercano", precioUsd: 39, categorias: ["mesa"], disponible: false },
+    { id: "p-pared-1", nombre: "Ventilador Pared Cercano", precioUsd: 42, categorias: ["pared"], disponible: true },
+    { id: "p-pared-2", nombre: "Ventilador Pared Lejano", precioUsd: 90, categorias: ["pared"], disponible: true },
+    { id: "p-pedestal-1", nombre: "Ventilador Pedestal", precioUsd: 25, categorias: ["pedestal"], disponible: true },
+    { id: "p-inactivo", nombre: "Ventilador Inactivo", precioUsd: 40, categorias: ["mesa"], disponible: true, activo: false },
+  ];
+
+  const actual = catalogoPrueba[0];
+
+  // 18b: Misma categoría primero y excluye el producto actual e inactivos
+  const rel1 = seleccionarRelacionados(actual, catalogoPrueba, 3);
+  assert.strictEqual(rel1.length, 3, "debe seleccionar 3 productos");
+  assert.ok(!rel1.some((p: any) => p.id === "prod-actual"), "debe excluir el producto actual");
+  assert.ok(!rel1.some((p: any) => p.id === "p-inactivo"), "debe excluir productos inactivos");
+  // Todos deben pertenecer a la categoría principal 'mesa' porque hay suficientes
+  assert.ok(rel1.every((p: any) => p.categorias.includes("mesa")), "deben ser de la misma categoría principal primero");
+
+  // 18c: Disponibles antes que agotados y orden por precio más cercano
+  // En mesa: disponibles son p-mesa-2 (diff 2), p-mesa-3 (diff 5), p-mesa-1 (diff 35).
+  // p-mesa-agotado tiene diff 1 pero está agotado, así que va después de los disponibles.
+  assert.strictEqual(rel1[0].id, "p-mesa-2", "1ro: el disponible con precio más cercano ($38 diff 2)");
+  assert.strictEqual(rel1[1].id, "p-mesa-3", "2do: siguiente disponible ($45 diff 5)");
+  assert.strictEqual(rel1[2].id, "p-mesa-1", "3ro: siguiente disponible ($75 diff 35) antes que el agotado");
+
+  // 18d: Si no hay suficientes disponibles, incluye agotados dentro de la categoría
+  const soloDosDisponibles = [
+    actual,
+    catalogoPrueba[2], // p-mesa-2 ($38)
+    catalogoPrueba[4], // p-mesa-agotado ($39, agotado)
+  ];
+  const relConAgotado = seleccionarRelacionados(actual, soloDosDisponibles, 3);
+  assert.strictEqual(relConAgotado.length, 2, "devuelve los que haya cuando son menos de 3");
+  assert.strictEqual(relConAgotado[0].id, "p-mesa-2", "disponible va primero");
+  assert.strictEqual(relConAgotado[1].id, "p-mesa-agotado", "agotado va después si no hay más disponibles");
+
+  // 18e: A igualdad de precio, ordena por nombre alfabéticamente
+  const empatePrecio = [
+    { id: "e-b", nombre: "Ventilador Beta", precioUsd: 42, categorias: ["mesa"], disponible: true },
+    { id: "e-a", nombre: "Ventilador Alfa", precioUsd: 38, categorias: ["mesa"], disponible: true }, // diff 2
+    { id: "e-c", nombre: "Ventilador Charlie", precioUsd: 42, categorias: ["mesa"], disponible: true }, // diff 2
+  ];
+  const relEmpate = seleccionarRelacionados(actual, [actual, ...empatePrecio], 3);
+  assert.strictEqual(relEmpate[0].id, "e-a", "Alfa es diff 2, nombre 'Alfa'");
+  assert.strictEqual(relEmpate[1].id, "e-b", "Beta es diff 2, 'Beta' antes que 'Charlie'");
+  assert.strictEqual(relEmpate[2].id, "e-c", "Charlie es diff 2, 'Charlie' después de 'Beta'");
+
+  // 18f: Completa con otras categorías del producto si la principal no alcanza para 3
+  const catalogoUnaEnMesa = [
+    actual, // categorias: ["mesa", "pared"], precio: 40
+    { id: "solo-uno-mesa", nombre: "Mesa Único", precioUsd: 50, categorias: ["mesa"], disponible: true },
+    { id: "pared-cercano", nombre: "Pared Cercano", precioUsd: 41, categorias: ["pared"], disponible: true },
+    { id: "pared-lejano", nombre: "Pared Lejano", precioUsd: 80, categorias: ["pared"], disponible: true },
+    { id: "otro-distinto", nombre: "Pedestal", precioUsd: 30, categorias: ["pedestal"], disponible: true },
+  ];
+  const relCompletado = seleccionarRelacionados(actual, catalogoUnaEnMesa, 3);
+  assert.strictEqual(relCompletado.length, 3, "completa hasta 3 productos");
+  assert.strictEqual(relCompletado[0].id, "solo-uno-mesa", "primero el de la categoría principal");
+  assert.strictEqual(relCompletado[1].id, "pared-cercano", "completa con la otra categoría (pared) ordenado por precio");
+  assert.strictEqual(relCompletado[2].id, "pared-lejano", "siguiente de pared");
+  assert.ok(!relCompletado.some((p: any) => p.id === "otro-distinto"), "no incluye categorías que el producto no tiene");
+
+  // 18g: Devuelve vacío si no hay ninguno que coincida
+  const sinCoincidencia = [
+    actual,
+    { id: "p-solo-pedestal", nombre: "Solo Pedestal", precioUsd: 20, categorias: ["pedestal"], disponible: true },
+  ];
+  const relVacio = seleccionarRelacionados(actual, sinCoincidencia, 3);
+  assert.strictEqual(relVacio.length, 0, "devuelve arreglo vacío si no hay relacionados");
+
+  // 18h: Determinismo: resultado idéntico con los mismos datos en llamadas sucesivas
+  const r1 = seleccionarRelacionados(actual, catalogoPrueba, 3);
+  const r2 = seleccionarRelacionados(actual, catalogoPrueba, 3);
+  assert.deepStrictEqual(r1.map((p: any) => p.id), r2.map((p: any) => p.id), "el resultado debe ser determinista");
+
+  // 18i: Integración en app.js y CSS
+  assert.ok(appSrc.includes("seleccionarRelacionados"), "app.js debe importar/usar seleccionarRelacionados");
+  assert.ok(appSrc.includes("crearTarjetaRelacionado"), "app.js debe implementar crearTarjetaRelacionado");
+  assert.ok(appSrc.includes("crearBloqueRelacionados"), "app.js debe implementar crearBloqueRelacionados");
+  assert.ok(appSrc.includes("Artículos relacionados"), "título en español neutro");
+  assert.ok(cssSrc.includes(".ficha-relacionados"), "CSS debe tener estilos para .ficha-relacionados");
+  assert.ok(cssSrc.includes(".tarjeta-relacionado"), "CSS debe tener estilos para .tarjeta-relacionado");
+  assert.ok(cssSrc.includes(".ficha-lateral"), "CSS debe contemplar .ficha-lateral para agrupar compra y relacionados");
+
+  console.log("  ✅ Test 18 superado (Lógica determinista de selección, exclusión, disponibilidad, completado con otras categorías y UI)");
+
   console.log("\n================================================================================");
-  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (17/17)");
+  console.log("🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (18/18)");
   console.log("================================================================================\n");
 }
 

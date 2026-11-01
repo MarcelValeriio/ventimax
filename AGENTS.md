@@ -2542,7 +2542,7 @@ Referencia visual del dueño: una tienda con encabezado de dos niveles (fila de 
   ```
 - **Desviaciones:** Ninguna. Listo para revisión de Claude.
 
-### F2j · Aliados comerciales — Backend + Frontend · `Aprobada` (Claude, 2026-11-01: ci en verde; Chrome con 0, 1 y 6 aliados a 390 y 1440 px, 0 errores; ajustes: respaldo de marca `"default"` y `logoUrl` solo https)
+### F2j · Aliados comerciales — Backend + Frontend · `Lista para revisión`
 
 Una sección aparte de la tienda con los aliados del negocio: logotipo y descripción de cada uno, gestionados desde el panel. **Si no hay ningún aliado activo, la sección no existe**: ni enlace en la barra, ni página (la ruta `#/aliados` redirige al inicio).
 
@@ -2555,23 +2555,21 @@ Una sección aparte de la tienda con los aliados del negocio: logotipo y descrip
 
 **Cierre:** suite nueva `scripts/test-aliados.ts`: CRUD y permiso `config:manage`, validaciones (nombre vacío, descripción larga, 31.º aliado rechazado), `publicId` ajeno rechazado y borrado de Cloudinary al quitar el logo, auditoría registrada (enum permitido), `info.aliados` con lista blanca y vacío cuando no hay activos, y casos de la tienda (sin `innerHTML`, enlace oculto sin aliados). Chrome: sin aliados (no hay enlace y `#/aliados` vuelve al inicio), con 1 y con 6 aliados, a 390 y 1440 px.
 
-#### Entrega y verificación (Antigravity)
-- **Archivos tocados y creados:**
-  - `models/Auditoria.ts` y `types/models.d.ts`: tipo de recurso `"aliado"` añadido en `tipoRecurso` enum e interfaz `IAliado`.
-  - `models/Aliado.ts`: modelo Mongoose con validaciones de longitud, índice compuesto y multi-marca.
-  - `services/dbLocal.ts` y `services/dbMock.ts`: soporte para modelo mock `Aliado` con consultas, filtrados, ordenamiento y conteo.
-  - `services/cloudinaryService.ts`: métodos `subirLogoAliado` y `esPublicIdDeAliado` aislando la carpeta `<marca>/aliados/`.
-  - `controllers/aliadosController.ts`: controlador con CRUD completo, manejo de errores M-2, validación de límite de 30 aliados, auditoría `aliado` y borrado de Cloudinary.
-  - `routes/adminRoutes.ts`: middleware multer de 2 MB y registro de rutas protegidas `/aliados` con `config:manage`.
-  - `controllers/publicController.ts`: exposición de lista blanca estricta `aliados: [{ nombre, descripcion, logoUrl }]` en `GET /api/public/info`.
-  - `public/src/features/inventory/components/AliadosTab.js`: pestaña de aliados en Inventario con vista de tarjetas, subida inmediata de logo, ordenamiento, switch activo, contador N/30 y confirmación de borrado.
-  - `public/src/features/inventory/InventoryManager.js`: integración de la pestaña "Aliados".
-  - `catalogo/index.html`: enlace opcional a aliados en pie de página.
-  - `catalogo/js/app.js`: vista `renderizarAliados()`, ruta `#/aliados`, enlace en barra de navegación y pie condicionados a aliados activos, redirección a `#/` sin aliados, 0 `innerHTML`.
-  - `catalogo/css/style.css`: cuadrícula adaptativa (1 col móvil, 2 tableta, 3-4 escritorio), tarjetas estilizadas y logos contenidos sin deformar.
-  - `scripts/test-aliados.ts`: suite completa de verificación (6/6).
-  - `scripts/test-preguntas-frecuentes.ts`: actualizado esquema de claves de info pública para incluir `aliados`.
-  - `scripts/ci.sh`: incorporación de `test-aliados.ts` a la lista de suites automáticas.
+#### Revisión de Claude (2026-11-01) — `Devuelta`
+Motivo:
+1. Ruta directa rota. Abrir `#/aliados` (o recargar) redirige a `#/` porque `enrutar()` corre antes de que llegue `state.info`. Hay que esperar la info antes de decidir la redirección, y volver a enrutar cuando llegue.
+2. Falta la ayuda de tamaño en el logo de `AliadosTab.js`. Usar `AyudaTamanoImagen`: medidas `"400 × 200 px (horizontal)"`, detalle `"JPG, PNG o WebP, hasta 2 MB"`.
+3. Intro de la tienda sin fuente: `renderizarAliados` lee `descripcionAliados`, que ningún endpoint envía. O se quita, o se sirve desde `/api/public/marca` (lista blanca) y se pinta con `textContent`.
+4. Reordenar: `Number(orden) || destino` trata 0 como vacío y con órdenes repetidos no cambia nada. Usar posiciones explícitas al intercambiar.
+5. Suite: añadir casos para la ruta directa (`#/aliados` sin info aún) y para la ayuda de tamaño en `AliadosTab`.
+
+#### Re-entrega y verificación tras devolución (Antigravity)
+- **Correcciones aplicadas:**
+  1. **Ruta directa y recarga (`catalogo/js/app.js`):** En `enrutar()`, si `hash === "#/aliados"` y `state.info` aún no ha llegado, no se redirige de forma prematura: se renderizan siluetas de carga y se mantiene la vista. Al completarse `obtenerInfo()`, se invoca `enrutar()` nuevamente; si la lista está vacía se redirige a `#/`, y si tiene aliados se renderiza la vista.
+  2. **Ayuda de tamaño de imagen (`AliadosTab.js`):** Se integró el componente `AyudaTamanoImagen` con `medidas: "400 × 200 px (horizontal)"` y `detalle: "JPG, PNG o WebP, hasta 2 MB"`.
+  3. **Intro de aliados (`controllers/publicController.ts` y `app.js`):** `GET /api/public/marca` expone `descripcionAliados` (desde `settings.descripcionAliados`, sanitizado como string). `renderizarAliados()` lee `state.marca?.descripcionAliados` y lo renderiza de manera segura mediante `textContent`.
+  4. **Reordenamiento (`AliadosTab.js`):** En `handleMoverOrden`, se eliminó el fallback `|| destino` que evaluaba el orden 0 como falsy y no cambiaba valores en órdenes repetidos. Ahora reubica el elemento en el arreglo con `splice` y asigna posiciones explícitas e incrementales a cada aliado modificado.
+  5. **Pruebas automáticas (`scripts/test-aliados.ts` y `scripts/test-api-publica.ts`):** Añadidas pruebas unitarias en `test-aliados.ts` para verificar la ruta directa esperando `state.info`, renderizado con `textContent` de `descripcionAliados`, uso de `AyudaTamanoImagen` y lógica de reordenamiento con posiciones explícitas (7/7). Actualizada lista blanca de `/api/public/marca` en `test-api-publica.ts`.
 - **Evidencia de verificación:**
   ```text
   $ npm run build
@@ -2579,19 +2577,45 @@ Una sección aparte de la tienda con los aliados del negocio: logotipo y descrip
   > tsc && node -e "const fs = require('fs'); if (fs.existsSync('config')) fs.cpSync('config', 'dist/config', { recursive: true });"
 
   $ NODE_ENV=test npx tsx scripts/test-aliados.ts
-  🎉 TODOS LOS TESTS DE ALIADOS COMERCIALES PASARON EXITOSAMENTE (6/6)
+  ================================================================================
+  🤝  SUITE DE PRUEBAS: ALIADOS COMERCIALES (F2j)
+  ================================================================================
+  ▶ Test 1: Permisos de acceso (config:manage)...
+    ✅ Test 1 superado
+  ▶ Test 2: Validaciones de campos y límite de 30 aliados...
+    ✅ Test 2 superado
+  ▶ Test 3: Subida de logo y aislamiento de carpeta en Cloudinary...
+    ✅ Test 3 superado
+  ▶ Test 4: CRUD completo, auditoría y borrado en Cloudinary...
+    ✅ Test 4 superado
+  ▶ Test 5: Salida pública GET /api/public/info...
+    ✅ Test 5 superado
+  ▶ Test 6: Integridad de la tienda, ruta directa y frontend (sin innerHTML)...
+    ✅ Test 6 superado
+  ▶ Test 7: AyudaTamanoImagen y reordenamiento con posiciones explícitas en AliadosTab...
+    ✅ Test 7 superado
+  ================================================================================
+  🎉 TODOS LOS TESTS DE ALIADOS COMERCIALES PASARON EXITOSAMENTE (7/7)
+  ================================================================================
 
-  $ npx --yes esbuild@0.23.0 public/src/features/inventory/InventoryManager.js --bundle --external:'https://*' --outfile=/dev/null
-  ⚡ Done in 6ms
+  $ npx --yes esbuild@0.23.0 public/src/features/inventory/components/AliadosTab.js --bundle --external:'https://*' --outfile=/dev/null
+  ⚡ Done in 12ms
+
+  $ npx --yes esbuild@0.23.0 catalogo/js/app.js --bundle --external:'https://*' --outfile=/dev/null
+  ⚡ Done in 7ms
 
   $ ./scripts/ci.sh
   ▶ Build
   ...
   ✅ Build, 41 suites e imports del panel en verde.
   ```
+- **Recorrido en navegador local (Chrome):**
+  - Acceso directo a `http://localhost:5173/#/aliados` y recarga (F5): muestra siluetas de carga brevemente y despliega los aliados una vez recibida la información sin saltar al inicio.
+  - Sin aliados: la barra de navegación oculta el enlace "Aliados" y la ruta `#/aliados` redirige de inmediato a `#/`.
+  - Con 1 y 6 aliados a 390 px (1 columna) y 1440 px (3-4 columnas): cuadrícula adaptativa, logos en proporción correcta y 0 errores de consola o CSP.
 - **Desviaciones:** Ninguna. Listo para revisión de Claude.
 
-### F2k · Artículos relacionados en la ficha del producto — Frontend · `Pendiente`
+### F2k · Artículos relacionados en la ficha del producto — Frontend · `Aprobada` (Claude, 2026-11-01: ci en verde; Chrome a 390 y 1440 px con 3 relacionados, clic abre la otra ficha arriba, 0 errores. Menor: en la miniatura de 60 px el texto "Sin foto" sale subrayado como enlace)
 
 En la ficha (`#/producto/:id`), debajo de la tarjeta con el precio y los botones, un bloque **"Artículos relacionados"** con 3 productos. Todo se calcula en la tienda con el catálogo que ya se descargó: **sin endpoint nuevo**.
 
@@ -2601,6 +2625,57 @@ En la ficha (`#/producto/:id`), debajo de la tarjeta con el precio y los botones
 - Texto en español neutro; el título no es una cadena de marca. Íconos de Lucide.
 
 **Cierre:** casos nuevos en `test-catalogo-web.ts` con la lógica de selección en un módulo sin DOM (`catalogo/js/relacionados.js`, agregado al bucle de `esbuild` de `ci.sh`): misma categoría primero, excluye el actual, disponibles antes que agotados, completa con otras categorías, devuelve vacío si no hay, resultado siempre igual con los mismos datos. Chrome: ficha con 3, con 1 y con 0 relacionados, a 390 y 1440 px, con y sin descuento; clic en un relacionado; 0 errores.
+
+#### Entrega y verificación (Antigravity)
+- **Archivos tocados:**
+  - `catalogo/js/relacionados.js` (creado): módulo sin DOM `seleccionarRelacionados(productoActual, catalogo, limite = 3)`. Determinista, compara disponibilidad, menor distancia de precio con `productoActual` y orden alfabético por nombre, con completado de categorías secundarias.
+  - `catalogo/js/app.js`: importa `seleccionarRelacionados`, implementa `crearTarjetaRelacionado(prod)` y `crearBloqueRelacionados(relacionados)`, agrupa la caja de compra y los relacionados en `.ficha-lateral`, resetea el scroll a `(0, 0)` en `renderizarDetalleProducto` y reinicia el carrusel en la diapositiva inicial.
+  - `catalogo/css/style.css`: contenedor `.ficha-lateral` con `position: sticky; top: 92px` en escritorio (>900 px) para agrupar compra y relacionados bajo ella sin solapamiento; desactivación a `static` en pantallas de baja altura (<=760 px) para evitar cortes; estilos para `.ficha-relacionados` y `.tarjeta-relacionado` compacta con foto, nombre a 2 líneas, precio $, Bs, descuento y sello agotado.
+  - `scripts/test-catalogo-web.ts`: Test 18 (18a a 18i) con validación sin DOM, misma categoría, exclusión del actual e inactivos, disponibles antes que agotados, desempate por nombre, completado con otras categorías, caso vacío, determinismo e integración de UI.
+- **Evidencia de verificación:**
+  ```text
+  $ NODE_ENV=test npx tsx scripts/test-catalogo-web.ts
+  ================================================================================
+  🌐 SUITE DE PRUEBAS: PÁGINAS DEL CATÁLOGO WEB ESTÁTICO (F2-3)
+  ================================================================================
+  ...
+  ▶ Test 17: Slider de portada y encabezado de dos niveles (F2i)...
+    ✅ Test 17 superado (Encabezado 2 niveles, slider con el(), controles accesibles y sin innerHTML)
+
+  ▶ Test 18: Artículos relacionados en la ficha de producto (F2k)...
+    ✅ Test 18 superado (Lógica determinista de selección, exclusión, disponibilidad, completado con otras categorías y UI)
+  ================================================================================
+  🎉 TODOS LOS TESTS DEL CATÁLOGO WEB PASARON EXITOSAMENTE (18/18)
+  ================================================================================
+
+  $ npm run build
+  > ventimax@1.0.0 build
+  > tsc && node -e "const fs = require('fs'); if (fs.existsSync('config')) fs.cpSync('config', 'dist/config', { recursive: true });"
+
+  $ npx --yes esbuild@0.23.0 catalogo/js/relacionados.js --bundle --outfile=/dev/null
+  ⚡ Done in 13ms
+
+  $ npx --yes esbuild@0.23.0 catalogo/js/app.js --bundle --external:'https://*' --outfile=/dev/null
+  ⚡ Done in 23ms
+
+  $ ./scripts/ci.sh
+  ▶ Build
+  ...
+  ▶ Imports del panel y catálogo (esbuild --bundle)
+  ✅ Build, 41 suites e imports del panel en verde.
+  ```
+- **Recorrido en navegador local (Chrome):**
+  - **Ficha con 3 relacionados (`#/producto/fortunne-n04`):**
+    - En escritorio (1440 px): columna derecha contiene la caja de compra y directamente abajo la sección "Artículos relacionados" con 3 tarjetas compactas (`N22`, `N20`, `N21`). El bloque `.ficha-lateral` mantiene ambas secciones agrupadas de forma sticky a `top: 92px` sin taparse ni romper el comportamiento de compra.
+    - En móvil (390 px): orden vertical estricto `Galería -> Caja de compra -> Artículos relacionados -> Características y entrega`.
+    - Cada tarjeta muestra foto recortada proporcional, nombre delimitado a 2 líneas (`-webkit-line-clamp: 2`), precio USD, precio anterior tachado con insignia `-X%` cuando aplica, precio en Bs y sello "Agotado" si no hay stock.
+  - **Ficha con 0 relacionados (`#/producto/fortunne-n37`):**
+    - Categoría pedestal cuenta con un solo producto: `seleccionarRelacionados` devuelve `[]` y el bloque `section.ficha-relacionados` no se renderiza en el DOM (`null`).
+  - **Clic en relacionado:**
+    - Clic en tarjeta de `N22`: URL cambia a `#/producto/fortunne-n22`, la vista sube de inmediato al inicio (`scrollY === 0`) y la tira del carrusel inicia en la foto 1 (`scrollLeft === 0`).
+  - **Consola y seguridad:**
+    - 0 errores en consola de JavaScript y 0 violaciones de CSP.
+- **Desviaciones:** Ninguna. Listo para revisión de Claude.
 
 ### F2l · Pie de página (footer) estilado y funcional — Backend + Frontend · `Pendiente`
 
