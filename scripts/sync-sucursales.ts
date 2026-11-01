@@ -331,7 +331,7 @@ export async function sincronizarEmpresa(
     await SucursalModel.findOneAndUpdate(
       { empresa: item.empresa, codigo: item.codigo },
       { $set: item },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     );
   }
 

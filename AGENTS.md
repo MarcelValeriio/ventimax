@@ -222,11 +222,12 @@ Base: `docs/sucursales-envios-investigacion.md` (F2m, aprobada). Decisión del d
 - **Correcciones aplicadas (Claude, 2026-11-01):**
   1. **Salvaguarda remota estricta y corrección de bypass en `esBaseLocal(uri)` (`scripts/sync-sucursales.ts`):**
      - Se corrigió `esBaseLocal` para que analice únicamente el host canónico: se descartan credenciales (`...@`), se aísla la autoridad antes de `/` o `?`, se remueve `:puerto` (no admitido en `mongodb+srv://`), y se compara de forma exacta contra `127.0.0.1` o `localhost`.
+     - Si la autoridad tiene más de un `@` (ej. `mongodb://u@evil.com@localhost/x`), se considera ambigua y se rechaza inmediatamente retornando `false`.
      - Se previenen bypasses donde "localhost" o "127.0.0.1" aparezcan en el usuario, contraseña o query parameters (ej. `?appName=localhost` o `?x=127.0.0.1`).
      - Para cualquier URI remota, se exige obligatoriamente `--confirmar` si no se corre con `--simular`.
      - Se documentó en el encabezado del script y en `docs/nuevo-cliente.md` (§6.1).
   2. **Nuevos casos en suite `scripts/test-sucursales.ts`:**
-     - Se añadieron aserciones para los casos de bypass reportados: `mongodb+srv://u:localhost@cluster.mongodb.net/ventimax` (false), `mongodb+srv://u:p@cluster.mongodb.net/ventimax?appName=localhost` (false), `mongodb+srv://u:p@cluster.mongodb.net/ventimax?x=127.0.0.1` (false), `mongodb://127.0.0.1:27017/x` (true) y `mongodb://localhost/x` (true).
+     - Se añadieron aserciones para los casos de bypass reportados: `mongodb+srv://u:localhost@cluster.mongodb.net/ventimax` (false), `mongodb+srv://u:p@cluster.mongodb.net/ventimax?appName=localhost` (false), `mongodb+srv://u:p@cluster.mongodb.net/ventimax?x=127.0.0.1` (false), `mongodb://u@evil.com@localhost/x` (false), `mongodb://127.0.0.1:27017/x` (true) y `mongodb://localhost/x` (true).
      - Se verificó que `validarPermisoEjecucion` y la ejecución en subproceso CLI abortan con código 1 sin escribir si falta `--confirmar`.
   3. **Evidencia completa de navegador (Tienda y Panel `ShippingNacionalModal` a 1440 y 390 px):**
      - Se ejecutó el recorrido completo con Chrome Headless vía CDP (puerto 9224) verificando las 4 vistas con **0 errores de consola y 0 violaciones de CSP**.
