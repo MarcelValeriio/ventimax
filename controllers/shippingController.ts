@@ -34,7 +34,7 @@ function sanearEmpresas(empresas: any): { ok: true; value: any[] } | { ok: false
     const clave = nombre.toLowerCase();
     if (vistas.has(clave)) continue;
     vistas.add(clave);
-    lista.push(esObjeto ? { nombre, logoUrl: e.logoUrl, logoPublicId: e.logoPublicId } : { nombre });
+    lista.push(esObjeto ? { nombre, logoUrl: e.logoUrl, logoPublicId: e.logoPublicId, slug: e.slug } : { nombre });
   }
   if (lista.length > MAX_EMPRESAS) return { ok: false, error: `Máximo ${MAX_EMPRESAS} empresas de envío` };
   return { ok: true, value: empresaService.normalizarEmpresas(lista) };
