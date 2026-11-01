@@ -84,6 +84,7 @@ const entregaPublicaSchema = z
     longitud: z.number().min(-180).max(180).optional(),
     direccion: z.string().trim().max(300, "La dirección no puede exceder 300 caracteres").optional().default(""),
     empresa: z.string().trim().max(60, "Empresa de envío inválida").optional(),
+    sucursalId: z.string().trim().max(40, "ID de sucursal inválido").regex(/^[a-z]+-[A-Za-z0-9-]+$/, "Formato de sucursal inválido").optional(),
   })
   .strict()
   .refine((e) => (e.latitud === undefined) === (e.longitud === undefined), {

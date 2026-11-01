@@ -18,7 +18,7 @@ if (process.env.NODE_ENV === "test") {
 }
 
 const configManager = require("./configManager");
-const { nombreEnvio, detalleCostoEnvio } = require("./envioTexto");
+const { nombreEnvio, detalleCostoEnvio, textoSucursalEnvio, direccionSucursalEnvio } = require("./envioTexto");
 const { obtenerTasaUSD } = require("./bcv");
 const { getCaracasTime, formatBs, formatUsd } = require("../utils/helpers");
 const { enviarTexto } = require("./whatsapp");
@@ -728,6 +728,12 @@ class OrderService {
         let envioTexto = "";
         if (doc.envio?.nombre) {
           envioTexto = `\n*Envío:* ${nombreEnvio(doc.envio)}${detalleCostoEnvio(doc.envio)}`;
+          const txtSuc = textoSucursalEnvio(doc.envio);
+          if (txtSuc) {
+            envioTexto += `\n*Sucursal:* ${txtSuc}`;
+            const dirSuc = direccionSucursalEnvio(doc.envio);
+            if (dirSuc) envioTexto += `\n*Dirección sucursal:* ${dirSuc}`;
+          }
         }
 
         const miniComandaText = `🧾 *NUEVO PAGO RECIBIDO*\n\n` +

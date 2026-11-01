@@ -367,6 +367,7 @@ const KanbanBoard = ({ socket, userRole, health }) => {
         ${clienteTelefono ? `<p style="margin: 0 0 4px 0;"><strong>Teléfono:</strong> ${esc(clienteTelefono)}</p>` : ""}
         ${direccion ? `<p style="margin: 0 0 4px 0;"><strong>Dirección:</strong> ${esc(direccion)}</p>` : ""}
         ${order.envio && order.envio.nombre ? `<p style="margin: 0 0 4px 0;"><strong>Envío:</strong> ${esc(order.envio.nombre)}${order.envio.empresa ? ` · ${esc(order.envio.empresa)}` : ""}${order.envio.cobroADestino ? " (cobro a destino)" : order.envio.costoAcordado ? ` ($${Number(order.envio.costo).toFixed(2)}, acordado con el asesor)` : (order.envio.aConvenir ? " (A convenir)" : (order.envio.costo ? ` ($${Number(order.envio.costo).toFixed(2)})` : ""))}</p>` : ""}
+        ${order.envio && order.envio.sucursal ? `<p style="margin: 0 0 4px 0;"><strong>Sucursal:</strong> ${esc((order.envio.sucursal.empresa ? String(order.envio.sucursal.empresa).toUpperCase() + " " : "") + (order.envio.sucursal.codigo || "") + " — " + (order.envio.sucursal.nombre || "") + ", " + (order.envio.sucursal.ciudad || "") + (order.envio.sucursal.estado ? " (" + order.envio.sucursal.estado + ")" : ""))}</p>${order.envio.sucursal.direccion ? `<p style="margin: 0 0 4px 0;"><strong>Dirección sucursal:</strong> ${esc(order.envio.sucursal.direccion)}</p>` : ""}` : ""}
       </div>
 
       <div style="margin-bottom: 14px; border-bottom: 1px dashed #000; padding-bottom: 10px;">
@@ -779,10 +780,20 @@ const KanbanBoard = ({ socket, userRole, health }) => {
                       "p",
                       {
                         className:
-                          "text-[10px] font-medium text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1",
+                          "text-[10px] font-medium text-emerald-600 dark:text-emerald-400 mb-1 flex items-center gap-1",
                       },
                       e(Icono, { nombre: "truck", className: "text-[9px]" }),
                       `${order.envio.nombre}${order.envio.empresa ? ` · ${order.envio.empresa}` : ""}${order.envio.cobroADestino ? " (cobro a destino)" : order.envio.costoAcordado ? ` ($${Number(order.envio.costo).toFixed(2)}, acordado con el asesor)` : (order.envio.aConvenir ? " (A convenir)" : (order.envio.costo ? ` ($${Number(order.envio.costo).toFixed(2)})` : ""))}`,
+                    ),
+                  order.envio?.sucursal &&
+                    e(
+                      "p",
+                      {
+                        className:
+                          "text-[10px] text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1 truncate",
+                      },
+                      e(Icono, { nombre: "map-pin", className: "text-[9px]" }),
+                      `${order.envio.sucursal.empresa ? String(order.envio.sucursal.empresa).toUpperCase() + " " : ""}${order.envio.sucursal.codigo || ""} · ${order.envio.sucursal.nombre || ""} (${order.envio.sucursal.ciudad || ""})`,
                     ),
                   order.notas &&
                     e(

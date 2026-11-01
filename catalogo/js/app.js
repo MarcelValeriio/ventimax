@@ -42,6 +42,18 @@ import { crearControladorSlider, indiceDesdeScroll as indiceDesdeScrollSlider } 
 
 import { seleccionarRelacionados } from "./relacionados.js";
 
+import {
+  empresaTieneSucursales,
+  slugEmpresa,
+  formatearOpcionEstado,
+  formatearOpcionSucursal,
+  formatearDetalleSucursal,
+  limpiarCascadaAlCambiarEmpresa,
+  limpiarCascadaAlCambiarEstado,
+} from "./sucursales.js";
+
+import { obtenerSucursalesEstados, obtenerSucursales } from "./api.js";
+
 /** Solo se abre un enlace de WhatsApp (wa.me); cualquier otra cosa que llegara de la API se ignora. */
 function esEnlaceWhatsApp(url) {
   return typeof url === "string" && url.startsWith("https://wa.me/");
@@ -60,8 +72,18 @@ const state = {
   orden: "relevancia",
   ultimoPedido: null,
   vista: "",
-  // Entrega elegida en el carrito (F2c); se reinicia al crear el pedido
-  entrega: { metodo: null, gps: null, direccion: "", empresa: "", estadoGps: "inactivo" },
+  // Entrega elegida en el carrito (F2c / F2n); se reinicia al crear el pedido
+  entrega: {
+    metodo: null,
+    gps: null,
+    direccion: "",
+    empresa: "",
+    estadoGps: "inactivo",
+    estadoSucursal: "",
+    sucursalId: "",
+    sucursal: null,
+    sucursalesFallo: false,
+  },
 };
 
 const appRoot = document.getElementById("app-root");
@@ -2165,7 +2187,17 @@ function renderizarCarrito() {
           };
           limpiarCarritoEnStorage();
           guardarPedido([]);
-          state.entrega = { metodo: null, gps: null, direccion: "", empresa: "", estadoGps: "inactivo" };
+          state.entrega = {
+            metodo: null,
+            gps: null,
+            direccion: "",
+            empresa: "",
+            estadoGps: "inactivo",
+            estadoSucursal: "",
+            sucursalId: "",
+            sucursal: null,
+            sucursalesFallo: false,
+          };
 
           // Redirigir a vista de confirmación
           window.location.hash = `#/confirmacion/${encodeURIComponent(res.data.codigo)}`;
@@ -2197,6 +2229,10 @@ function renderizarCarrito() {
   // Filas del resumen que cambian con la entrega elegida
   const valorEnvio = el("dd", {});
   const valorTotal = el("dd", {});
+  const filaSucursalResumen = el("div", { className: "resumen-sucursal hidden" });
+  const sucursalResumenTexto = el("strong", {});
+  const sucursalResumenDir = el("span", { className: "resumen-sucursal-dir" });
+  filaSucursalResumen.append(sucursalResumenTexto, sucursalResumenDir);
 
   function refrescarResumen() {
     const costo = pideEntrega ? costoEntrega(state.entrega.metodo) : { tipo: "pendiente", monto: 0 };
@@ -2216,10 +2252,23 @@ function renderizarCarrito() {
     limpiarElemento(valorTotal);
     valorTotal.append(precioUsd(total, "precio-grande"), state.catalogo?.tasa ? lineaBs(Math.round(total * state.catalogo.tasa * 100) / 100) : null);
 
+    if (state.entrega.sucursal) {
+      filaSucursalResumen.classList.remove("hidden");
+      sucursalResumenTexto.textContent = `Sucursal: ${formatearDetalleSucursal(state.entrega.sucursal)}`;
+      sucursalResumenDir.textContent = state.entrega.sucursal.direccion || "";
+    } else {
+      filaSucursalResumen.classList.add("hidden");
+      sucursalResumenTexto.textContent = "";
+      sucursalResumenDir.textContent = "";
+    }
+
     const lista = !pideEntrega || entregaCompleta(state.entrega);
     submitBtn.disabled = hayAgotados || !lista || submitBtn.getAttribute("aria-busy") === "true";
     const empresasMetodo = empresasDe(state.entrega.metodo);
     const faltaEmpresa = empresasMetodo.length > 0 && !empresasMetodo.includes(state.entrega.empresa);
+    const tieneSuc = empresaTieneSucursales(state.entrega.metodo, state.entrega.empresa);
+    const faltaSucursal = tieneSuc && !state.entrega.sucursalesFallo && (!state.entrega.sucursalId || !state.entrega.sucursal);
+
     const pista =
       !pideEntrega || lista
         ? ""
@@ -2227,9 +2276,11 @@ function renderizarCarrito() {
           ? "Elige cómo quieres recibir tu pedido."
           : faltaEmpresa
             ? "Elige la empresa de envío."
-            : usaGps(state.entrega.metodo)
-              ? "Indica tu ubicación o escribe la dirección de entrega."
-              : "Completa los datos para el envío.";
+            : faltaSucursal
+              ? "Elige el estado y la sucursal de entrega."
+              : usaGps(state.entrega.metodo)
+                ? "Indica tu ubicación o escribe la dirección de entrega."
+                : "Completa los datos para el envío.";
     pistaEntrega.textContent = pista;
     pistaEntrega.classList.toggle("hidden", !pista);
   }
@@ -2243,6 +2294,7 @@ function renderizarCarrito() {
       { className: "resumen-filas" },
       el("div", { className: "resumen-fila" }, el("dt", {}, unidades === 1 ? "1 producto" : `${unidades} productos`), el("dd", {}, formatearUsd(subtotalUsd))),
       el("div", { className: "resumen-fila" }, el("dt", {}, "Envío"), valorEnvio),
+      filaSucursalResumen,
       el("div", { className: "resumen-fila resumen-total" }, el("dt", {}, "Total"), valorTotal)
     ),
     honeypotInput,
@@ -2309,6 +2361,10 @@ function seccionEntrega(metodos, alCambiar) {
       className: "entrega-radio",
       checked: elegido,
       onchange: () => {
+        if (state.entrega.metodo?.id !== m.id) {
+          limpiarCascadaAlCambiarEmpresa(state.entrega);
+          state.entrega.empresa = "";
+        }
         state.entrega.metodo = m;
         [...seccion.querySelectorAll(".entrega-opcion")].forEach((o) => o.classList.toggle("activa", o.contains(radio)));
         pintarDetalle();
@@ -2499,6 +2555,122 @@ function seccionEntrega(metodos, alCambiar) {
   }
 
   /**
+   * Selectores en cascada para sucursales de envío nacional (F2n): Estado -> Sucursal.
+   * Mientras carga: esqueleto; si falla: cae al campo de texto libre con aviso amable.
+   */
+  function bloqueSucursales(metodo, nombreEmpresa) {
+    const slug = slugEmpresa(metodo, nombreEmpresa);
+    const grupo = el("div", { className: "entrega-grupo entrega-sucursales-cascada" });
+
+    const grupoEstado = el("div", { className: "entrega-grupo" });
+    const lblEstado = el("label", { for: "sucursal-estado", className: "entrega-etiqueta" }, "Estado");
+    const selectEstado = el("select", { id: "sucursal-estado", className: "entrega-select", disabled: true });
+    grupoEstado.append(lblEstado, selectEstado);
+
+    const grupoSucursal = el("div", { className: "entrega-grupo" });
+    const lblSucursal = el("label", { for: "sucursal-agencia", className: "entrega-etiqueta" }, "Sucursal");
+    const selectSucursal = el("select", { id: "sucursal-agencia", className: "entrega-select", disabled: true });
+    const detalleDir = el("p", { className: "sucursal-direccion-detalle" });
+    if (state.entrega.sucursal?.direccion) {
+      detalleDir.textContent = state.entrega.sucursal.direccion;
+    }
+    grupoSucursal.append(lblSucursal, selectSucursal, detalleDir);
+
+    let sucursalesCargadas = [];
+
+    // Opciones iniciales mientras carga
+    limpiarElemento(selectEstado);
+    selectEstado.appendChild(el("option", { value: "" }, "Cargando estados…"));
+    limpiarElemento(selectSucursal);
+    selectSucursal.appendChild(el("option", { value: "" }, "Selecciona primero un estado…"));
+
+    function cargarSucursalesDeEstado(estadoNom) {
+      limpiarElemento(selectSucursal);
+      selectSucursal.disabled = true;
+      selectSucursal.appendChild(el("option", { value: "" }, "Cargando sucursales…"));
+      detalleDir.textContent = "";
+
+      obtenerSucursales(slug, estadoNom)
+        .then((lista) => {
+          sucursalesCargadas = lista || [];
+          limpiarElemento(selectSucursal);
+          selectSucursal.disabled = false;
+          selectSucursal.appendChild(el("option", { value: "" }, "Selecciona una sucursal…"));
+
+          for (const s of sucursalesCargadas) {
+            const opt = el("option", { value: s.id }, formatearOpcionSucursal(s));
+            if (state.entrega.sucursalId === s.id) {
+              opt.selected = true;
+              detalleDir.textContent = s.direccion || "";
+            }
+            selectSucursal.appendChild(opt);
+          }
+          alCambiar();
+        })
+        .catch((err) => {
+          console.warn("[Sucursales] Error cargando sucursales:", err);
+          state.entrega.sucursalesFallo = true;
+          pintarDetalle();
+          alCambiar();
+        });
+    }
+
+    obtenerSucursalesEstados(slug)
+      .then((estados) => {
+        limpiarElemento(selectEstado);
+        selectEstado.disabled = false;
+        const optDefault = el("option", { value: "" }, "Selecciona un estado…");
+        selectEstado.appendChild(optDefault);
+
+        for (const item of estados || []) {
+          const opt = el("option", { value: item.estado }, formatearOpcionEstado(item.estado, item.cantidad));
+          if (state.entrega.estadoSucursal === item.estado) {
+            opt.selected = true;
+          }
+          selectEstado.appendChild(opt);
+        }
+
+        if (state.entrega.estadoSucursal) {
+          cargarSucursalesDeEstado(state.entrega.estadoSucursal);
+        }
+      })
+      .catch((err) => {
+        console.warn("[Sucursales] Error cargando estados de sucursales:", err);
+        state.entrega.sucursalesFallo = true;
+        pintarDetalle();
+        alCambiar();
+      });
+
+    selectEstado.onchange = (ev) => {
+      const nuevoEstado = ev.target.value;
+      state.entrega.estadoSucursal = nuevoEstado;
+      limpiarCascadaAlCambiarEstado(state.entrega);
+      detalleDir.textContent = "";
+      if (!nuevoEstado) {
+        limpiarElemento(selectSucursal);
+        selectSucursal.disabled = true;
+        selectSucursal.appendChild(el("option", { value: "" }, "Selecciona primero un estado…"));
+        alCambiar();
+        return;
+      }
+      cargarSucursalesDeEstado(nuevoEstado);
+    };
+
+    selectSucursal.onchange = (ev) => {
+      const elegidoId = ev.target.value;
+      state.entrega.sucursalId = elegidoId;
+      const s = sucursalesCargadas.find((x) => x.id === elegidoId) || null;
+      state.entrega.sucursal = s;
+      state.entrega.direccion = s?.direccion || "";
+      detalleDir.textContent = s?.direccion || "";
+      alCambiar();
+    };
+
+    grupo.append(grupoEstado, grupoSucursal);
+    return grupo;
+  }
+
+  /**
    * Tarjeta de una empresa: radio oculto (accesible) + logo + nombre. Sin logo, o si la imagen no carga, el nombre
    * queda en grande. Una sola selección (name="empresa-envio").
    */
@@ -2515,7 +2687,11 @@ function seccionEntrega(metodos, alCambiar) {
         className: "entrega-radio",
         checked: elegida,
         onchange: (ev) => {
-          state.entrega.empresa = nombre;
+          if (state.entrega.empresa !== nombre) {
+            state.entrega.empresa = nombre;
+            limpiarCascadaAlCambiarEmpresa(state.entrega);
+            pintarDetalle();
+          }
           [...ev.target.closest(".entrega-empresas-lista").querySelectorAll(".entrega-empresa")].forEach((c) =>
             c.classList.toggle("activa", c.contains(ev.target))
           );
@@ -2597,7 +2773,23 @@ function seccionEntrega(metodos, alCambiar) {
         if (gps) detalle.appendChild(gps);
       }
     }
-    detalle.appendChild(campoDireccion(m));
+
+    // Si la empresa tiene directorio de sucursales activo (F2n)
+    const tieneSucursales = empresaTieneSucursales(m, state.entrega.empresa);
+    if (tieneSucursales && !state.entrega.sucursalesFallo) {
+      detalle.appendChild(bloqueSucursales(m, state.entrega.empresa));
+    } else {
+      if (state.entrega.sucursalesFallo) {
+        detalle.appendChild(
+          el(
+            "p",
+            { className: "entrega-error", role: "alert" },
+            "No pudimos cargar el directorio de sucursales en este momento. Por favor escribe tu oficina o dirección:"
+          )
+        );
+      }
+      detalle.appendChild(campoDireccion(m));
+    }
   }
 
   seccion.append(el("div", { className: "entrega-opciones" }, opciones, detalle));

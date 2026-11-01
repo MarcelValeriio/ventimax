@@ -20,4 +20,22 @@ export function detalleCostoEnvio(envio: any): string {
   return "";
 }
 
-module.exports = { nombreEnvio, detalleCostoEnvio };
+/** Formato legible de la sucursal de envío: "ZOOM 1234 — Principal Maracaibo, Maracaibo (Zulia)". */
+export function textoSucursalEnvio(envio: any): string {
+  const s = envio?.sucursal;
+  if (!s || !s.codigo) return "";
+  const emp = s.empresa ? `${String(s.empresa).toUpperCase()} ` : "";
+  const partes = [];
+  if (s.nombre) partes.push(s.nombre);
+  if (s.ciudad) partes.push(s.ciudad);
+  const detalleLugar = partes.join(", ");
+  const estadoTxt = s.estado ? ` (${s.estado})` : "";
+  return `${emp}${s.codigo} — ${detalleLugar}${estadoTxt}`;
+}
+
+/** Dirección oficial de la sucursal o cadena vacía si no existe. */
+export function direccionSucursalEnvio(envio: any): string {
+  return String(envio?.sucursal?.direccion || "").trim();
+}
+
+module.exports = { nombreEnvio, detalleCostoEnvio, textoSucursalEnvio, direccionSucursalEnvio };

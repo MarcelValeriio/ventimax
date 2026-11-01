@@ -2108,6 +2108,181 @@ class DbLocal {
       },
     };
   }
+
+  getSucursalModel() {
+    const self = this;
+    const matchSucursalQuery = (s: any, query: any) => {
+      if (!query || Object.keys(query).length === 0) return true;
+      for (const [key, val] of Object.entries(query)) {
+        if (val && typeof val === "object" && "$nin" in val) {
+          const arr = (val as any).$nin;
+          if (Array.isArray(arr) && arr.includes(s[key])) return false;
+          continue;
+        }
+        if (key === "_id" && String(s._id) !== String(val)) return false;
+        if (key === "empresa" && String(s.empresa).toLowerCase() !== String(val).toLowerCase()) return false;
+        if (key === "codigo" && String(s.codigo) !== String(val)) return false;
+        if (key === "estado" && String(s.estado).toLowerCase() !== String(val).toLowerCase()) return false;
+        if (key === "activa" && Boolean(s.activa) !== Boolean(val)) return false;
+      }
+      return true;
+    };
+
+    const findQuery = (query: any) => {
+      const exec = () => {
+        const data = self.read();
+        let sucursales = (data.sucursales || []).filter((s: any) => matchSucursalQuery(s, query));
+        return Promise.resolve(sucursales);
+      };
+      return {
+        sort: (sortObj: any) => {
+          const sortedExec = () =>
+            exec().then((sucursales) => {
+              const copy = [...sucursales];
+              copy.sort((a, b) => {
+                const cA = (a.ciudad || "").localeCompare(b.ciudad || "");
+                if (cA !== 0) return cA;
+                return (a.nombre || "").localeCompare(b.nombre || "");
+              });
+              return copy;
+            });
+          return {
+            then: (onFulfilled: any, onRejected?: any) => sortedExec().then(onFulfilled, onRejected),
+            catch: (onRejected: any) => sortedExec().catch(onRejected),
+            lean: () => ({
+              then: (onFulfilled: any, onRejected?: any) => sortedExec().then(onFulfilled, onRejected),
+              catch: (onRejected: any) => sortedExec().catch(onRejected),
+            }),
+          };
+        },
+        lean: () => ({
+          then: (onFulfilled: any, onRejected?: any) => exec().then(onFulfilled, onRejected),
+          catch: (onRejected: any) => exec().catch(onRejected),
+        }),
+        then: (onFulfilled: any, onRejected?: any) => exec().then(onFulfilled, onRejected),
+        catch: (onRejected: any) => exec().catch(onRejected),
+      };
+    };
+
+    return {
+      find: (query: any) => findQuery(query),
+      findOne: (query: any) => {
+        const queryObj = findQuery(query);
+        return {
+          sort: (sortObj: any) => {
+            const sorted = queryObj.sort(sortObj);
+            return {
+              lean: () => sorted.then((res: any) => (res && res.length > 0 ? res[0] : null)),
+              then: (onFulfilled: any, onRejected?: any) =>
+                sorted.then((res: any) => (res && res.length > 0 ? res[0] : null)).then(onFulfilled, onRejected),
+              catch: (onRejected: any) => sorted.catch(onRejected),
+            };
+          },
+          lean: () => queryObj.then((res: any) => (res && res.length > 0 ? res[0] : null)),
+          then: (onFulfilled: any, onRejected?: any) =>
+            queryObj.then((res: any) => (res && res.length > 0 ? res[0] : null)).then(onFulfilled, onRejected),
+          catch: (onRejected: any) => queryObj.catch(onRejected),
+        };
+      },
+      findOneAndUpdate: (filter: any, update: any, options: any = {}) => {
+        const exec = () => {
+          const data = self.read();
+          data.sucursales = data.sucursales || [];
+          let item = data.sucursales.find((s: any) => matchSucursalQuery(s, filter));
+          if (!item) {
+            if (options && options.upsert) {
+              item = {
+                _id: "suc-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+                empresa: filter.empresa,
+                codigo: filter.codigo,
+                activa: true,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              };
+              data.sucursales.push(item);
+            } else {
+              return null;
+            }
+          }
+          if (update.$set) {
+            for (const [key, val] of Object.entries(update.$set)) {
+              item[key] = val;
+            }
+          } else {
+            for (const [key, val] of Object.entries(update)) {
+              if (key !== "$set" && key !== "$setOnInsert") {
+                item[key] = val;
+              }
+            }
+          }
+          item.updatedAt = new Date();
+          self.write(data);
+          return { ...item, toObject: () => ({ ...item }) };
+        };
+        return {
+          lean: () => Promise.resolve(exec()),
+          then: (onFulfilled: any, onRejected: any) => Promise.resolve(exec()).then(onFulfilled, onRejected),
+          catch: (onRejected: any) => Promise.resolve(exec()).catch(onRejected),
+        };
+      },
+      updateMany: (query: any, update: any) => {
+        const data = self.read();
+        data.sucursales = data.sucursales || [];
+        let modifiedCount = 0;
+        for (const s of data.sucursales) {
+          if (matchSucursalQuery(s, query)) {
+            if (update.$set) {
+              for (const [k, v] of Object.entries(update.$set)) s[k] = v;
+            } else {
+              for (const [k, v] of Object.entries(update)) s[k] = v;
+            }
+            s.updatedAt = new Date();
+            modifiedCount++;
+          }
+        }
+        self.write(data);
+        return Promise.resolve({ modifiedCount });
+      },
+      updateOne: (filter: any, update: any) => {
+        return self.getSucursalModel().updateMany(filter, update);
+      },
+      countDocuments: (query: any = {}) => {
+        const data = self.read();
+        data.sucursales = data.sucursales || [];
+        return Promise.resolve(data.sucursales.filter((s: any) => matchSucursalQuery(s, query)).length);
+      },
+      create: (docs: any) => {
+        const data = self.read();
+        data.sucursales = data.sucursales || [];
+        const arr = Array.isArray(docs) ? docs : [docs];
+        const creados: any[] = [];
+        for (const d of arr) {
+          const item = {
+            _id: d._id || "suc-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+            ...d,
+            createdAt: d.createdAt || new Date(),
+            updatedAt: d.updatedAt || new Date(),
+          };
+          data.sucursales.push(item);
+          creados.push(item);
+        }
+        self.write(data);
+        return Promise.resolve(Array.isArray(docs) ? creados : creados[0]);
+      },
+      deleteMany: (query: any = {}) => {
+        const data = self.read();
+        if (!data.sucursales) data.sucursales = [];
+        const prev = data.sucursales.length;
+        if (!query || Object.keys(query).length === 0) {
+          data.sucursales = [];
+        } else {
+          data.sucursales = data.sucursales.filter((s: any) => !matchSucursalQuery(s, query));
+        }
+        self.write(data);
+        return Promise.resolve({ deletedCount: prev - data.sucursales.length });
+      },
+    };
+  }
 }
 
 module.exports = new DbLocal();// @ts-nocheck

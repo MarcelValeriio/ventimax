@@ -172,3 +172,33 @@ export async function enviarPedidoWeb(payload) {
     };
   }
 }
+
+/**
+ * Consulta la lista de estados con sucursales activas para una empresa de envío.
+ * GET /api/public/sucursales/estados?empresa=...
+ */
+export async function obtenerSucursalesEstados(empresa) {
+  const base = obtenerBaseUrl();
+  const res = await fetch(`${base}/api/public/sucursales/estados?empresa=${encodeURIComponent(empresa)}`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) {
+    throw new Error(`Error HTTP ${res.status} al consultar estados de sucursales`);
+  }
+  return res.json();
+}
+
+/**
+ * Consulta las sucursales activas de una empresa en un estado específico.
+ * GET /api/public/sucursales?empresa=...&estado=...
+ */
+export async function obtenerSucursales(empresa, estado) {
+  const base = obtenerBaseUrl();
+  const res = await fetch(`${base}/api/public/sucursales?empresa=${encodeURIComponent(empresa)}&estado=${encodeURIComponent(estado)}`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) {
+    throw new Error(`Error HTTP ${res.status} al consultar sucursales`);
+  }
+  return res.json();
+}

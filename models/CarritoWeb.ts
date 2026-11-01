@@ -30,6 +30,20 @@ const CarritoWebSchema = new Schema<ICarritoWeb>(
           latitud: { type: Number, default: null },
           longitud: { type: Number, default: null },
           direccion: { type: String, default: "" },
+          sucursal: {
+            type: new Schema(
+              {
+                empresa: { type: String, default: "" },
+                codigo: { type: String, default: "" },
+                nombre: { type: String, default: "" },
+                estado: { type: String, default: "" },
+                ciudad: { type: String, default: "" },
+                direccion: { type: String, default: "" },
+              },
+              { _id: false }
+            ),
+            default: null,
+          },
         },
         { _id: false }
       ),

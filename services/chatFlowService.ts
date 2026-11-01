@@ -1679,8 +1679,8 @@ class ChatFlowService {
   }
 
   async solicitarPasoTrasDatosPersonales(from, carrito, io) {
-    // Entrega ya elegida en la tienda (F2c): directo a confirmar, sin volver a preguntarla
-    if (carrito.envio?.desdeWeb && (carrito.envio.tipo === "retiro" || carrito.ubicacion || carrito.direccion_manual)) {
+    // Entrega ya elegida en la tienda (F2c / F2n): directo a confirmar, sin volver a preguntarla
+    if (carrito.envio?.desdeWeb && (carrito.envio.tipo === "retiro" || carrito.ubicacion || carrito.direccion_manual || carrito.envio?.sucursal)) {
       await orderService.setEstado(from, { paso: "esperando_confirmacion_datos", carrito }, io);
       await chatFlow.solicitarConfirmacionDatos(from, carrito, io);
       return;
@@ -2868,6 +2868,51 @@ class ChatFlowService {
     // La empresa elegida en la tienda vale si sigue en la lista del método; si no, el bot la pregunta
     const empresas = empresasDeEnvio(metodo);
     const empresa = empresas.find((e) => e.toLowerCase() === String(entrega.empresa || "").toLowerCase()) || "";
+
+    // Si la entrega web incluye sucursal (F2n), se valida que siga activa
+    let sucursalValida: any = null;
+    let sucursalInvalida = false;
+    if (entrega.sucursal && entrega.sucursal.codigo && entrega.sucursal.empresa) {
+      try {
+        const SucursalModel = process.env.NODE_ENV === "test"
+          ? require("./dbLocal").getSucursalModel()
+          : require("../models/Sucursal").default || require("../models/Sucursal");
+        const docSuc = await SucursalModel.findOne({
+          empresa: String(entrega.sucursal.empresa).toLowerCase(),
+          codigo: String(entrega.sucursal.codigo),
+          activa: true,
+        }).lean();
+        if (docSuc) {
+          sucursalValida = {
+            empresa: docSuc.empresa,
+            codigo: docSuc.codigo,
+            nombre: docSuc.nombre,
+            estado: docSuc.estado,
+            ciudad: docSuc.ciudad,
+            direccion: docSuc.direccion,
+          };
+        } else {
+          sucursalInvalida = true;
+        }
+      } catch (err: any) {
+        console.warn("⚠️ [Pedido web] Error consultando sucursal:", err.message);
+        sucursalInvalida = true;
+      }
+
+      if (sucursalInvalida) {
+        await this.enviarYRegistrar(
+          from,
+          {
+            tipo: "texto",
+            texto: `ℹ️ La sucursal de entrega seleccionada (${entrega.sucursal.codigo || "sucursal"}) ya no está disponible. Te pediremos los datos de entrega antes de confirmar.`,
+          },
+          io
+        );
+      }
+    }
+
+    const desdeWeb = (empresas.length === 0 || Boolean(empresa)) && !sucursalInvalida;
+
     carrito.envio = {
       metodoId: String(metodo._id),
       nombre: metodo.nombre,
@@ -2877,17 +2922,31 @@ class ChatFlowService {
       aConvenir: aConvenir && !cobroADestino,
       cobroADestino,
       empresa,
+      sucursal: sucursalValida,
       direccion: metodo.direccion || "",
       horario: metodo.horario || "",
-      // Sin la empresa (si el método la pide), el bot no salta los pasos de entrega
-      desdeWeb: empresas.length === 0 || Boolean(empresa),
+      // Sin la empresa o si la sucursal quedó inactiva, el bot no salta los pasos de entrega
+      desdeWeb,
     };
 
     const lineas = [`🚚 *Entrega:* ${metodo.nombre}${cobroADestino ? " (cobro a destino)" : ""}`];
     if (empresa) lineas.push(`📦 *Empresa de envío:* ${empresa}`);
+    if (sucursalValida) {
+      const empTxt = sucursalValida.empresa ? `${String(sucursalValida.empresa).toUpperCase()} ` : "";
+      lineas.push(`🏢 *Sucursal:* ${empTxt}${sucursalValida.codigo} — ${sucursalValida.nombre}, ${sucursalValida.ciudad} (${sucursalValida.estado})`);
+      if (sucursalValida.direccion) {
+        lineas.push(`📍 *Dirección sucursal:* ${sucursalValida.direccion}`);
+      }
+    }
     if (esRetiro) {
       const horario = metodo.horario && metodo.horario.trim() ? metodo.horario.trim() : formatearHorarioAtencion();
       lineas.push(`📍 *Punto de retiro:* ${metodo.direccion || "Dirección de retiro"}`, `⏰ *Horario:* ${horario}`);
+      return lineas;
+    }
+
+    if (sucursalValida) {
+      delete carrito.ubicacion;
+      carrito.direccion_manual = sucursalValida.direccion;
       return lineas;
     }
 

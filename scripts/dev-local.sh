@@ -23,6 +23,7 @@ fi
 export NODE_ENV=development
 export BRAND_NAME="${BRAND_NAME:-ventimax}"
 export PORT="${PORT:-3000}"
+export CATALOGO_ORIGEN="${CATALOGO_ORIGEN:-http://localhost:5173}"
 export FORCE_CLEAN_SEED=false
 
 # Secretos locales generados en cada arranque (las sesiones caducan al reiniciar).

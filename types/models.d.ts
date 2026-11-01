@@ -65,6 +65,15 @@ export interface IPagoPedido {
   pagoDigitalVES?: number;
 }
 
+export interface ISucursalEnvioDetalle {
+  empresa: string;
+  codigo: string;
+  nombre: string;
+  estado: string;
+  ciudad: string;
+  direccion: string;
+}
+
 export interface IEnvioPedido {
   metodoId?: string;
   nombre?: string;
@@ -77,6 +86,7 @@ export interface IEnvioPedido {
   cambioTrasCotizar?: boolean;
   empresa?: string;
   cobroADestino?: boolean;
+  sucursal?: ISucursalEnvioDetalle | null;
 }
 
 // ==========================================
@@ -273,11 +283,12 @@ export type TipoMetodoEnvio =
 
 export type CostoTipoEnvio = "fijo" | "a_convenir";
 
-/** Empresa de envío de un método nacional (F2f). Los strings son el formato anterior. */
+/** Empresa de envío de un método nacional (F2f, F2n). */
 export interface EmpresaEnvio {
   nombre: string;
   logoUrl?: string;
   logoPublicId?: string;
+  slug?: string;
 }
 
 export interface IMetodoEnvio {
@@ -519,6 +530,7 @@ export interface IEntregaCarritoWeb {
   latitud: number | null;
   longitud: number | null;
   direccion: string;
+  sucursal?: ISucursalEnvioDetalle | null;
 }
 
 export interface ICarritoWeb {
@@ -567,5 +579,29 @@ export interface IAliado {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+// ==========================================
+// 21. ISucursal (models/Sucursal.ts) - F2n
+// ==========================================
+
+export type SlugEmpresaEnvio = "zoom" | "mrw" | "tealca";
+
+export interface ISucursal {
+  _id?: string;
+  empresa: SlugEmpresaEnvio | string;
+  codigo: string;
+  nombre: string;
+  estado: string;
+  ciudad: string;
+  direccion: string;
+  telefono?: string;
+  horario?: string;
+  lat?: number | null;
+  lng?: number | null;
+  activa?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 
 

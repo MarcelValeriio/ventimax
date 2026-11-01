@@ -14,12 +14,15 @@ const { getBannerTiendaSync } = require("../services/bannerTiendaService");
 const { getBannerLateralSync } = require("../services/bannerLateralService");
 const { getSliderTiendaPublico } = require("../services/sliderTiendaService");
 
+const { normalizarNombreEstado } = require("../services/estadosVenezuela");
+
 let Producto = require("../models/Producto");
 let Categoria = require("../models/Categoria");
 let CarritoWeb = require("../models/CarritoWeb");
 let MetodoPago = require("../models/MetodoPago");
 let MetodoEnvio = require("../models/MetodoEnvio");
 let Aliado = require("../models/Aliado");
+let Sucursal = require("../models/Sucursal");
 
 if (process.env.NODE_ENV === "test") {
   const dbLocal = require("../services/dbLocal");
@@ -29,6 +32,7 @@ if (process.env.NODE_ENV === "test") {
   MetodoPago = dbLocal.getMetodoPagoModel();
   MetodoEnvio = dbLocal.getMetodoEnvioModel();
   Aliado = dbLocal.getAliadoModel();
+  Sucursal = dbLocal.getSucursalModel();
 }
 
 const ALFABETO_CODIGO = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -268,19 +272,53 @@ async function resolverEntrega(entrega: any): Promise<{ ok: true; value: any } |
   const costo = esRetiro || aConvenir || cobroADestino ? 0 : Number(metodo.costo) || 0;
 
   // Con empresas configuradas, el cliente elige una de la lista (se guarda el nombre tal como está en el panel)
-  const empresas: string[] = esRetiro ? [] : nombresEmpresas(metodo.empresas);
+  const empresasLista: any[] = esRetiro ? [] : normalizarEmpresas(metodo.empresas);
   let empresa = "";
-  if (empresas.length) {
+  let sucursalGuardar: any = null;
+  let direccion = String(entrega.direccion || "").trim();
+
+  if (empresasLista.length) {
     const pedida = String(entrega.empresa || "").trim().toLowerCase();
-    empresa = empresas.find((e) => e.toLowerCase() === pedida) || "";
-    if (!empresa) return { ok: false, error: "Elige la empresa de envío." };
+    const empObj = empresasLista.find((e: any) => e.nombre.toLowerCase() === pedida);
+    if (!empObj) return { ok: false, error: "Elige la empresa de envío." };
+    empresa = empObj.nombre;
+
+    // Si la empresa tiene sucursales configuradas por slug, se exige sucursalId
+    if (empObj.slug) {
+      const sucursalId = String(entrega.sucursalId || "").trim();
+      if (!sucursalId) {
+        return { ok: false, error: "Debes seleccionar una sucursal de entrega." };
+      }
+      const match = sucursalId.match(/^([a-z]+)-([A-Za-z0-9-]+)$/);
+      if (!match) {
+        return { ok: false, error: "Identificador de sucursal inválido." };
+      }
+      const [, empSlug, codSuc] = match;
+      if (empSlug !== empObj.slug) {
+        return { ok: false, error: "La sucursal seleccionada no pertenece a la empresa de envío elegida." };
+      }
+      const sucDoc: any = await Sucursal.findOne({ empresa: empObj.slug, codigo: codSuc, activa: true });
+      if (!sucDoc) {
+        return { ok: false, error: "La sucursal seleccionada no existe o no está disponible." };
+      }
+      sucursalGuardar = {
+        empresa: sucDoc.empresa,
+        codigo: sucDoc.codigo,
+        nombre: sucDoc.nombre,
+        estado: sucDoc.estado,
+        ciudad: sucDoc.ciudad,
+        direccion: sucDoc.direccion,
+      };
+      // La dirección de despacho es la oficial de la sucursal (se ignora lo que envíe el navegador)
+      direccion = sucDoc.direccion;
+    }
   }
-  // La ubicación del teléfono solo vale para el delivery en la ciudad; un envío nacional necesita los datos escritos
+
+  // La ubicación del teléfono solo vale para el delivery en la ciudad; un envío nacional sin sucursal necesita los datos escritos
   const tieneGps =
     metodo.tipo === "delivery_local" && typeof entrega.latitud === "number" && typeof entrega.longitud === "number";
-  const direccion = String(entrega.direccion || "").trim();
 
-  if (!esRetiro && !tieneGps && direccion.length < 8) {
+  if (!esRetiro && !tieneGps && !sucursalGuardar && direccion.length < 8) {
     return { ok: false, error: "Indica tu ubicación o escribe la dirección de entrega." };
   }
 
@@ -297,6 +335,7 @@ async function resolverEntrega(entrega: any): Promise<{ ok: true; value: any } |
       latitud: esRetiro || !tieneGps ? null : entrega.latitud,
       longitud: esRetiro || !tieneGps ? null : entrega.longitud,
       direccion: esRetiro ? "" : direccion,
+      sucursal: sucursalGuardar,
     },
   };
 }
@@ -408,6 +447,9 @@ export async function getInfo(req: any, res: any) {
 
     const horario = formatearHorarioAtencion();
 
+    const sucursalesActivas = await Sucursal.find({ activa: true }).lean();
+    const slugsConSucursales = new Set((sucursalesActivas || []).map((s: any) => String(s.empresa).toLowerCase()));
+
     const enviosDb = await MetodoEnvio.find({ activo: true }).sort({ orden: 1, createdAt: 1 });
     const envios = (enviosDb || [])
       .filter((m: any) => m && m.activo !== false)
@@ -421,8 +463,18 @@ export async function getInfo(req: any, res: any) {
           tipo: String(m.tipo || ""),
           pideDatos: esRetiro ? null : String(m.pideDatos || "") || null,
           // Envío nacional: empresas entre las que elige el cliente y si el envío se paga al recibirlo
-          // Cada empresa con su logo (F2f); el logo viene solo si es de Cloudinary, sin publicId
-          empresas: esRetiro ? [] : normalizarEmpresas(m.empresas).map((e: any) => ({ nombre: e.nombre, logoUrl: e.logoUrl })),
+          // Cada empresa con su logo (F2f); conSucursales y slug solo si tiene sucursales activas (F2n)
+          empresas: esRetiro
+            ? []
+            : normalizarEmpresas(m.empresas).map((e: any) => {
+                const conSuc = Boolean(e.slug && slugsConSucursales.has(String(e.slug).toLowerCase()));
+                const item: any = { nombre: e.nombre, logoUrl: e.logoUrl };
+                if (conSuc) {
+                  item.slug = e.slug;
+                  item.conSucursales = true;
+                }
+                return item;
+              }),
           cobroADestino: !esRetiro && m.cobroADestino === true,
           descripcion: String(m.descripcion || ""),
           costo: aConvenir ? null : Number(m.costo) || 0,
@@ -667,6 +719,11 @@ export async function postPedidoWeb(req: any, res: any) {
         linea("webOrderPrefillEntrega", entregaGuardar.cobroADestino ? `${entregaGuardar.nombre} (cobro a destino)` : entregaGuardar.nombre)
       );
       if (entregaGuardar.empresa) lineasPrefill.push(linea("webOrderPrefillEmpresa", entregaGuardar.empresa));
+      if (entregaGuardar.sucursal) {
+        const suc = entregaGuardar.sucursal;
+        const textoSucursal = `${suc.empresa ? suc.empresa.toUpperCase() + " " : ""}${suc.codigo} — ${suc.nombre}, ${suc.ciudad} (${suc.estado})`;
+        lineasPrefill.push(linea("webOrderPrefillSucursal", textoSucursal));
+      }
       if (entregaGuardar.latitud !== null) {
         lineasPrefill.push(linea("webOrderPrefillUbicacion", enlaceMapa(entregaGuardar.latitud, entregaGuardar.longitud)));
       }
@@ -752,5 +809,82 @@ export async function getBuscarDireccion(req: any, res: any) {
   } catch (error: any) {
     console.error("❌ Error en getBuscarDireccion:", error);
     return res.status(500).json({ error: "Error al buscar dirección" });
+  }
+}
+
+const EMPRESAS_VALIDAS = new Set(["zoom", "mrw", "tealca"]);
+
+/**
+ * GET /api/public/sucursales/estados?empresa=zoom
+ * Cache-Control: public, max-age=3600
+ * Retorna [{ estado, cantidad }] ordenado por nombre.
+ */
+export async function getSucursalesEstados(req: any, res: any) {
+  try {
+    const empresaParam = String(req.query?.empresa || "").trim().toLowerCase();
+    if (!EMPRESAS_VALIDAS.has(empresaParam)) {
+      return res.status(400).json({ error: "Empresa de envío inválida" });
+    }
+
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    const sucursales = await Sucursal.find({ empresa: empresaParam, activa: true }).lean();
+    const conteoPorEstado: Record<string, number> = {};
+
+    for (const s of sucursales || []) {
+      if (s.estado) {
+        conteoPorEstado[s.estado] = (conteoPorEstado[s.estado] || 0) + 1;
+      }
+    }
+
+    const salida = Object.entries(conteoPorEstado)
+      .map(([estado, cantidad]) => ({ estado, cantidad }))
+      .sort((a, b) => a.estado.localeCompare(b.estado, "es"));
+
+    return res.status(200).json(salida);
+  } catch (error: any) {
+    console.error("❌ Error en getSucursalesEstados:", error);
+    return res.status(500).json({ error: "Error al consultar estados" });
+  }
+}
+
+/**
+ * GET /api/public/sucursales?empresa=zoom&estado=Zulia
+ * Cache-Control: public, max-age=3600
+ * Retorna [{ id, codigo, nombre, ciudad, direccion, telefono, horario }]
+ * Whitelist estricta: sin _id ni coordenadas. Orden por ciudad y nombre.
+ */
+export async function getSucursales(req: any, res: any) {
+  try {
+    const empresaParam = String(req.query?.empresa || "").trim().toLowerCase();
+    const estadoParam = String(req.query?.estado || "").trim();
+
+    if (!EMPRESAS_VALIDAS.has(empresaParam)) {
+      return res.status(400).json({ error: "Empresa de envío inválida" });
+    }
+
+    const estadoNorm = normalizarNombreEstado(estadoParam);
+    if (!estadoNorm) {
+      return res.status(400).json({ error: "Estado inválido" });
+    }
+
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    const docs = await Sucursal.find({ empresa: empresaParam, estado: estadoNorm, activa: true })
+      .sort({ ciudad: 1, nombre: 1 })
+      .lean();
+
+    const salida = (docs || []).map((s: any) => ({
+      id: `${s.empresa}-${s.codigo}`,
+      codigo: String(s.codigo || ""),
+      nombre: String(s.nombre || ""),
+      ciudad: String(s.ciudad || ""),
+      direccion: String(s.direccion || ""),
+      telefono: String(s.telefono || ""),
+      horario: String(s.horario || ""),
+    }));
+
+    return res.status(200).json(salida);
+  } catch (error: any) {
+    console.error("❌ Error en getSucursales:", error);
+    return res.status(500).json({ error: "Error al consultar sucursales" });
   }
 }

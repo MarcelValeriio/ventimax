@@ -22,6 +22,10 @@ function getCategoriaModel() {
   return process.env.NODE_ENV === "test" ? require("../services/dbLocal").getCategoriaModel() : require("../models/Categoria");
 }
 
+function getSucursalModel() {
+  return process.env.NODE_ENV === "test" ? require("../services/dbLocal").getSucursalModel() : (require("../models/Sucursal").default || require("../models/Sucursal"));
+}
+
 /**
  * Obtiene la configuración completa para el panel administrativo.
  * Retorna las variables editables con sus valores (o vacíos) y el estado booleano de los secretos.
@@ -330,7 +334,18 @@ export const updateDatosNegocioConfig = async (req: Request, res: Response) => {
 export const getCatalogoConfig = async (req: Request, res: Response) => {
   try {
     const catalogo = await getConfigCatalogo();
-    res.json({ success: true, catalogo });
+    const Sucursal = getSucursalModel();
+    const empresas = ["zoom", "mrw", "tealca"];
+    const sucursales: Record<string, { activas: number; ultimaActualizacion: string | null }> = {};
+    for (const emp of empresas) {
+      const activas = await Sucursal.countDocuments({ empresa: emp, activa: true });
+      const ultimo = await Sucursal.findOne({ empresa: emp }).sort({ updatedAt: -1 }).lean();
+      sucursales[emp] = {
+        activas,
+        ultimaActualizacion: ultimo?.updatedAt ? new Date(ultimo.updatedAt).toISOString() : null,
+      };
+    }
+    res.json({ success: true, catalogo, sucursales });
   } catch (error: any) {
     console.error("❌ Error obteniendo configuración del catálogo:", error);
     res.status(500).json({ success: false, error: "Error al obtener la configuración del catálogo" });

@@ -51,7 +51,7 @@ if (process.env.NODE_ENV === "test") {
   }
 }
 const configManager = require("../services/configManager");
-const { nombreEnvio, detalleCostoEnvio } = require("../services/envioTexto");
+const { nombreEnvio, detalleCostoEnvio, textoSucursalEnvio, direccionSucursalEnvio } = require("../services/envioTexto");
 const orderService = require("../services/orderService");
 const bcv = require("../services/bcv");
 const { obtenerTotalCreados, fechaCaracas } = require("../services/catalogoAbusoService");
@@ -3877,6 +3877,12 @@ const postManualSale = async (req, res, io) => {
 
         if (pedido.envio && pedido.envio.nombre) {
           adminMsg += `\n🚚 Envío: ${nombreEnvio(pedido.envio)}${detalleCostoEnvio(pedido.envio)}`;
+          const txtSuc = textoSucursalEnvio(pedido.envio);
+          if (txtSuc) {
+            adminMsg += `\n🏢 Sucursal: ${txtSuc}`;
+            const dirSuc = direccionSucursalEnvio(pedido.envio);
+            if (dirSuc) adminMsg += `\n📍 Dirección sucursal: ${dirSuc}`;
+          }
         }
 
         if (pedido.notas) {

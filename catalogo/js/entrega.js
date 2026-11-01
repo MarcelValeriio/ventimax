@@ -4,6 +4,8 @@
  * y cuándo está completa. El servidor vuelve a validar el método y toma el costo de la base.
  */
 
+import { empresaTieneSucursales, entregaConSucursalCompleta, validarSucursalId } from "./sucursales.js";
+
 /** Largo mínimo de una dirección escrita (igual que el servidor). */
 export const MIN_DIRECCION = 8;
 export const MAX_DIRECCION = 300;
@@ -54,6 +56,12 @@ export function entregaCompleta(seleccion) {
   // Con empresas configuradas hay que elegir una (y que sea de la lista)
   const empresas = empresasDe(seleccion.metodo);
   if (empresas.length && !empresas.includes(seleccion.empresa)) return false;
+
+  // Si la empresa tiene sucursales activas (F2n)
+  if (empresaTieneSucursales(seleccion.metodo, seleccion.empresa)) {
+    return entregaConSucursalCompleta(seleccion);
+  }
+
   if (usaGps(seleccion.metodo) && coordenadasValidas(seleccion.gps)) return true;
   return String(seleccion.direccion || "").trim().length >= MIN_DIRECCION;
 }
@@ -73,6 +81,9 @@ export function armarEntrega(seleccion) {
   const direccion = String(seleccion.direccion || "").trim().slice(0, MAX_DIRECCION);
   if (direccion) entrega.direccion = direccion;
   if (empresasDe(seleccion.metodo).includes(seleccion.empresa)) entrega.empresa = seleccion.empresa;
+  if (seleccion.sucursalId && validarSucursalId(seleccion.sucursalId)) {
+    entrega.sucursalId = seleccion.sucursalId;
+  }
   return entrega;
 }
 

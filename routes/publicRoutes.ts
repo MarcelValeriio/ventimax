@@ -61,6 +61,8 @@ const pedidosWebLimiter = rateLimit({
 router.get("/marca", publicGetLimiter, publicController.getMarca);
 router.get("/catalogo", publicGetLimiter, publicController.getCatalogo);
 router.get("/info", publicGetLimiter, publicController.getInfo);
+router.get("/sucursales/estados", publicGetLimiter, publicController.getSucursalesEstados);
+router.get("/sucursales", publicGetLimiter, publicController.getSucursales);
 router.get("/geocodificar", publicGetLimiter, publicController.getGeocodificar);
 router.get("/buscar-direccion", publicGetLimiter, publicController.getBuscarDireccion);
 router.post("/pedidos", pedidosWebLimiter, publicController.postPedidoWeb);

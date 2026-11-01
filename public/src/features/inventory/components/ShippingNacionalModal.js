@@ -28,15 +28,16 @@ const nuevoUid = () => {
  * Exportada para que el listado de métodos la use igual.
  */
 export function normalizarEmpresa(valor) {
-  if (typeof valor === "string") return { nombre: valor.trim(), logoUrl: "", logoPublicId: "" };
+  if (typeof valor === "string") return { nombre: valor.trim(), logoUrl: "", logoPublicId: "", slug: "" };
   if (valor && typeof valor === "object") {
     return {
       nombre: String(valor.nombre || "").trim(),
       logoUrl: typeof valor.logoUrl === "string" ? valor.logoUrl : "",
       logoPublicId: typeof valor.logoPublicId === "string" ? valor.logoPublicId : "",
+      slug: typeof valor.slug === "string" ? valor.slug.trim().toLowerCase() : "",
     };
   }
-  return { nombre: "", logoUrl: "", logoPublicId: "" };
+  return { nombre: "", logoUrl: "", logoPublicId: "", slug: "" };
 }
 
 /** Miniatura de una empresa en el listado: su logo, o su nombre si no tiene logo o el logo no carga. */
@@ -85,13 +86,14 @@ function empresasIniciales(method) {
     .map((x) => ({ ...x, uid: nuevoUid(), subiendo: false, error: "", logoRoto: false }));
 }
 
-/** Tarjeta de una empresa: nombre, logo (subida independiente) y eliminar. */
-function TarjetaEmpresa({ empresa, indice, onNombre, onSubir, onQuitarLogo, onEliminar }) {
+/** Tarjeta de una empresa: nombre, logo (subida independiente), directorio de sucursales y eliminar. */
+function TarjetaEmpresa({ empresa, indice, onNombre, onSlug, onSubir, onQuitarLogo, onEliminar }) {
   const inputRef = useRef(null);
   const [logoRoto, setLogoRoto] = useState(false);
   const nombreEtiqueta = empresa.nombre.trim() || `empresa ${indice + 1}`;
   const tieneLogo = Boolean(empresa.logoUrl);
   const idNombre = `${empresa.uid}-nombre`;
+  const idSlug = `${empresa.uid}-slug`;
   const idError = `${empresa.uid}-error`;
 
   // Si cambia el logo, se vuelve a intentar mostrarlo
@@ -139,6 +141,22 @@ function TarjetaEmpresa({ empresa, indice, onNombre, onSubir, onQuitarLogo, onEl
       onChange: (ev) => onNombre(ev.target.value),
       className: CAMPO,
     }),
+    e("label", { htmlFor: idSlug, className: ETIQUETA }, "Directorio de sucursales"),
+    e(
+      "select",
+      {
+        id: idSlug,
+        value: empresa.slug || "",
+        onChange: (ev) => onSlug(ev.target.value),
+        className: CAMPO,
+      },
+      [
+        e("option", { key: "ninguno", value: "" }, "Ninguno (sin directorio de sucursales)"),
+        e("option", { key: "zoom", value: "zoom" }, "Zoom"),
+        e("option", { key: "mrw", value: "mrw" }, "MRW"),
+        e("option", { key: "tealca", value: "tealca" }, "Tealca"),
+      ],
+    ),
     e(
       "div",
       { className: "flex flex-wrap items-center gap-2" },
@@ -287,6 +305,7 @@ const ShippingNacionalModal = ({ isOpen, method = null, onClose, onSaved }) => {
         nombre: x.nombre.trim(),
         logoUrl: x.logoUrl,
         logoPublicId: x.logoPublicId,
+        slug: x.slug ? x.slug.trim().toLowerCase() : undefined,
       })),
     };
 
@@ -505,6 +524,7 @@ const ShippingNacionalModal = ({ isOpen, method = null, onClose, onSaved }) => {
                 empresa,
                 indice,
                 onNombre: (valor) => cambiarEmpresa(empresa.uid, { nombre: valor, error: "" }),
+                onSlug: (valor) => cambiarEmpresa(empresa.uid, { slug: valor }),
                 onSubir: (archivo) => subirLogo(empresa.uid, archivo),
                 onQuitarLogo: () => cambiarEmpresa(empresa.uid, { logoUrl: "", logoPublicId: "" }),
                 onEliminar: () => eliminarEmpresa(empresa),

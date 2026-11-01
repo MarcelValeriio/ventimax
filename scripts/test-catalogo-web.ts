@@ -531,7 +531,7 @@ async function runTests() {
 
   // 17d: CSS del slider y encabezado
   assert.ok(cssSrc.includes(".slider-portada"), "CSS debe tener estilos de slider-portada");
-  assert.ok(cssSrc.includes("aspect-ratio: 16 / 5"), "CSS debe contemplar proporción panorámica 16:5 para escritorio");
+  assert.ok(cssSrc.includes("aspect-ratio: 33 / 14"), "CSS debe contemplar proporción panorámica 33:14 para escritorio");
   assert.ok(cssSrc.includes(".slider-flecha") && cssSrc.includes("min-width: 44px"), "flechas del slider deben tener al menos 44 px");
   assert.ok(cssSrc.includes(".encabezado-nav") && cssSrc.includes(".nav-lista"), "CSS debe estilizar barra de navegación de segundo nivel");
 

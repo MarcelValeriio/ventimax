@@ -28,7 +28,7 @@ if (process.env.NODE_ENV === "test") {
 }
 
 const configManager = require("../services/configManager");
-const { nombreEnvio, detalleCostoEnvio } = require("../services/envioTexto");
+const { nombreEnvio, detalleCostoEnvio, textoSucursalEnvio, direccionSucursalEnvio } = require("../services/envioTexto");
 const orderService = require("../services/orderService");
 const whatsappService = require("../services/whatsapp");
 const { obtenerTasaUSD } = require("../services/bcv");
@@ -534,6 +534,12 @@ class ChatFlowController {
         } else {
           const costoEnvio = Number(envio.costo) || 0;
           envioTexto = `\n🚚 *Envío:* ${nombreEnvio(envio)} ($${formatUsd(costoEnvio)})`;
+        }
+        const txtSuc = textoSucursalEnvio(envio);
+        if (txtSuc) {
+          envioTexto += `\n🏢 *Sucursal:* ${txtSuc}`;
+          const dirSuc = direccionSucursalEnvio(envio);
+          if (dirSuc) envioTexto += `\n📍 *Dirección sucursal:* ${dirSuc}`;
         }
       }
 

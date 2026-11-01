@@ -109,6 +109,7 @@
     "webOrderPrefill": "Hola, quiero confirmar mi pedido web {{codigo}}",
     "webOrderPrefillEntrega": "Entrega: {{valor}}",
     "webOrderPrefillEmpresa": "Empresa de envío: {{valor}}",
+    "webOrderPrefillSucursal": "Sucursal: {{valor}}",
     "webOrderPrefillUbicacion": "Ubicación: {{valor}}",
     "webOrderPrefillDireccion": "Dirección: {{valor}}",
     "webHelpPrefill": "Hola, tengo una pregunta sobre sus productos",

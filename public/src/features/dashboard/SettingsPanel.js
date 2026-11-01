@@ -375,6 +375,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
   const [catalogoLoading, setCatalogoLoading] = useState(false);
   const [catalogoSaving, setCatalogoSaving] = useState(false);
   const [abusoReporte, setAbusoReporte] = useState([]);
+  const [sucursalesDirectorio, setSucursalesDirectorio] = useState(null);
 
   // Cintillo de la tienda (F2g)
   const [bannerConfig, setBannerConfig] = useState({ activo: false, texto: "", productoId: "" });
@@ -544,6 +545,9 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
             mensajePrefill: c.mensajePrefill || "",
           });
           setCatalogoPrefijoOriginal(c.prefijo || "PW");
+        }
+        if (res.data?.sucursales) {
+          setSucursalesDirectorio(res.data.sucursales);
         }
       } catch (err) {
         console.warn("No se pudo cargar la configuración del catálogo:", err);
@@ -1036,6 +1040,11 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
     } finally {
       setSliderUploading(false);
     }
+  };
+
+  const triggerCambiarImagen = (index, tipo) => {
+    setSliderCambioPendiente({ index, tipo });
+    if (sliderCambiarFileRef.current) sliderCambiarFileRef.current.click();
   };
 
   const handleCambiarImagenSlide = async (archivo) => {
@@ -1651,6 +1660,48 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
         )
       )
     ),
+    e("section", { key: "directorio-sucursales", className: "space-y-3" },
+      e("h3", { className: "text-[11px] font-black uppercase tracking-widest text-gray-400 px-1" }, "Directorio de sucursales"),
+      e("div", { className: "bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-6 space-y-4" },
+        e("div", { className: "flex items-start gap-3" },
+          e("div", { className: `w-10 h-10 rounded-2xl flex items-center justify-center text-sm ${ICON_TONES.teal}` },
+            e(Icono, { nombre: "map-pin" })
+          ),
+          e("div", null,
+            e("h4", { className: "text-sm font-bold text-gray-800 dark:text-gray-100" }, "Sucursales de envío nacional"),
+            e("p", { className: "text-xs text-gray-500 dark:text-gray-400 mt-0.5" },
+              "Cantidad de sucursales activas por empresa para la selección en el carrito de la tienda."
+            )
+          )
+        ),
+        e("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2" },
+          [
+            { slug: "zoom", nombre: "Zoom" },
+            { slug: "mrw", nombre: "MRW" },
+            { slug: "tealca", nombre: "Tealca" },
+          ].map(({ slug, nombre }) => {
+            const data = sucursalesDirectorio?.[slug] || { activas: 0, ultimaActualizacion: null };
+            const fechaStr = data.ultimaActualizacion
+              ? new Date(data.ultimaActualizacion).toLocaleDateString("es-VE", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "Sin registros";
+            return e("div", { key: slug, className: "p-4 rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/30 space-y-1" },
+              e("p", { className: "text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400" }, nombre),
+              e("p", { className: "text-xl font-black text-gray-900 dark:text-gray-100" }, `${data.activas} activas`),
+              e("p", { className: "text-[11px] text-gray-400" }, `Última carga: ${fechaStr}`)
+            );
+          })
+        ),
+        e("p", { className: "text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-700 italic" },
+          "Se actualiza con scripts/sync-sucursales.ts (lo corre el administrador técnico)"
+        )
+      )
+    ),
     e("section", { key: "cintillo", className: "space-y-3" },
       e("h3", { className: "text-[11px] font-black uppercase tracking-widest text-gray-400 px-1" }, "Cintillo de la tienda"),
       e("div", { className: "bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-6 space-y-6" },
@@ -1901,7 +1952,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
                   : "Desactivado: la tienda no muestra el slider de portada."
               ),
               e("p", { className: "text-xs text-gray-500 dark:text-gray-400 mt-1" },
-                "Escritorio: recomendada 1920×600 (~16:5). Celular: opcional, recomendada 1080×1080 (1:1) o 1080×1350 (4:5). Si falta la de celular, se usa la de escritorio."
+                "Escritorio: recomendada 1920×814 (33:14). Celular: opcional, recomendada 1080×1080 (1:1) o 1080×1350 (4:5). Si falta la de celular, se usa la de escritorio."
               )
             )
           ),
@@ -2000,7 +2051,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
                   ),
                   e("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4" },
                     e("div", { className: "space-y-1.5" },
-                      e("span", { className: "text-[11px] font-bold text-gray-500 uppercase" }, "Imagen Escritorio (16:5)"),
+                      e("span", { className: "text-[11px] font-bold text-gray-500 uppercase" }, "Imagen Escritorio (33:14)"),
                       e("div", { className: "relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 aspect-[16/5] bg-gray-100 dark:bg-gray-900 flex items-center justify-center" },
                         slide.url
                           ? e("img", { src: slide.url, alt: slide.alt || "Escritorio", className: "w-full h-full object-cover" })
@@ -2012,7 +2063,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
                         disabled: sliderUploading,
                         className: "text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1",
                       }, e(Icono, { nombre: "upload" }), "Cambiar imagen de escritorio"),
-                      e(AyudaTamanoImagen, { medidas: "1920 × 600 px (16:5)", detalle: "JPG, PNG o WebP, hasta 3 MB" })
+                      e(AyudaTamanoImagen, { medidas: "1920 × 814 px (33:14)", detalle: "JPG, PNG o WebP, hasta 3 MB" })
                     ),
                     e("div", { className: "space-y-1.5" },
                       e("div", { className: "flex items-center justify-between" },
@@ -2096,7 +2147,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
               )
             )
           : e("p", { className: "text-xs text-gray-500 dark:text-gray-400" }, "Todavía no hay diapositivas en el slider de portada."),
-        e(AyudaTamanoImagen, { medidas: "1920 × 600 px (escritorio, 16:5) y 1080 × 1080 px (celular)", detalle: "JPG, PNG o WebP, hasta 3 MB por imagen" }),
+        e(AyudaTamanoImagen, { medidas: "1920 × 814 px (escritorio, 33:14) y 1080 × 1080 px (celular)", detalle: "JPG, PNG o WebP, hasta 3 MB por imagen" }),
         e("div", { className: "flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700" },
           e("button", {
             type: "button",

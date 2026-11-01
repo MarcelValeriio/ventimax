@@ -615,6 +615,16 @@ const OrderDetailsModal = ({
                     e("p", { className: "text-xs text-gray-500 dark:text-gray-400 italic" }, `Punto: ${order.envio.direccion}`),
                   order.envio.tipo === "retiro" && order.envio.horario &&
                     e("p", { className: "text-xs text-gray-500 dark:text-gray-400 italic" }, `Horario: ${order.envio.horario}`),
+                  order.envio.sucursal &&
+                    e("div", { className: "text-xs text-gray-600 dark:text-gray-300 space-y-0.5 mt-1 pt-1 border-t border-gray-100 dark:border-gray-700" }, [
+                      e("p", { className: "font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1" }, [
+                        e(Icono, { nombre: "building", className: "w-3 h-3 shrink-0" }),
+                        `Sucursal: ${order.envio.sucursal.empresa ? String(order.envio.sucursal.empresa).toUpperCase() + " " : ""}${order.envio.sucursal.codigo || ""} — ${order.envio.sucursal.nombre || ""}`,
+                      ]),
+                      e("p", { className: "text-gray-500 dark:text-gray-400" }, `${order.envio.sucursal.ciudad || ""}${order.envio.sucursal.estado ? `, ${order.envio.sucursal.estado}` : ""}`),
+                      order.envio.sucursal.direccion &&
+                        e("p", { className: "text-gray-500 dark:text-gray-400 italic text-[11px]" }, order.envio.sucursal.direccion),
+                    ]),
                 ])
               : e("p", { className: "text-xs text-gray-400 italic" }, "Sin método de envío seleccionado"),
           ]),

@@ -355,6 +355,30 @@ Desde un teléfono que **no** sea del negocio:
 - [ ] Instagram y Messenger, si se activaron: un mensaje desde una cuenta ajena llega al Inbox.
 - [ ] Borrar el pedido de prueba desde el Kanban.
 
+## 6.1 Directorio de sucursales de envío nacional (Zoom, MRW, Tealca)
+
+El sistema incluye sincronización de oficinas comerciales para envíos nacionales (F2n).
+Los datos son públicos y no contienen información personal.
+
+### Cómo sincronizar las sucursales
+La carga **nunca se ejecuta automáticamente ni por cron** en el servidor. El administrador técnico la corre de forma manual conectándose a la base de datos de MongoDB:
+
+```bash
+# Modo de simulación (verifica disponibilidad y conteos sin escribir en la base):
+MONGODB_URI="mongodb+srv://..." npx tsx scripts/sync-sucursales.ts --simular
+
+# Sincronización real en base local (127.0.0.1 o localhost):
+npx tsx scripts/sync-sucursales.ts
+
+# Sincronización real en base remota (MongoDB Atlas / producción):
+# Requiere obligatoriamente el flag --confirmar para autorizar escrituras externas
+MONGODB_URI="mongodb+srv://..." npx tsx scripts/sync-sucursales.ts --confirmar
+```
+
+- **Frecuencia recomendada:** mensual (o cuando las agencias de encomiendas anuncien cambios importantes).
+- **Protección contra caídas:** si la consulta de una empresa falla, devuelve vacío o menos del 50% de las sucursales existentes, el script aborta esa empresa sin alterar su directorio.
+- **Términos de servicio de Zoom:** Zoom incluye en sus términos de uso una cláusula que restringe la reproducción de sus contenidos para fines comerciales sin autorización previa. **Decisión del dueño (2026-11-01):** se habilitan las tres empresas (Zoom, MRW y Tealca). Si en el futuro se desea prescindir de Zoom, basta con desvincular o quitar el slug `zoom` en la tarjeta de la empresa en el panel (Inventario → Envíos).
+
 ## 7. Lista final antes de abrir el bot a clientes reales
 
 - [ ] CI en verde en GitHub (pestaña *Actions*) para el commit desplegado.

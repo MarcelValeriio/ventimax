@@ -492,6 +492,129 @@ class DbMock {
       },
     };
   }
+
+  getSucursalModel() {
+    const match = (s, q) => {
+      if (!q || Object.keys(q).length === 0) return true;
+      for (const [k, v] of Object.entries(q)) {
+        if (v && typeof v === "object" && "$nin" in v) {
+          if (Array.isArray(v.$nin) && v.$nin.includes(s[k])) return false;
+          continue;
+        }
+        if (k === "_id" && String(s._id) !== String(v)) return false;
+        if (k === "empresa" && String(s.empresa).toLowerCase() !== String(v).toLowerCase()) return false;
+        if (k === "codigo" && String(s.codigo) !== String(v)) return false;
+        if (k === "estado" && String(s.estado).toLowerCase() !== String(v).toLowerCase()) return false;
+        if (k === "activa" && Boolean(s.activa) !== Boolean(v)) return false;
+      }
+      return true;
+    };
+
+    return {
+      find: (query = {}) => {
+        let items = (this.data.sucursales || []).filter((s) => match(s, query));
+        return {
+          sort: () => {
+            const copy = [...items];
+            copy.sort((a, b) => {
+              const cA = (a.ciudad || "").localeCompare(b.ciudad || "");
+              if (cA !== 0) return cA;
+              return (a.nombre || "").localeCompare(b.nombre || "");
+            });
+            return {
+              lean: () => Promise.resolve(copy),
+              then: (resolve) => Promise.resolve(copy).then(resolve),
+            };
+          },
+          lean: () => Promise.resolve(items),
+          then: (resolve) => Promise.resolve(items).then(resolve),
+        };
+      },
+      findOne: (query = {}) => {
+        const item = (this.data.sucursales || []).find((s) => match(s, query)) || null;
+        return {
+          lean: () => Promise.resolve(item),
+          then: (resolve) => Promise.resolve(item).then(resolve),
+        };
+      },
+      findOneAndUpdate: (filter, update, options = {}) => {
+        if (!this.data.sucursales) this.data.sucursales = [];
+        let item = this.data.sucursales.find((s) => match(s, filter));
+        if (!item) {
+          if (options && options.upsert) {
+            item = {
+              _id: "suc-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+              empresa: filter.empresa,
+              codigo: filter.codigo,
+              activa: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+            this.data.sucursales.push(item);
+          } else {
+            return Promise.resolve(null);
+          }
+        }
+        if (update.$set) {
+          for (const [k, v] of Object.entries(update.$set)) item[k] = v;
+        } else {
+          for (const [k, v] of Object.entries(update)) {
+            if (k !== "$set" && k !== "$setOnInsert") item[k] = v;
+          }
+        }
+        item.updatedAt = new Date();
+        return Promise.resolve(item);
+      },
+      updateMany: (query, update) => {
+        if (!this.data.sucursales) this.data.sucursales = [];
+        let count = 0;
+        for (const s of this.data.sucursales) {
+          if (match(s, query)) {
+            if (update.$set) {
+              for (const [k, v] of Object.entries(update.$set)) s[k] = v;
+            } else {
+              for (const [k, v] of Object.entries(update)) s[k] = v;
+            }
+            s.updatedAt = new Date();
+            count++;
+          }
+        }
+        return Promise.resolve({ modifiedCount: count });
+      },
+      updateOne: async (filter, update) => {
+        return this.getSucursalModel().updateMany(filter, update);
+      },
+      countDocuments: async (query = {}) => {
+        return (this.data.sucursales || []).filter((s) => match(s, query)).length;
+      },
+      create: async (docs) => {
+        if (!this.data.sucursales) this.data.sucursales = [];
+        const arr = Array.isArray(docs) ? docs : [docs];
+        const creados = [];
+        for (const d of arr) {
+          const item = {
+            _id: d._id || "suc-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+            ...d,
+            createdAt: d.createdAt || new Date(),
+            updatedAt: d.updatedAt || new Date(),
+          };
+          this.data.sucursales.push(item);
+          creados.push(item);
+        }
+        return Array.isArray(docs) ? creados : creados[0];
+      },
+      deleteMany: async (query = {}) => {
+        if (!this.data.sucursales) this.data.sucursales = [];
+        const prev = this.data.sucursales.length;
+        if (!query || Object.keys(query).length === 0) {
+          this.data.sucursales = [];
+        } else {
+          this.data.sucursales = this.data.sucursales.filter((s) => !match(s, query));
+        }
+        return { deletedCount: prev - this.data.sucursales.length };
+      },
+    };
+  }
 }
 
 module.exports = new DbMock();
