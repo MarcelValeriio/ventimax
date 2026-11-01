@@ -1054,14 +1054,9 @@ function pintarNavegacion() {
       const liOfertas = el("li", { className: "nav-item" },
         el("a", {
           className: `nav-enlace nav-enlace-ofertas ${state.soloOfertas ? "nav-enlace-activo" : ""}`,
-          href: "#/?ofertas=1",
-          onclick: (ev) => {
-            ev.preventDefault();
-            state.soloOfertas = true;
-            state.categoriaActiva = "todas";
+          href: "#/ofertas",
+          onclick: () => {
             state.busqueda = "";
-            window.location.hash = "#/";
-            renderizarCatalogo();
           },
         }, icono("etiqueta", "nav-item-icono"), el("span", {}, "Ofertas"))
       );
@@ -1118,16 +1113,11 @@ function pintarNavegacion() {
     if (hayDescuentos) {
       navMovil.appendChild(
         el("a", {
-          href: "#/?ofertas=1",
+          href: "#/ofertas",
           className: `menu-movil-enlace menu-movil-enlace-ofertas ${state.soloOfertas ? "menu-movil-enlace-activo" : ""}`,
-          onclick: (ev) => {
-            ev.preventDefault();
-            state.soloOfertas = true;
-            state.categoriaActiva = "todas";
+          onclick: () => {
             state.busqueda = "";
             cerrarMenuMovil();
-            window.location.hash = "#/";
-            renderizarCatalogo();
           },
         }, icono("etiqueta", "nav-item-icono"), el("span", {}, "Ofertas"))
       );
@@ -2347,10 +2337,10 @@ function enrutar() {
 
   cerrarMenuMovil();
 
-  if (hash === "#/" || hash === "" || hash.startsWith("#/?")) {
+  if (hash === "#/" || hash === "" || hash.startsWith("#/?") || hash === "#/ofertas") {
     state.categoriaActiva = "todas";
     state.vista = "catalogo";
-    if (hash.includes("ofertas=1")) {
+    if (hash === "#/ofertas" || hash.includes("ofertas=1")) {
       state.soloOfertas = true;
     } else {
       state.soloOfertas = false;

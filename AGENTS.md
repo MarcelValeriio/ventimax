@@ -2480,7 +2480,7 @@ Referencia visual del dueño: una tienda con encabezado de dos niveles (fila de 
 - Nada aleatorio en pantalla (lección de F0-13). Móvil primero (390 px), botones táctiles de 44 px, `prefers-reduced-motion` respetado.
 - Cierre de cada tarea: suite nueva en `SUITES` de `ci.sh`, `./scripts/ci.sh` en verde, `esbuild --bundle` en los archivos tocados, y recorrido en Chrome a 390 y 1440 px con la consola abierta (**0 errores de CSP**), con la lista de pantallas en la entrega.
 
-### F2i · Slider de portada y encabezado mejorado — Backend + Frontend · `Lista para revisión`
+### F2i · Slider de portada y encabezado mejorado — Backend + Frontend · `Aprobada` (revisión de código y `./scripts/ci.sh` en verde, 2026-11-01; falta que el dueño lo vea en pantalla)
 
 **1. Slider de portada (gestionado desde el panel).**
 - No sustituye ni toca lo que ya existe: el **cintillo** (cinta de ofertas) y el **banner lateral** (`bannerLateral`, `services/bannerLateralService.ts`) siguen igual, con sus ajustes actuales. El slider es un tercer elemento, independiente.
