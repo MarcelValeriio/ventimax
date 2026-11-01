@@ -34,6 +34,7 @@ const NOMBRES = {
   tienda: "store",
   enlace: "external-link",
   cargando: "loader-circle",
+  arriba: "arrow-up",
 };
 
 /**

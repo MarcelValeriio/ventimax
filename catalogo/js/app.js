@@ -323,6 +323,8 @@ function aplicarIdentidadMarca(marca) {
     brandLink.prepend(logo);
     brandTitle?.classList.add("hidden");
   }
+
+  pintarPiePagina();
 }
 
 /** Botón de Instagram del encabezado: solo aparece si el servidor envía un usuario y un enlace de instagram.com. */
@@ -337,6 +339,254 @@ function pintarInstagram(instagram) {
   const contenedor = document.getElementById("ig-icon");
   if (contenedor && !contenedor.firstChild) contenedor.appendChild(iconoInstagram());
   boton.classList.remove("hidden");
+}
+
+/**
+ * Pinta el pie de página (footer) de varias columnas con los datos públicos disponibles.
+ * Cumple con R13 (0 innerHTML, solo el() y textContent) y oculta cualquier bloque sin datos.
+ */
+function pintarPiePagina() {
+  const brand = state.marca?.brandName || "";
+  const theme = state.marca?.theme || {};
+
+  // 1. Marca
+  const brandNameEl = document.getElementById("footer-brand");
+  if (brandNameEl) brandNameEl.textContent = brand;
+
+  const pieCabecera = document.getElementById("pie-marca-cabecera");
+  if (pieCabecera) {
+    let pieLogo = document.getElementById("pie-marca-logo");
+    const logoUrl = resolverUrlRecurso(theme.logoUrl);
+    if (logoUrl) {
+      if (!pieLogo) {
+        pieLogo = el("img", {
+          id: "pie-marca-logo",
+          className: "pie-marca-logo",
+          src: logoUrl,
+          alt: brand || "Logo",
+        });
+        pieCabecera.insertBefore(pieLogo, brandNameEl);
+      } else {
+        pieLogo.setAttribute("src", logoUrl);
+        pieLogo.setAttribute("alt", brand || "Logo");
+      }
+    } else if (pieLogo) {
+      pieLogo.remove();
+    }
+  }
+
+  const descEl = document.getElementById("pie-descripcion");
+  const desc = typeof state.marca?.businessDescription === "string" ? state.marca.businessDescription.trim() : "";
+  if (descEl) {
+    if (desc) {
+      descEl.textContent = desc;
+      descEl.classList.remove("hidden");
+    } else {
+      descEl.textContent = "";
+      descEl.classList.add("hidden");
+    }
+  }
+
+  const selloEl = document.getElementById("pie-sello-marca");
+  if (selloEl) {
+    selloEl.replaceChildren();
+    const prodLogoUrl = resolverUrlRecurso(theme.productBrandLogoUrl);
+    if (prodLogoUrl && prodLogoUrl !== resolverUrlRecurso(theme.logoUrl)) {
+      selloEl.appendChild(el("span", { className: "pie-sello-texto", text: "Distribuidor oficial" }));
+      selloEl.appendChild(el("img", { className: "pie-sello-logo", src: prodLogoUrl, alt: "Marca de producto" }));
+      selloEl.classList.remove("hidden");
+    } else {
+      selloEl.classList.add("hidden");
+    }
+  }
+
+  // 2. Navegación
+  const catContainer = document.getElementById("pie-nav-categorias");
+  if (catContainer) {
+    catContainer.replaceChildren();
+    const categorias = state.catalogo?.categorias || [];
+    for (const cat of categorias) {
+      catContainer.appendChild(
+        el("a", {
+          href: `#/categoria/${cat.slug}`,
+          className: "pie-enlace",
+          text: cat.nombre,
+        })
+      );
+    }
+  }
+
+  const enlaceOfertas = document.getElementById("pie-enlace-ofertas");
+  if (enlaceOfertas) {
+    const hayOfertas = Array.isArray(state.catalogo?.productos) && state.catalogo.productos.some((p) => Number(p.descuentoPct) > 0);
+    if (hayOfertas) enlaceOfertas.classList.remove("hidden");
+    else enlaceOfertas.classList.add("hidden");
+  }
+
+  const enlaceAliados = document.getElementById("footer-aliados");
+  if (enlaceAliados) {
+    const hayAliados = Array.isArray(state.info?.aliados) && state.info.aliados.length > 0;
+    if (hayAliados) enlaceAliados.classList.remove("hidden");
+    else enlaceAliados.classList.add("hidden");
+  }
+
+  const enlaceFaq = document.getElementById("pie-enlace-faq");
+  if (enlaceFaq) {
+    const hayFaq = Array.isArray(state.info?.preguntas) && state.info.preguntas.length > 0;
+    if (hayFaq) enlaceFaq.classList.remove("hidden");
+    else enlaceFaq.classList.add("hidden");
+  }
+
+  // 3. Contacto y horario
+  const contactoContainer = document.getElementById("pie-contacto-bloque");
+  if (contactoContainer) {
+    contactoContainer.replaceChildren();
+    const contacto = state.info?.contacto;
+    const horario = state.info?.horario;
+    const retiro = state.info?.retiro;
+
+    if (contacto?.whatsapp) {
+      const waLink = el(
+        "a",
+        {
+          href: `https://wa.me/${contacto.whatsapp}`,
+          className: "pie-enlace-contacto",
+          target: "_blank",
+          rel: "noopener",
+        },
+        icono("mensaje", "pie-contacto-icono"),
+        el("span", { text: `WhatsApp: +${contacto.whatsapp}` })
+      );
+      contactoContainer.appendChild(waLink);
+    }
+
+    const igUrl = contacto?.instagram || state.info?.instagram?.url;
+    if (igUrl) {
+      const igUser = state.info?.instagram?.usuario;
+      const igLink = el(
+        "a",
+        {
+          href: igUrl,
+          className: "pie-enlace-contacto",
+          target: "_blank",
+          rel: "noopener",
+        },
+        icono("enlace", "pie-contacto-icono"),
+        el("span", { text: igUser ? `@${igUser}` : "Instagram" })
+      );
+      contactoContainer.appendChild(igLink);
+    }
+
+    if (contacto?.email) {
+      const mailLink = el(
+        "a",
+        {
+          href: `mailto:${contacto.email}`,
+          className: "pie-enlace-contacto",
+        },
+        icono("mensaje", "pie-contacto-icono"),
+        el("span", { text: contacto.email })
+      );
+      contactoContainer.appendChild(mailLink);
+    }
+
+    if (contacto?.website) {
+      const urlSitio = contacto.website.startsWith("http") ? contacto.website : `https://${contacto.website}`;
+      const webLink = el(
+        "a",
+        {
+          href: urlSitio,
+          className: "pie-enlace-contacto",
+          target: "_blank",
+          rel: "noopener",
+        },
+        icono("enlace", "pie-contacto-icono"),
+        el("span", { text: contacto.website.replace(/^https?:\/\//i, "").replace(/\/$/, "") })
+      );
+      contactoContainer.appendChild(webLink);
+    }
+
+    if (retiro && retiro.direccion) {
+      const retiroBloque = el(
+        "div",
+        { className: "pie-bloque-info" },
+        el("div", { className: "pie-bloque-titulo", text: retiro.nombre ? `Punto de retiro (${retiro.nombre})` : "Punto de retiro" }),
+        el("div", { className: "pie-bloque-texto", text: retiro.direccion }),
+        retiro.horario ? el("div", { className: "pie-bloque-subtexto", text: `Horario de retiro: ${retiro.horario}` }) : null
+      );
+      contactoContainer.appendChild(retiroBloque);
+    }
+
+    if (horario) {
+      const horarioBloque = el(
+        "div",
+        { className: "pie-bloque-info" },
+        el("div", { className: "pie-bloque-titulo", text: "Horario de atención" }),
+        el("div", { className: "pie-bloque-texto", text: horario })
+      );
+      contactoContainer.appendChild(horarioBloque);
+    }
+  }
+
+  // 4. Cómo comprar y pagar (etiquetas)
+  const seccionPagos = document.getElementById("pie-seccion-pagos");
+  const etiquetasPagos = document.getElementById("pie-etiquetas-pagos");
+  if (seccionPagos && etiquetasPagos) {
+    etiquetasPagos.replaceChildren();
+    const pagos = Array.isArray(state.info?.pagos) ? state.info.pagos : [];
+    if (pagos.length > 0) {
+      for (const p of pagos) {
+        etiquetasPagos.appendChild(el("span", { className: "pie-chip", text: p }));
+      }
+      seccionPagos.classList.remove("hidden");
+    } else {
+      seccionPagos.classList.add("hidden");
+    }
+  }
+
+  const seccionEnvios = document.getElementById("pie-seccion-envios");
+  const etiquetasEnvios = document.getElementById("pie-etiquetas-envios");
+  if (seccionEnvios && etiquetasEnvios) {
+    etiquetasEnvios.replaceChildren();
+    const envios = Array.isArray(state.info?.envios) ? state.info.envios : [];
+    if (envios.length > 0) {
+      for (const env of envios) {
+        if (env.nombre) {
+          etiquetasEnvios.appendChild(el("span", { className: "pie-chip", text: env.nombre }));
+        }
+      }
+      seccionEnvios.classList.remove("hidden");
+    } else {
+      seccionEnvios.classList.add("hidden");
+    }
+  }
+
+  // 5. Legal
+  const copyEl = document.getElementById("pie-copyright");
+  if (copyEl) {
+    const anioActual = new Date().getFullYear();
+    const razonOmarca = state.info?.legal?.razonSocial || state.marca?.brandName || "";
+    copyEl.textContent = `© ${anioActual} ${razonOmarca}. Todos los derechos reservados.`;
+  }
+
+  const rifEl = document.getElementById("pie-rif");
+  if (rifEl) {
+    const rif = state.info?.legal?.rif;
+    if (rif) {
+      rifEl.textContent = `RIF: ${rif}`;
+      rifEl.classList.remove("hidden");
+    } else {
+      rifEl.textContent = "";
+      rifEl.classList.add("hidden");
+    }
+  }
+
+  const privEl = document.getElementById("footer-privacy");
+  const base = obtenerBaseUrl();
+  if (privEl && base) {
+    privEl.setAttribute("href", `${base}/privacidad`);
+    privEl.classList.remove("hidden");
+  }
 }
 
 /** Abre el cajón del menú de navegación en celular. */
@@ -392,6 +642,34 @@ function prepararMarco() {
     privacidad.setAttribute("href", `${base}/privacidad`);
     privacidad.setAttribute("rel", "noopener");
     privacidad.classList.remove("hidden");
+  }
+
+  // Botón "Volver arriba": área táctil de 44 px, salta sin animar con prefers-reduced-motion
+  const btnVolverArriba = document.getElementById("btn-volver-arriba");
+  if (btnVolverArriba) {
+    if (!btnVolverArriba.firstChild) {
+      btnVolverArriba.appendChild(icono("arriba"));
+    }
+    btnVolverArriba.addEventListener("click", () => {
+      const reducir = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({
+        top: 0,
+        behavior: reducir ? "auto" : "smooth",
+      });
+      document.getElementById("app-root")?.focus();
+    });
+
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (window.scrollY > 300) {
+          btnVolverArriba.classList.remove("hidden");
+        } else {
+          btnVolverArriba.classList.add("hidden");
+        }
+      },
+      { passive: true }
+    );
   }
 
   // "Saltar al contenido": mueve el foco sin tocar el hash (el enrutador lo tomaría como una ruta)
@@ -662,7 +940,26 @@ function pasosCompra() {
   );
 }
 
+/** Minúsculas y sin acentos, para que "Pedestál" y "pedestal" se busquen igual. */
+function normalizarBusqueda(texto) {
+  return String(texto || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+/** Texto en el que busca el buscador: nombre, descripción y nombres de todas las categorías del producto. */
+function textoBuscable(prod) {
+  const categorias = state.catalogo?.categorias || [];
+  const nombresCategoria = (prod.categorias || []).map((slug) => {
+    const cat = categorias.find((c) => c.slug === slug);
+    return `${cat?.nombre || ""} ${slug}`;
+  });
+  return normalizarBusqueda([prod.nombre, prod.descripcion, ...nombresCategoria].join(" "));
+}
+
 function productosFiltrados() {
+  const consulta = normalizarBusqueda(state.busqueda);
   const filtrados = productosDelCatalogo().filter((prod) => {
     if (state.soloOfertas && !(prod.descuentoPct > 0 || (prod.precioOfertaUsd && prod.precioOfertaUsd < prod.precioUsd))) {
       return false;
@@ -671,11 +968,7 @@ function productosFiltrados() {
       const prodCats = Array.isArray(prod.categorias) ? prod.categorias : [];
       if (!prodCats.includes(state.categoriaActiva)) return false;
     }
-    if (state.busqueda) {
-      const nombre = (prod.nombre || "").toLowerCase();
-      const desc = (prod.descripcion || "").toLowerCase();
-      if (!nombre.includes(state.busqueda) && !desc.includes(state.busqueda)) return false;
-    }
+    if (consulta && !textoBuscable(prod).includes(consulta)) return false;
     return true;
   });
   if (state.orden === "menor") filtrados.sort((a, b) => a.precioUsd - b.precioUsd);
@@ -2568,6 +2861,7 @@ function enrutar() {
   }
 
   actualizarBotonAyuda(productoEnVista);
+  actualizarBadge();
   actualizarBarraPedido();
 
   // Al cambiar de vista: arriba de la página y el foco en el contenido (salvo mientras se escribe en el buscador)
@@ -2586,7 +2880,13 @@ async function cargarDatos() {
     return null;
   });
   pintarNavegacion();
+  pintarPiePagina();
   state.cargando = false;
+  // Un producto que ya no existe en el catálogo no se puede pedir ni sumar al total: se quita del pedido guardado
+  if (state.catalogo) {
+    const vigentes = state.carrito.filter((i) => productosDelCatalogo().some((p) => p.id === i.productoId));
+    if (vigentes.length !== state.carrito.length) guardarPedido(vigentes);
+  }
   enrutar();
 
   if (!state.info) {
@@ -2595,6 +2895,7 @@ async function cargarDatos() {
         state.info = info;
         pintarInstagram(info?.instagram);
         pintarNavegacion();
+        pintarPiePagina();
         const enlaceAliadosPie = document.getElementById("footer-aliados");
         if (enlaceAliadosPie) {
           if (Array.isArray(info?.aliados) && info.aliados.length > 0) {

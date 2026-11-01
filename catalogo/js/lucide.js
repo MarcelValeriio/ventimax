@@ -8,6 +8,7 @@
  * lista completa de nombres.
  */
 export const LUCIDE = {
+  "arrow-up": [["path",{"d":"m5 12 7-7 7 7"}],["path",{"d":"M12 19V5"}]],
   "check": [["path",{"d":"M20 6 9 17l-5-5"}]],
   "chevron-down": [["path",{"d":"m6 9 6 6 6-6"}]],
   "chevron-left": [["path",{"d":"m15 18-6-6 6-6"}]],

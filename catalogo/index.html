@@ -67,15 +67,68 @@
   <main id="app-root" class="contenido" tabindex="-1"></main>
 
   <footer class="pie">
-    <div class="pie-interior">
-      <p class="pie-marca" id="footer-brand"></p>
-      <p class="pie-nota">Pedidos confirmados por WhatsApp. Precios en dólares con referencia en bolívares a la tasa BCV del día.</p>
-      <div class="pie-enlaces">
-        <a href="#/aliados" class="pie-enlace hidden" id="footer-aliados">Aliados comerciales</a>
-        <a class="pie-enlace hidden" id="footer-privacy">Política de privacidad</a>
+    <div class="pie-interior" id="pie-interior">
+      <div class="pie-columnas" id="pie-columnas">
+        <!-- Columna 1: Marca -->
+        <div class="pie-columna pie-col-marca">
+          <div class="pie-marca-cabecera" id="pie-marca-cabecera">
+            <span class="pie-marca-nombre" id="footer-brand"></span>
+          </div>
+          <p class="pie-descripcion hidden" id="pie-descripcion"></p>
+          <div class="pie-sello-marca hidden" id="pie-sello-marca"></div>
+        </div>
+
+        <!-- Columna 2: Navegación -->
+        <div class="pie-columna pie-col-navegar">
+          <h3 class="pie-columna-titulo">Navegación</h3>
+          <ul class="pie-lista-enlaces" id="pie-lista-navegar">
+            <li><a href="#/" class="pie-enlace">Inicio</a></li>
+            <li id="pie-nav-categorias" class="pie-nav-categorias"></li>
+            <li><a href="#/ofertas" class="pie-enlace hidden" id="pie-enlace-ofertas">Ofertas</a></li>
+            <li><a href="#/aliados" class="pie-enlace hidden" id="footer-aliados">Aliados comerciales</a></li>
+            <li><a href="#/?faq=1" class="pie-enlace hidden" id="pie-enlace-faq">Preguntas frecuentes</a></li>
+          </ul>
+        </div>
+
+        <!-- Columna 3: Contacto y horario -->
+        <div class="pie-columna pie-col-contacto">
+          <h3 class="pie-columna-titulo">Contacto y atención</h3>
+          <div class="pie-contacto-bloque" id="pie-contacto-bloque"></div>
+        </div>
+
+        <!-- Columna 4: Cómo comprar y pagar -->
+        <div class="pie-columna pie-col-comprar">
+          <h3 class="pie-columna-titulo">Cómo comprar</h3>
+          <ol class="pie-pasos">
+            <li>1. Elige tus productos en el catálogo</li>
+            <li>2. Envía tu pedido por WhatsApp con tu código</li>
+            <li>3. Paga y recibe tu compra o retira en tienda</li>
+          </ol>
+          <div class="pie-seccion-etiquetas hidden" id="pie-seccion-pagos">
+            <span class="pie-subtitulo">Métodos de pago</span>
+            <div class="pie-etiquetas" id="pie-etiquetas-pagos"></div>
+          </div>
+          <div class="pie-seccion-etiquetas hidden" id="pie-seccion-envios">
+            <span class="pie-subtitulo">Formas de entrega</span>
+            <div class="pie-etiquetas" id="pie-etiquetas-envios"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra inferior: Legal -->
+      <div class="pie-barra-inferior" id="pie-barra-inferior">
+        <div class="pie-legal-info">
+          <span class="pie-copyright" id="pie-copyright"></span>
+          <span class="pie-rif hidden" id="pie-rif"></span>
+        </div>
+        <div class="pie-legal-enlaces">
+          <a class="pie-enlace hidden" id="footer-privacy" target="_blank" rel="noopener">Política de privacidad</a>
+        </div>
       </div>
     </div>
   </footer>
+
+  <button type="button" id="btn-volver-arriba" class="boton-volver-arriba hidden" aria-label="Volver arriba"></button>
 
   <div id="toast-container" class="avisos" aria-live="polite"></div>
 </body>

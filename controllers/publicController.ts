@@ -122,8 +122,12 @@ export async function getMarca(req: any, res: any) {
     const rawDescripcionAliados = configManager.get("settings.descripcionAliados");
     const descripcionAliados = typeof rawDescripcionAliados === "string" ? rawDescripcionAliados.trim() : "";
 
+    const rawBusinessDescription = configManager.get("settings.businessDescription");
+    const businessDescription = typeof rawBusinessDescription === "string" ? rawBusinessDescription.trim() : "";
+
     return res.status(200).json({
       brandName,
+      businessDescription,
       theme: {
         primaryColor,
         secondaryColor,
@@ -442,7 +446,42 @@ export async function getInfo(req: any, res: any) {
         logoUrl: String(a.logoUrl || ""),
       }));
 
-    return res.status(200).json({ preguntas, pagos, envios, horario, banner, bannerLateral, slider, aliados, instagram: obtenerInstagramPublico() });
+    const dn = getDatosNegocioSync();
+    const contacto = {
+      whatsapp: obtenerNumeroWhatsApp(false) || "",
+      email: String(dn?.contacto?.email || "").trim(),
+      website: String(dn?.contacto?.website || "").trim(),
+      instagram: obtenerInstagramPublico()?.url || "",
+    };
+
+    const legal = {
+      razonSocial: String(dn?.legal?.razonSocial || "").trim(),
+      rif: String(dn?.legal?.rif || "").trim(),
+    };
+
+    const metodoRetiro = (enviosDb || []).find((m: any) => m && m.activo !== false && m.tipo === "retiro");
+    const retiro = metodoRetiro
+      ? {
+          nombre: String(metodoRetiro.nombre || "").trim(),
+          direccion: String(metodoRetiro.direccion || "").trim(),
+          horario: String(metodoRetiro.horario || "").trim() || horario,
+        }
+      : null;
+
+    return res.status(200).json({
+      preguntas,
+      pagos,
+      envios,
+      horario,
+      banner,
+      bannerLateral,
+      slider,
+      aliados,
+      instagram: obtenerInstagramPublico(),
+      contacto,
+      legal,
+      retiro,
+    });
   } catch (error: any) {
     console.error("❌ Error en getInfo público:", error);
     return res.status(500).json({ error: "Error al obtener la información de la tienda" });

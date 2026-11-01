@@ -1997,6 +1997,11 @@ select {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--linea);
+  text-decoration: none;
+}
+
+.tarjeta-relacionado-foto .img-sin-foto-texto {
+  text-decoration: none;
 }
 
 .tarjeta-relacionado-imagen {

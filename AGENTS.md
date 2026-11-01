@@ -2677,7 +2677,7 @@ En la ficha (`#/producto/:id`), debajo de la tarjeta con el precio y los botones
     - 0 errores en consola de JavaScript y 0 violaciones de CSP.
 - **Desviaciones:** Ninguna. Listo para revisión de Claude.
 
-### F2l · Pie de página (footer) estilado y funcional — Backend + Frontend · `Pendiente`
+### F2l · Pie de página (footer) estilado y funcional — Backend + Frontend · `En curso`
 
 Hoy el pie es una línea de texto con la marca, una nota fija y dos enlaces. Queda como un pie de varias columnas, con el contenido que ya existe en el sistema (nada se escribe a mano en el código). **Reglas:** las de este tablero (sin `innerHTML` con datos, sin scripts en línea, sin CDN, Lucide, nada de marca escrita en el código, móvil primero, 44 px táctiles). Todo bloque sin datos **no se muestra**.
 
