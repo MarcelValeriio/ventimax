@@ -26,9 +26,9 @@ export PORT="${PORT:-3000}"
 export CATALOGO_ORIGEN="${CATALOGO_ORIGEN:-http://localhost:5173}"
 export FORCE_CLEAN_SEED=false
 
-# Secretos locales generados en cada arranque (las sesiones caducan al reiniciar).
-export JWT_SECRET="local-$(openssl rand -hex 32)"
-export SESSION_SECRET="local-$(openssl rand -hex 32)"
+# Secretos locales: fijos por defecto para conservar la sesión del navegador entre reinicios.
+export JWT_SECRET="${LOCAL_JWT_SECRET:-local-dev-jwt-secret-ventimax-multimarca-2026-fijo}"
+export SESSION_SECRET="${LOCAL_SESSION_SECRET:-local-dev-session-secret-ventimax-multimarca-2026-fijo}"
 
 # Credenciales externas: vacías a propósito.
 for v in \

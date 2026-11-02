@@ -4173,6 +4173,13 @@ const postManualSale = async (req, res, io) => {
         let dir = ubicacion?.direccion || "Retiro en tienda";
         let lat = null;
         let lon = null;
+        // Coordenadas elegidas con el mapa de la venta manual (no se aceptan valores fuera de rango)
+        const latMapa = Number(ubicacion?.latitud);
+        const lonMapa = Number(ubicacion?.longitud);
+        if (ubicacion?.latitud != null && ubicacion?.longitud != null && Math.abs(latMapa) <= 90 && Math.abs(lonMapa) <= 180) {
+          lat = latMapa;
+          lon = lonMapa;
+        }
         const mapsRegex = /https:\/\/maps\.google\.com\/\?q=([-\d\.]+),([-\d\.]+)/;
         const match = dir.match(mapsRegex);
         if (match) {

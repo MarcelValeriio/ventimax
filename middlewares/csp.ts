@@ -32,6 +32,7 @@ export const CSP_DIRECTIVES: Record<string, string[]> = {
     "data:",
     "blob:",
     "https://res.cloudinary.com",
+    "https://*.tile.openstreetmap.org",
     "https://api.dicebear.com",
     "https://user-images.githubusercontent.com",
   ],

@@ -11,6 +11,7 @@ import React, {
 } from "https://cdn.skypack.dev/react";
 import apiClient, { getTopProducts } from "../../services/apiClient.js";
 import OrderDetailsModal from "../../components/OrderDetailsModal.js";
+import MapaEntrega from "./components/MapaEntrega.js";
 
 const e = React.createElement;
 
@@ -2071,6 +2072,22 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                   }),
                 );
               })(),
+              // Delivery local: mapa con buscador para ubicar la entrega
+              (() => {
+                const sel = metodosEnvio.find((m) => m._id === metodoEnvioId);
+                if (!sel || sel.tipo !== "delivery_local") return null;
+                return e(MapaEntrega, {
+                  onSeleccionar: (ub) =>
+                    setManualSale((prev) => ({
+                      ...prev,
+                      ubicacion: {
+                        direccion: ub.direccion || prev.ubicacion.direccion,
+                        latitud: ub.latitud,
+                        longitud: ub.longitud,
+                      },
+                    })),
+                });
+              })(),
               e(
                 "div",
                 null,
@@ -2110,7 +2127,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                   onChange: (evt) =>
                     setManualSale({
                       ...manualSale,
-                      ubicacion: { direccion: evt.target.value },
+                      ubicacion: { direccion: evt.target.value, latitud: null, longitud: null },
                     }),
                   placeholder:
                     "Ej. Retiro en tienda o Dirección del cliente...",
