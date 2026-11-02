@@ -748,6 +748,29 @@ async function crearVentaManual(input: {
     datos.cliente = Object.assign({}, datos.cliente || {}, { telefono: usuarioId });
   }
 
+  // Si se confirmó un vehículo en la venta manual, asociarlo a la etiqueta del cliente
+  if (datos.vehiculo && usuarioId) {
+    try {
+      const { validarVehiculo } = require("./vehiculoCliente");
+      const validado = validarVehiculo(datos.vehiculo);
+      if (validado.ok && validado.valor) {
+        let EtiquetaModel;
+        if (process.env.NODE_ENV === "test") {
+          EtiquetaModel = require("./dbLocal").getEtiquetaModel();
+        } else {
+          EtiquetaModel = require("../models/Etiqueta");
+        }
+        await EtiquetaModel.findOneAndUpdate(
+          { telefono: usuarioId },
+          { vehiculo: validado.valor },
+          { upsert: true, returnDocument: "after" },
+        );
+      }
+    } catch (vErr: any) {
+      console.warn("⚠️ [Inbox] No se pudo guardar vehículo en venta manual:", vErr?.message || vErr);
+    }
+  }
+
   const respuesta = await invocarHandlerLegacyConBody(
     adminController.postManualSale,
     { data: JSON.stringify(datos) },

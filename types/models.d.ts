@@ -145,6 +145,16 @@ export interface IUltimaReactivacion {
   esSegundo?: boolean;
 }
 
+export interface IVehiculoCliente {
+  marca?: string;
+  modelo?: string;
+  anio?: number | null;
+  motor?: string;
+  version?: string;
+  marcaNorm?: string;
+  modeloNorm?: string;
+}
+
 export interface IEtiqueta {
   _id?: string;
   telefono: string;
@@ -169,6 +179,7 @@ export interface IEtiqueta {
   stuck?: boolean;
   bloqueado?: boolean;
   ultimaReactivacion?: IUltimaReactivacion;
+  vehiculo?: IVehiculoCliente | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -198,6 +209,7 @@ export interface IEtiquetaIg {
   metadata?: Record<string, any>;
   /** Memoria corta del bot social (M-3, services/cortesiaService.ts). */
   social?: Record<string, any>;
+  vehiculo?: IVehiculoCliente | null;
   createdAt?: Date;
   updatedAt?: Date;
 }

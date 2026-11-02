@@ -71,6 +71,7 @@ mkdir -p public/assets/brand/<marca>
 | `flujoNoLaborable` | Comportamiento inicial en días no laborables (sección 5.6). Dejar el de VentiMax (entrega en día hábil, sin punto aliado) salvo que el cliente pida otra cosa; se cambia desde el panel |
 | `legal` | Valor inicial de razón social, RIF y dirección. Lo normal es dejarlo vacío y cargarlo en el panel (sección 1.7) |
 | `watchdog` | Días sin alertas (0 = domingo) y franja horaria de alertas al admin. Es independiente del horario de atención |
+| `mapa` | Mapa del carrito: `ciudad`, `pais`, `centro: { lat, lng }` (donde abre el mapa) y `palabrasArea` (palabras que indican que la dirección ya trae ciudad o zona). Poner la ciudad de delivery del cliente. **Ojo:** si `centro` falta o es inválido, la tienda abre el mapa en las coordenadas de respaldo `COORD_DEFAULT` de `catalogo/js/mapa.js`, que son las de Caracas. Para una marca con otra ciudad, `centro` debe ser válido y conviene cambiar ese respaldo |
 | `messages.*` | Textos del bot. Revisar **todos**: no pueden quedar referencias al negocio anterior (ventiladores, Fortunne). `{{brandName}}`, `{{botIdentity}}` y las demás variables entre llaves se dejan tal cual |
 
 No se borra ninguna clave de `messages`: si falta una, el bot usa un texto genérico.

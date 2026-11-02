@@ -149,6 +149,15 @@ class ConfigManager {
       this.config.settings.tienda.preguntasFrecuentes = [];
     }
 
+    // Configuración territorial del mapa (F2o)
+    if (this.config.settings.mapa !== undefined) {
+      const { validarConfigMapa } = require("./configValidators");
+      const resMapa = validarConfigMapa(this.config.settings.mapa);
+      if (!resMapa.ok) {
+        throw new Error(`[ConfigManager] Bloque 'mapa' inválido: ${resMapa.error}`);
+      }
+    }
+
     console.log("✅ Validación de esquema exitosa.");
   }
 

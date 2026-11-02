@@ -71,10 +71,34 @@ const EtiquetaIgSchema = new Schema<IEtiquetaIg>(
       type: Schema.Types.Mixed,
       default: {},
     },
+    vehiculo: {
+      type: new Schema(
+        {
+          marca: { type: String, trim: true, maxlength: 60, default: "" },
+          modelo: { type: String, trim: true, maxlength: 60, default: "" },
+          anio: { type: Number, min: 1950, max: 2100, default: null },
+          motor: { type: String, trim: true, maxlength: 20, default: "" },
+          version: { type: String, trim: true, maxlength: 40, default: "" },
+          marcaNorm: { type: String, trim: true, maxlength: 60, default: "" },
+          modeloNorm: { type: String, trim: true, maxlength: 60, default: "" },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
   },
   {
     timestamps: true,
   },
 );
+
+// Normalización automática de marcaNorm y modeloNorm (F1-4)
+EtiquetaIgSchema.pre("validate", function () {
+  if (this.vehiculo) {
+    const { normalizarTexto } = require("../services/productoAmpliado");
+    this.vehiculo.marcaNorm = normalizarTexto(this.vehiculo.marca || "");
+    this.vehiculo.modeloNorm = normalizarTexto(this.vehiculo.modelo || "");
+  }
+});
 
 module.exports = mongoose.model<IEtiquetaIg>("EtiquetaIg", EtiquetaIgSchema);

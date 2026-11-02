@@ -1,7 +1,7 @@
 /**
  * catalogo/js/mapa.js
  * Selector de ubicación interactivo con mapa y pin central (F2d).
- * Permite buscar calles/zonas en Caracas o mover el pin para seleccionar el punto de entrega.
+ * Permite buscar calles o sectores o mover el pin para seleccionar el punto de entrega.
  * Sin inserción de texto HTML, compatible con CSP y responsive en móvil y escritorio.
  */
 
@@ -9,7 +9,7 @@ import { el } from "./dom.js";
 import { icono } from "./iconos.js";
 import { geocodificarCoordenadas, buscarDireccion } from "./api.js";
 
-// Coordenadas por defecto (Caracas)
+// Coordenadas por defecto
 const COORD_DEFAULT = { lat: 10.491, lon: -66.885, zoom: 13 };
 
 /**
@@ -18,26 +18,35 @@ const COORD_DEFAULT = { lat: 10.491, lon: -66.885, zoom: 13 };
  * @param {Object} opciones
  * @param {number} [opciones.latInicial]
  * @param {number} [opciones.lonInicial]
+ * @param {Object} [opciones.configMapa]
  * @param {Function} opciones.alSeleccionar Callback ({ latitud, longitud, direccion })
  */
-export function montarSelectorMapa(contenedor, { latInicial, lonInicial, alSeleccionar }) {
+export function montarSelectorMapa(contenedor, { latInicial, lonInicial, alSeleccionar, configMapa }) {
   if (typeof window.L === "undefined") {
     console.warn("Leaflet no está disponible");
     return null;
   }
 
-  const latCentro = Number.isFinite(latInicial) ? latInicial : COORD_DEFAULT.lat;
-  const lonCentro = Number.isFinite(lonInicial) ? lonInicial : COORD_DEFAULT.lon;
+  const centroDefLat = Number.isFinite(configMapa?.centro?.lat) ? configMapa.centro.lat : COORD_DEFAULT.lat;
+  const centroDefLon = Number.isFinite(configMapa?.centro?.lng)
+    ? configMapa.centro.lng
+    : Number.isFinite(configMapa?.centro?.lon)
+    ? configMapa.centro.lon
+    : COORD_DEFAULT.lon;
+
+  const latCentro = Number.isFinite(latInicial) ? latInicial : centroDefLat;
+  const lonCentro = Number.isFinite(lonInicial) ? lonInicial : centroDefLon;
   const zoomCentro = Number.isFinite(latInicial) ? 16 : COORD_DEFAULT.zoom;
 
   let timerGeocode = null;
   let timerSearch = null;
 
   // 1. Buscador superior
+  const sufijoCiudad = configMapa?.ciudad ? ` en ${configMapa.ciudad}` : "";
   const inputBusqueda = el("input", {
     type: "search",
     className: "mapa-buscador-input",
-    placeholder: "Buscar calle, avenida o sector en Caracas…",
+    placeholder: `Buscar calle, avenida o sector${sufijoCiudad}…`,
     autocomplete: "off",
   });
 

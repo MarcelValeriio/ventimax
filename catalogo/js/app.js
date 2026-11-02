@@ -2461,6 +2461,7 @@ function seccionEntrega(metodos, alCambiar) {
       montarSelectorMapa(wrap, {
         latInicial: latIni,
         lonInicial: lonIni,
+        configMapa: state.marca?.mapa,
         alSeleccionar: ({ latitud, longitud, direccion }) => {
           state.entrega.gps = { latitud, longitud };
           state.entrega.estadoGps = "listo";

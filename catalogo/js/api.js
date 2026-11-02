@@ -93,7 +93,7 @@ export async function geocodificarCoordenadas(lat, lon) {
 }
 
 /**
- * Búsqueda predictiva de calles/zonas en Caracas para el mapa (F2d).
+ * Búsqueda predictiva de calles o sectores para el mapa (F2d).
  */
 export async function buscarDireccion(query) {
   const q = String(query || "").trim();

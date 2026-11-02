@@ -359,7 +359,32 @@ Pasos del recorrido para el dueño:
 
 Dudas para Claude (no bloquean la entrega, son decisiones de diseño para revisar): decisiones 1, 2, 6, 8 y 9 de arriba. En especial la 2: sin forma de vaciar la compatibilidad de un producto desde el archivo.
 
-### F2o · Quitar "Caracas" escrito en el código (regla 5) — Frontend + Backend · `Pendiente`
+### F2o · Quitar "Caracas" escrito en el código (regla 5) — Frontend + Backend · `Aprobada`
+
+**Entrega (2026-11-02, Antigravity):**
+
+Archivos tocados:
+- `config/brand/ventimax/settings.json`: bloque `mapa` con `ciudad`, `pais`, `centro: { lat, lng }` y `palabrasArea`. No se tocó `default/`.
+- `services/configValidators.ts`: interfaz `MapaConfig`, `ResultadoValidacionMapa` y validador `validarConfigMapa`.
+- `services/configManager.ts`: validación de bloque `mapa` en `validateSchema()`.
+- `controllers/publicController.ts`: `GET /api/public/marca` expone `mapa` en lista blanca estricta.
+- `services/geocodingService.ts`: regex de área escapado (`getAreaRegex`), sufijo territorial (`getSufijoUbicacion`), `construirQueryBusqueda`; 0 ocurrencias de "Caracas" en código o comentarios.
+- `catalogo/js/mapa.js`: `montarSelectorMapa` acepta `configMapa`, centro por defecto configurable y placeholder dinámico `Buscar calle, avenida o sector en <ciudad>…`; 0 ocurrencias de "Caracas" en código o comentarios.
+- `catalogo/js/app.js`: pasa `configMapa: state.marca?.mapa` a `montarSelectorMapa`.
+- `catalogo/js/api.js`: comentario neutro sin "en Caracas".
+- `scripts/test-api-publica.ts` y `scripts/test-pie-pagina.ts`: actualización de lista blanca estricta de `/api/public/marca` con `mapa`.
+- `scripts/test-mapa-marca.ts` (nueva suite, 7 pruebas): sufijo y regex de la marca, cambio con marcas alternativas, caracteres especiales de regex escapados, fallback solo país sin ciudad si falta el bloque, validación de esquema, y grep de "Caracas" dando 0 en ambos archivos.
+- `scripts/ci.sh`: suite añadida después de `test-mapa-carrito.ts`.
+
+Verificación:
+- `npm run build`: en verde.
+- `./scripts/ci.sh`: en verde. Salida: `✅ Build, 49 suites e imports del panel en verde.`
+  - `test-mapa-marca.ts`: 7/7 pasaron.
+  - `test-mapa-carrito.ts`: 7/7 pasaron (regresión).
+- `esbuild --bundle` verificado en `catalogo/js/mapa.js`, `catalogo/js/app.js` y `catalogo/js/api.js`.
+- Recorrido en Chrome Headless a 1440 y 390 px (`catalogo/#/carrito`):
+  - Montaje interactivo de mapa Leaflet, pin central `#1E8C88` y placeholder `"Buscar calle, avenida o sector en Caracas…"`.
+  - 0 errores de consola y 0 violaciones de CSP.
 
 Resto menor de F2d. El área de búsqueda del mapa y el sufijo de ciudad deben salir de la marca/panel, no del código. Ocurrencias: `catalogo/js/mapa.js` (líneas 4, 12 y 40: comentario, coordenadas por defecto y placeholder) y `services/geocodingService.ts` (líneas 88, 102 y 103: regex y sufijo `, Caracas, Venezuela`).
 
@@ -371,7 +396,39 @@ Resto menor de F2d. El área de búsqueda del mapa y el sufijo de ciudad deben s
 
 **Cierre:** `npm run build`, `./scripts/ci.sh` en verde, `esbuild --bundle` en los archivos tocados, lista de archivos y de pantallas.
 
-### F1-4 · Vehículo del cliente (`Etiqueta`, `EtiquetaIg`, ficha del Inbox, copiloto) — Backend + Frontend · `Pendiente`
+### F1-4 · Vehículo del cliente (`Etiqueta`, `EtiquetaIg`, ficha del Inbox, copiloto) — Backend + Frontend · `Aprobada`
+
+**Entrega (2026-11-02, Antigravity):**
+
+Archivos tocados:
+- `types/models.d.ts`: interfaz `IVehiculoCliente` y campo opcional `vehiculo?: IVehiculoCliente | null` en `IEtiqueta` e `IEtiquetaIg`.
+- `models/Etiqueta.ts`: subesquema `vehiculo` (`marca`, `modelo`, `marcaNorm`, `modeloNorm`, `anio`, `motor`, `version`) con hook `pre("validate")` que calcula `marcaNorm` y `modeloNorm` usando `normalizarTexto` de `services/productoAmpliado.ts`.
+- `models/EtiquetaIg.ts`: subesquema `vehiculo` con el mismo hook `pre("validate")`.
+- `services/vehiculoCliente.ts` (nuevo): funciones puras `validarVehiculo(datos)`, `describirVehiculo(v)` y constantes `LIMITES_VEHICULO`.
+- `services/dbMock.ts`: soporte para `etiquetasIg`, persistencia de `vehiculo` en `findOneAndUpdate` y `create` tanto para `getEtiquetaModel` como para `getEtiquetaIgModel`.
+- `controllers/adminController.ts`: `getChatContext` incluye `vehiculo: etiqueta?.vehiculo || null`. En `extractOrderFromChat` (copiloto) se añade el vehículo a los datos conocidos, se instruye extraer `vehiculo: { marca, modelo, anio, motor, version }`, se valida con `validarVehiculo` y se propone al operador sin auto-guardar en base de datos.
+- `services/inbox/adapters/instagramAdapter.ts`: `contexto` incluye `vehiculo: et?.vehiculo || null` para Instagram y Messenger.
+- `controllers/inboxController.ts`: endpoint `postVehiculo(req, res, io)` para fijar o borrar (`null`) vehículo por canal WhatsApp (`Etiqueta`) o IG/Messenger (`EtiquetaIg`), valida con `validarVehiculo`, audita con `tipoRecurso: "usuario"` (`actualizar_vehiculo` o `borrar_vehiculo`), emite sockets `vehiculo_actualizado` e `inbox_actualizado`, y responde con 500 genérico ante fallos internos.
+- `routes/adminRoutes.ts`: rutas `POST /inbox/vehiculo` y `POST /etiqueta/vehiculo` protegidas con `isAuthenticated` y `authorize(["chat:manage"])`.
+- `services/inboxService.ts`: `crearVentaManual` valida y asocia el vehículo a la etiqueta si fue seleccionado por el operador.
+- `public/src/features/inbox/components/InboxCustomerCardDrawer.js` (nuevo): componente para la ficha del cliente en el Inbox unificado, respetando la regla 7 (sin tocar `features/whatsapp/**`). Muestra sección "Vehículo del Cliente", datos formateados, botones accesibles de 44 px para Editar, Eliminar y Agregar, y modal integrado con validación y prevención de doble submit. Usa íconos Lucide empaquetados (`truck`, `square-pen`, `trash`).
+- `public/src/features/inbox/components/InboxManualOrderModal.js`: copiloto muestra sección "Vehículo detectado" al extraer orden del chat con checkbox para asociarlo al cliente si el humano lo confirma.
+- `public/src/features/inbox/InboxConsole.js`: importa `InboxCustomerCardDrawer.js?v=1`.
+- `scripts/test-vehiculo-cliente.ts` (nueva suite, 31 aserciones): validación pura, límites, hooks Mongoose, persistencia en `dbLocal` y `dbMock`, permisos HTTP (401/403/400/200), contexto de chat, copiloto propone y no auto-guarda, regresión sin vehículo y verificación de ausencia de marcas.
+- `scripts/ci.sh`: suite `test-vehiculo-cliente.ts` agregada a `SUITES`.
+
+Verificación:
+- `npm run build`: en verde.
+- `./scripts/ci.sh`: en verde. Salida: `✅ Build, 50 suites e imports del panel en verde.`
+  - `test-vehiculo-cliente.ts`: 31/31 aserciones superadas.
+- `esbuild --bundle` verificado en todos los archivos del panel y catálogo:
+  - `public/src/features/inbox/InboxConsole.js`
+  - `public/src/features/inbox/components/InboxCustomerCardDrawer.js`
+  - `public/src/features/inbox/components/InboxManualOrderModal.js`
+- Recorrido en Chrome Headless (CDP) a 1440 y 390 px (`/panel/#/inbox`):
+  - 1440x900: Ficha del cliente abierta en Inbox, sección "Vehículo del Cliente" visible con botón "+ Agregar Vehículo". Modal de agregar vehículo con inputs de marca, modelo, año, motor y versión. Guardado exitoso y actualización reactiva mostrando datos del vehículo (`Toyota Corolla 2012 1.8 GLI`) con botones para Editar (`square-pen`) y Eliminar (`trash`).
+  - 390x844 (móvil): sin desplazamiento horizontal (`scrollWidth === clientWidth === 390`), botones táctiles con dimensiones de al menos 44 px (`buttonSizes: [{ h: 44, w: 44 }, { h: 44, w: 44 }]`, `todos44px: true`).
+  - Consola: 0 errores totales, **0 violaciones de CSP**.
 
 Base: `docs/f1-producto-ampliado.md` §1.3 y §4; plan: `docs/plan-haiku-f1.md`, Paso 3. Depende de F1-1 (`Aprobada`). **No cambia el flujo del bot** (eso es F1-5). Se puede hacer en paralelo con F1-3, pero sin tocar `ProductTab.js`, `adminController.ts` de productos ni `routes/adminRoutes.ts` de importación.
 
@@ -427,6 +484,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-11-02 | — | F2o y F1-4 aprobadas: CI verde (50 suites), 0 "Caracas" en código, `mapa` por marca con lista blanca, vehículo del cliente con validación, permiso `chat:manage`, auditoría y copiloto que propone sin guardar. Notas menores: `/api/public/marca` devuelve centro 0,0 si el dato es inválido; venta manual guarda vehículo solo en WhatsApp (la venta manual es solo WhatsApp) — Ejecutado por **Antigravity** + **Claude** | Claude (Cerebro) | Aprobada |
 | 2026-11-02 | — | F1-3 entregada: importación y exportación xlsx/CSV con vista previa (nada se escribe hasta confirmar), confirmar por SKU sin borrar, desactivación aparte, suite `test-importacion-productos.ts` en `ci.sh` (48 suites en verde). Pendiente: recorrido en Chrome a 390 y 1440 px con Excel de 10 filas (sin herramienta de navegador). `exceljs` aprobado por el dueño — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Lista para revisión |
 | 2026-11-02 | — | F1-2 y F1-2b aprobadas: CI verde (47 suites), recorrido del dueño en Chrome a 390 px correcto (pestañas, búsqueda, fotos al crear con vista previa y reintento como edición). Siguiente: Paso 2 (F1-3) de `docs/plan-haiku-f1.md`, requiere aprobar `exceljs` — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Aprobada |
 | 2026-11-02 | — | F1-2b: fotos al crear producto (estado pendiente, subida tras el POST, reintento como edición); CI verde (47 suites), sin recorrido de Chrome (no había navegador). Ejecutado por **Haiku 5.5** (subagente) | Claude (Cerebro) | Lista para revisión |

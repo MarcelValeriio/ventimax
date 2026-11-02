@@ -129,6 +129,39 @@ export async function getMarca(req: any, res: any) {
     const rawBusinessDescription = configManager.get("settings.businessDescription");
     const businessDescription = typeof rawBusinessDescription === "string" ? rawBusinessDescription.trim() : "";
 
+    const rawMapa = configManager.get("settings.mapa");
+    let mapa: {
+      ciudad: string;
+      pais: string;
+      centro: { lat: number; lng: number } | null;
+      palabrasArea: string[];
+    } | null = null;
+
+    if (rawMapa && typeof rawMapa === "object") {
+      const ciudad = typeof rawMapa.ciudad === "string" ? rawMapa.ciudad.trim() : "";
+      const pais = typeof rawMapa.pais === "string" ? rawMapa.pais.trim() : "";
+      const lat = Number(rawMapa.centro?.lat);
+      const lng = Number(rawMapa.centro?.lng ?? rawMapa.centro?.lon);
+      const palabrasArea = Array.isArray(rawMapa.palabrasArea)
+        ? rawMapa.palabrasArea
+            .filter((p: any) => typeof p === "string" && p.trim().length > 0)
+            .map((p: string) => p.trim())
+        : [];
+
+      mapa = {
+        ciudad,
+        pais,
+        // Sin coordenadas válidas no se inventa un punto: el cliente usa su valor por defecto
+        centro:
+          rawMapa.centro != null &&
+          Number.isFinite(lat) && Math.abs(lat) <= 90 &&
+          Number.isFinite(lng) && Math.abs(lng) <= 180
+            ? { lat, lng }
+            : null,
+        palabrasArea,
+      };
+    }
+
     return res.status(200).json({
       brandName,
       businessDescription,
@@ -140,6 +173,7 @@ export async function getMarca(req: any, res: any) {
       },
       ayuda,
       descripcionAliados,
+      mapa,
     });
   } catch (error: any) {
     console.error("❌ Error en getMarca pública:", error);

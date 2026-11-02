@@ -11,6 +11,7 @@ class DbMock {
   constructor() {
     this.data = {
       etiquetas: {},
+      etiquetasIg: {},
       mensajes: [],
       productos: [],
       categorias: [],
@@ -44,6 +45,12 @@ class DbMock {
         if (update.paso) doc.paso = update.paso;
         if (update.etiqueta) doc.etiqueta = update.etiqueta;
         if (update.carrito) doc.carrito = { ...doc.carrito, ...update.carrito };
+        if (update.vehiculo !== undefined) doc.vehiculo = update.vehiculo;
+        if (update.$set) {
+          for (const key of Object.keys(update.$set)) {
+            doc[key] = update.$set[key];
+          }
+        }
         
         return doc;
       },
@@ -53,6 +60,45 @@ class DbMock {
       },
       deleteOne: async (query) => {
         delete this.data.etiquetas[query.telefono];
+        return { deletedCount: 1 };
+      }
+    };
+  }
+
+  getEtiquetaIgModel() {
+    return {
+      findOne: (query) => {
+        const exec = () => Promise.resolve(this.data.etiquetasIg[query.usuarioIgId] || null);
+        return {
+          lean: () => exec(),
+          then: (onFulfilled, onRejected) => exec().then(onFulfilled, onRejected),
+          catch: (onRejected) => exec().catch(onRejected)
+        };
+      },
+      findOneAndUpdate: async (query, update, options) => {
+        let doc = this.data.etiquetasIg[query.usuarioIgId];
+        if (!doc) {
+          doc = { usuarioIgId: query.usuarioIgId, paso: "inicio", modo: "automatico" };
+          this.data.etiquetasIg[query.usuarioIgId] = doc;
+        }
+
+        if (update.paso) doc.paso = update.paso;
+        if (update.modo) doc.modo = update.modo;
+        if (update.vehiculo !== undefined) doc.vehiculo = update.vehiculo;
+        if (update.$set) {
+          for (const key of Object.keys(update.$set)) {
+            doc[key] = update.$set[key];
+          }
+        }
+
+        return doc;
+      },
+      create: async (data) => {
+        this.data.etiquetasIg[data.usuarioIgId] = { ...data };
+        return this.data.etiquetasIg[data.usuarioIgId];
+      },
+      deleteOne: async (query) => {
+        delete this.data.etiquetasIg[query.usuarioIgId];
         return { deletedCount: 1 };
       }
     };

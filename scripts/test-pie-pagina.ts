@@ -219,7 +219,7 @@ async function runTests() {
     await publicController.getMarca({} as any, res);
     assert.strictEqual(out.status, 200);
 
-    const keysEsperadas = ["ayuda", "brandName", "businessDescription", "descripcionAliados", "theme"].sort();
+    const keysEsperadas = ["ayuda", "brandName", "businessDescription", "descripcionAliados", "mapa", "theme"].sort();
     assert.deepStrictEqual(Object.keys(out.json).sort(), keysEsperadas, "Lista blanca estricta de /api/public/marca");
 
     assert.strictEqual(typeof out.json.businessDescription, "string");

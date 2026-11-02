@@ -385,6 +385,7 @@ export function crearAdaptadorIgLike(canal: string) {
       modo: et?.modo || "automatico",
       bloqueado: et?.bloqueado === true,
       stuck: et?.stuck === true,
+      vehiculo: et?.vehiculo || null,
       noLeidos: Number(et?.unreadCount || 0),
       lastInteraction: et?.lastInteraction ? aEpochMs(et.lastInteraction) : null,
       totalMensajes,

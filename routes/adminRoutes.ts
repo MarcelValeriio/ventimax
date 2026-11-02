@@ -725,6 +725,12 @@ module.exports = function (io) {
     (req, res) => adminController.postEtiqueta(req, res, io),
   );
   router.post(
+    "/etiqueta/vehiculo",
+    isAuthenticated,
+    authorize(["chat:manage"]),
+    (req, res) => inboxController.postVehiculo(req, res, io),
+  );
+  router.post(
     "/chat/upload",
     isAuthenticated,
     authorize(["chat:manage"]),
@@ -1004,6 +1010,13 @@ module.exports = function (io) {
     isAuthenticated,
     authorize(["chat:manage"]),
     (req, res) => inboxController.postBloquear(req, res, io),
+  );
+  // Vehículo del cliente (F1-4)
+  router.post(
+    "/inbox/vehiculo",
+    isAuthenticated,
+    authorize(["chat:manage"]),
+    (req, res) => inboxController.postVehiculo(req, res, io),
   );
   // Acciones exclusivas de WhatsApp (canal en el path)
   router.post(

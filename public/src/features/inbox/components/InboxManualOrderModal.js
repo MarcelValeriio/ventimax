@@ -94,6 +94,8 @@ const InboxManualOrderModal = ({
   const [saving, setSaving] = useState(false);
   const [comprobanteFile, setComprobanteFile] = useState(null);
   const [comprobanteAIUrl, setComprobanteAIUrl] = useState("");
+  const [vehiculoPropuesto, setVehiculoPropuesto] = useState(null);
+  const [asociarVehiculo, setAsociarVehiculo] = useState(true);
   const [formData, setFormData] = useState({
     cliente: { nombre: "", cedula: "", telefono: whatsappId, direccion: "" },
     notas: "",
@@ -180,6 +182,12 @@ const InboxManualOrderModal = ({
           if (montajeRef.current !== montaje) return;
           if (res && res.data && res.data.success) {
             const extraido = res.data.data || {};
+            if (extraido.vehiculo && (extraido.vehiculo.marca || extraido.vehiculo.modelo)) {
+              setVehiculoPropuesto(extraido.vehiculo);
+              setAsociarVehiculo(true);
+            } else {
+              setVehiculoPropuesto(null);
+            }
             if (extraido.comprobanteUrl && (String(extraido.comprobanteUrl).startsWith("http") || String(extraido.comprobanteUrl).startsWith("/api/"))) {
               setComprobanteAIUrl(extraido.comprobanteUrl);
             } else {
@@ -317,6 +325,7 @@ const InboxManualOrderModal = ({
       notas: formData.notas,
       ubicacion: { direccion: formData.cliente.direccion || "Retiro en tienda" },
       envio: formData.envio || null,
+      ...(asociarVehiculo && vehiculoPropuesto ? { vehiculo: vehiculoPropuesto } : {}),
       pago: {
         ...formData.pago,
         metodo: formData.pago.metodo.nombre,
@@ -340,6 +349,17 @@ const InboxManualOrderModal = ({
         headers: { "Content-Type": "multipart/form-data" },
       });
       if (res.data && res.data.success) {
+        if (asociarVehiculo && vehiculoPropuesto) {
+          try {
+            await apiClient.post(`${API_INBOX}/vehiculo`, {
+              canal: "whatsapp",
+              usuarioId: whatsappId,
+              vehiculo: vehiculoPropuesto,
+            });
+          } catch (vehErr) {
+            console.warn("⚠️ [Inbox] Error asociando vehículo:", vehErr);
+          }
+        }
         window.showToast?.("Venta manual generada");
         if (typeof onSaved === "function") onSaved(res.data.data || null);
         if (typeof onClose === "function") onClose();
@@ -480,6 +500,62 @@ const InboxManualOrderModal = ({
                       className: inputClase,
                     }),
                   ]),
+
+                  // ── F1-4: Vehículo propuesto por Copiloto IA ─────────────
+                  vehiculoPropuesto
+                    ? e(
+                        "div",
+                        {
+                          key: "vehiculo-propuesto-wrap",
+                          className:
+                            "border border-[#2a3942] p-3 rounded-lg bg-[#202c33] flex items-center justify-between gap-3",
+                          "data-testid": "vehiculo-propuesto-copiloto",
+                        },
+                        [
+                          e("div", { key: "vehiculo-info", className: "flex items-center gap-2.5 min-w-0" }, [
+                            e(Icono, { nombre: "truck", className: "text-[#00a884] text-base shrink-0" }),
+                            e("div", { className: "min-w-0" }, [
+                              e(
+                                "p",
+                                { className: "text-xs font-bold text-[#e9edef] truncate" },
+                                [
+                                  vehiculoPropuesto.marca,
+                                  vehiculoPropuesto.modelo,
+                                  vehiculoPropuesto.anio,
+                                  vehiculoPropuesto.motor,
+                                  vehiculoPropuesto.version,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" ") || "Vehículo detectado",
+                              ),
+                              e(
+                                "p",
+                                { className: "text-[11px] text-[#8696a0]" },
+                                "Detectado en la conversación",
+                              ),
+                            ]),
+                          ]),
+                          e(
+                            "label",
+                            {
+                              key: "vehiculo-check",
+                              className:
+                                "flex items-center gap-2 cursor-pointer text-xs font-semibold text-[#8696a0] hover:text-[#e9edef] shrink-0 select-none",
+                            },
+                            [
+                              e("input", {
+                                type: "checkbox",
+                                checked: asociarVehiculo,
+                                onChange: (ev) => setAsociarVehiculo(ev.target.checked),
+                                className:
+                                  "w-4 h-4 rounded border-[#2a3942] bg-[#111b21] text-[#00a884] focus:ring-0 focus:ring-offset-0",
+                              }),
+                              "Asociar",
+                            ],
+                          ),
+                        ],
+                      )
+                    : null,
 
                   // ── WA-134/WA-135: productos del carrito + catálogo ──────
                   e(

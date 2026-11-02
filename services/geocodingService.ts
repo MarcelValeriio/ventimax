@@ -85,7 +85,42 @@ export async function reverseGeocode(lat: number, lon: number): Promise<string> 
   }
 }
 
-/** Búsqueda de direcciones en Caracas/Venezuela */
+function escaparRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function getAreaRegex(): RegExp | null {
+  const mapa = configManager.get("settings.mapa");
+  const palabras = Array.isArray(mapa?.palabrasArea) && mapa.palabrasArea.length > 0
+    ? mapa.palabrasArea
+    : [mapa?.ciudad, mapa?.pais || (mapa ? "" : "Venezuela")].filter(Boolean);
+
+  const validas = palabras
+    .filter((p: any) => typeof p === "string" && p.trim().length > 0)
+    .map((p: string) => p.trim());
+
+  if (validas.length === 0) return null;
+  return new RegExp(`(${validas.map(escaparRegex).join("|")})`, "i");
+}
+
+export function getSufijoUbicacion(): string {
+  const mapa = configManager.get("settings.mapa");
+  const ciudad = typeof mapa?.ciudad === "string" ? mapa.ciudad.trim() : "";
+  const pais = typeof mapa?.pais === "string" ? mapa.pais.trim() : (mapa ? "" : "Venezuela");
+  const partes = [ciudad, pais].filter(Boolean);
+  return partes.length > 0 ? `, ${partes.join(", ")}` : "";
+}
+
+export function construirQueryBusqueda(query: string): string {
+  const rx = getAreaRegex();
+  if (rx && rx.test(query)) {
+    return query;
+  }
+  const sufijo = getSufijoUbicacion();
+  return sufijo ? `${query}${sufijo}` : query;
+}
+
+/** Búsqueda de direcciones geográficas mediante OpenStreetMap (Nominatim) */
 export async function searchAddress(q: string): Promise<Array<{ lat: number; lon: number; nombre: string; display_name: string }>> {
   const query = String(q || "").trim();
   if (query.length < 3) return [];
@@ -99,8 +134,8 @@ export async function searchAddress(q: string): Promise<Array<{ lat: number; lon
   limpiarCacheExpirado();
 
   try {
-    // Si la búsqueda no incluye Caracas ni Venezuela, agregar Caracas para acotar al área de entrega
-    const queryCompleta = /(caracas|venezuela|miranda)/i.test(query) ? query : `${query}, Caracas, Venezuela`;
+    // Si la búsqueda no incluye los términos de área configurados, agregar sufijo de ubicación
+    const queryCompleta = construirQueryBusqueda(query);
     const res = await axios.get(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryCompleta)}&countrycodes=ve&limit=5&addressdetails=1`,
       {
@@ -126,4 +161,4 @@ export async function searchAddress(q: string): Promise<Array<{ lat: number; lon
   }
 }
 
-module.exports = { reverseGeocode, searchAddress };
+module.exports = { reverseGeocode, searchAddress, construirQueryBusqueda, getAreaRegex, getSufijoUbicacion };

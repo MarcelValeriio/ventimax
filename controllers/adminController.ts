@@ -1972,6 +1972,7 @@ const getChatContext = async (req, res) => {
         pasoActual: etiqueta?.paso || "inicio",
         etiqueta: etiqueta?.etiqueta || null,
         bloqueado: etiqueta?.bloqueado || false,
+        vehiculo: etiqueta?.vehiculo || null,
         totalUSD,
         totalBS,
         tasaBCV,
@@ -5091,18 +5092,26 @@ const extractOrderFromChat = async (req, res) => {
       "cliente.nombre": { $exists: true, $ne: "" },
     }).sort({ timestamp: -1 });
 
+    const etiqueta = await Etiqueta.findOne({ telefono });
+
     let knownDataMsg = "";
+    const datosCliente = [];
     if (lastPedido) {
       const nombre = (lastPedido.cliente?.nombre || "").trim();
       const cedula = (lastPedido.cliente?.cedula || "").trim();
 
-      const datosCliente = [];
       if (nombre && nombre !== "Sin nombre") datosCliente.push(`- Nombre: ${nombre}`);
       if (cedula) datosCliente.push(`- Cédula: ${cedula}`);
+    }
 
-      if (datosCliente.length > 0) {
-        knownDataMsg = `\n\nDATOS DEL CLIENTE FRECUENTE (Úsalos por defecto en el JSON si el cliente no los vuelve a mencionar en esta intención de compra):\n${datosCliente.join("\n")}`;
-      }
+    if (etiqueta?.vehiculo) {
+      const { describirVehiculo } = require("../services/vehiculoCliente");
+      const vehiculoTxt = describirVehiculo(etiqueta.vehiculo);
+      if (vehiculoTxt) datosCliente.push(`- Vehículo registrado: ${vehiculoTxt}`);
+    }
+
+    if (datosCliente.length > 0) {
+      knownDataMsg = `\n\nDATOS DEL CLIENTE FRECUENTE (Úsalos por defecto en el JSON si el cliente no los vuelve a mencionar en esta intención de compra):\n${datosCliente.join("\n")}`;
     }
 
     const prompt = `Analiza esta conversación de WhatsApp y extrae los datos de un posible pedido.
@@ -5113,6 +5122,13 @@ Devuelve ÚNICAMENTE un JSON válido (sin formato markdown ni bloques de código
     "nombre": "Nombre si lo dio, sino ''",
     "cedula": "Cedula si la dio, sino ''",
     "direccion": "La dirección de envío. Si el cliente dio texto Y un 'Enlace de Google Maps', formatea este campo combinándolos exactamente así: 'Direccion escrita \n   Mapa: https://maps...'." 
+  },
+  "vehiculo": {
+    "marca": "Marca del vehículo si se menciona, sino ''",
+    "modelo": "Modelo si se menciona, sino ''",
+    "anio": 2012,
+    "motor": "Motor si se menciona (ej: 1.8), sino ''",
+    "version": "Versión si se menciona, sino ''"
   },
   "notas": "Notas adicionales o instrucciones si las dio, sino ''",
   "comprobanteUrl": "URL de la imagen enviada si parece ser un comprobante de pago, sino null",
@@ -5146,6 +5162,14 @@ ${conversation}`;
     const rawJson = aiResponse.data.choices[0].message.content;
     let jsonStr = rawJson.replace(/```json/g, "").replace(/```/g, "").trim();
     const orderData = JSON.parse(jsonStr);
+
+    if (orderData.vehiculo) {
+      const { validarVehiculo } = require("../services/vehiculoCliente");
+      const resVal = validarVehiculo(orderData.vehiculo);
+      orderData.vehiculo = (resVal.ok && resVal.valor) ? resVal.valor : null;
+    } else {
+      orderData.vehiculo = null;
+    }
 
     return res.json({ success: true, data: orderData });
   } catch (error) {

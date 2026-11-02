@@ -42,11 +42,13 @@ SUITES=(
   test-preguntas-frecuentes.ts
   test-pie-pagina.ts
   test-mapa-carrito.ts
+  test-mapa-marca.ts
   test-sucursales.ts
   test-producto-ampliado.ts
   test-producto-admin-ampliado.ts
   test-fotos-al-crear.ts
   test-importacion-productos.ts
+  test-vehiculo-cliente.ts
   test-e2e-saas.js
   test-full-flow.js
   test-cash-logic.js

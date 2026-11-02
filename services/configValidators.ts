@@ -722,3 +722,52 @@ export function validarSliderTienda(val: unknown): ResultadoValidacionSlider {
     },
   };
 }
+
+export interface MapaConfig {
+  ciudad: string;
+  pais: string;
+  centro: { lat: number; lng: number };
+  palabrasArea: string[];
+}
+
+export type ResultadoValidacionMapa =
+  | { ok: true; value: MapaConfig }
+  | { ok: false; error: string };
+
+export function validarConfigMapa(val: unknown): ResultadoValidacionMapa {
+  if (val === undefined || val === null) {
+    return { ok: false, error: "El bloque mapa es requerido." };
+  }
+  if (typeof val !== "object" || Array.isArray(val)) {
+    return { ok: false, error: "El bloque mapa debe ser un objeto." };
+  }
+  const m = val as any;
+  if (typeof m.ciudad !== "string") {
+    return { ok: false, error: "mapa.ciudad debe ser texto." };
+  }
+  if (typeof m.pais !== "string") {
+    return { ok: false, error: "mapa.pais debe ser texto." };
+  }
+  if (
+    !m.centro ||
+    typeof m.centro !== "object" ||
+    typeof m.centro.lat !== "number" ||
+    (typeof m.centro.lng !== "number" && typeof m.centro.lon !== "number")
+  ) {
+    return { ok: false, error: "mapa.centro debe contener { lat, lng } numéricos." };
+  }
+  if (!Array.isArray(m.palabrasArea) || m.palabrasArea.some((p: any) => typeof p !== "string")) {
+    return { ok: false, error: "mapa.palabrasArea debe ser una lista de textos." };
+  }
+  const lng = typeof m.centro.lng === "number" ? m.centro.lng : m.centro.lon;
+  return {
+    ok: true,
+    value: {
+      ciudad: m.ciudad.trim(),
+      pais: m.pais.trim(),
+      centro: { lat: m.centro.lat, lng },
+      palabrasArea: m.palabrasArea.map((p: string) => p.trim()).filter(Boolean),
+    },
+  };
+}
+

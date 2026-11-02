@@ -135,11 +135,8 @@ import useInboxSocket from "./hooks/useInboxSocket.js?v=12";
 // mismo `id` (`wa-custom-styles`) que el legacy, de modo que nunca hay dos hojas
 // duplicadas ni dos versiones distintas de las clases.
 import estilosWhatsApp from "../whatsapp/components/styles.js?v=4";
-// LOTE B4: la ficha del cliente y su visor de comprobante se REUTILIZAN tal cual
-// desde la consola de WhatsApp (paridad automática WA-118..130, incluido Escape,
-// el zoom +/−/reset y el enlace a Google Maps). Se importa con el MISMO `?v=` que
-// usa WhatsAppConsole.js:18 para compartir una sola instancia del módulo.
-import CustomerCardDrawer from "../whatsapp/components/CustomerCardDrawer.js?v=4";
+// F1-4: ficha del cliente con soporte de vehículo en el Inbox Unificado
+import InboxCustomerCardDrawer from "./components/InboxCustomerCardDrawer.js?v=1";
 // LOTE B6 — perfil de WhatsApp Business (WA-39/WA-45). NO se reutiliza
 // `WhatsAppProfileModal.js` porque hardcodea los endpoints legacy y está
 // prohibido editar `features/whatsapp/**`; ver la cabecera del componente.
@@ -2169,7 +2166,7 @@ const InboxConsole = ({ socket, userRole, onOpenCanalConsole }) => {
       // Solo WhatsApp: en IG/Messenger `contexto` es null y la ficha no tiene
       // sentido (no hay CRM, pedidos, carrito ni comprobante).
       conversacionActiva && conversacionActiva.canal === "whatsapp"
-        ? e(CustomerCardDrawer, {
+        ? e(InboxCustomerCardDrawer, {
             key: "inbox-customer-card",
             isOpen: fichaAbierta,
             onClose: () => setFichaAbierta(false),
@@ -2177,6 +2174,8 @@ const InboxConsole = ({ socket, userRole, onOpenCanalConsole }) => {
             loading: cargandoContexto,
             onAssignDriver: asignarRepartidorDesdeFicha,
             onRefreshContext: () => cargarContexto(conversacionActiva),
+            canal: conversacionActiva.canal,
+            usuarioId: conversacionActiva.usuarioId,
           })
         : null,
 

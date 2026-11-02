@@ -1,0 +1,4 @@
+"SKU","Nombre","Categorías","Precio","Stock","Controlar stock","Marca fabricante","Códigos OEM","Grupo equivalencia","Descripción","Activo"
+"DEMO-RA-001","Rótula de suspensión","Suspensión","22","10","sí","TRW","43330-09360","","Inferior izquierda.","sí"
+"DEMO-CO-001","Correa de distribución","Motor","28","7","sí","Gates","13568-09030","","Con tensor.","sí"
+"DEMO-BA-001","Batería 12V 45Ah","Eléctrico","70","5","sí","Tudor","","","Universal para carros pequeños.","sí"

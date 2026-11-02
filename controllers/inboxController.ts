@@ -492,6 +492,82 @@ const postBloquear = async (req: any, res: any, io: any = null) => {
   }
 };
 
+/**
+ * POST /api/admin/inbox/vehiculo
+ * Body: { canal, usuarioId, telefono, vehiculo }
+ */
+const postVehiculo = async (req: any, res: any, io: any = null) => {
+  try {
+    const { canal = "whatsapp", usuarioId, telefono, vehiculo } = req.body || {};
+    const id = (usuarioId || telefono ? String(usuarioId || telefono) : "").trim();
+    if (!id) {
+      return res.status(400).json({ success: false, error: "Identificador de usuario requerido" });
+    }
+
+    const { validarVehiculo, describirVehiculo } = require("../services/vehiculoCliente");
+    const validacion = validarVehiculo(vehiculo);
+    if (!validacion.ok) {
+      return res.status(400).json({ success: false, error: validacion.errores.join(". ") });
+    }
+
+    const valorVehiculo = validacion.valor;
+
+    let EtiquetaModel;
+    let EtiquetaIgModel;
+    if (process.env.NODE_ENV === "test") {
+      const dbLocal = require("../services/dbLocal");
+      EtiquetaModel = dbLocal.getEtiquetaModel();
+      EtiquetaIgModel = dbLocal.getEtiquetaIgModel();
+    } else {
+      EtiquetaModel = require("../models/Etiqueta");
+      EtiquetaIgModel = require("../models/EtiquetaIg");
+    }
+
+    if (canal === "whatsapp") {
+      await EtiquetaModel.findOneAndUpdate(
+        { telefono: id },
+        { vehiculo: valorVehiculo },
+        { upsert: true, returnDocument: "after" },
+      );
+    } else if (canal === "instagram" || canal === "messenger") {
+      await EtiquetaIgModel.findOneAndUpdate(
+        { usuarioIgId: id },
+        { vehiculo: valorVehiculo },
+        { upsert: true, returnDocument: "after" },
+      );
+    } else {
+      return res.status(400).json({ success: false, error: `Canal '${canal}' no soportado para asociar vehículo` });
+    }
+
+    try {
+      const accion = valorVehiculo ? "actualizar_vehiculo" : "borrar_vehiculo";
+      const detalles = valorVehiculo
+        ? `Vehículo asociado a ${canal}:${id}: ${describirVehiculo(valorVehiculo)}`
+        : `Vehículo eliminado de ${canal}:${id}`;
+      await registrarAuditoria(req, {
+        recursoId: id,
+        tipoRecurso: "usuario",
+        accion,
+        detalles,
+      });
+    } catch (auditErr: any) {
+      // Auditoría no bloqueante
+    }
+
+    if (io) {
+      io.emit("vehiculo_actualizado", { canal, usuarioId: id, vehiculo: valorVehiculo });
+      if (typeof inboxService.emitirInboxActualizado === "function") {
+        inboxService.emitirInboxActualizado(io, canal, id, "contexto");
+      }
+    }
+
+    return res.json({ success: true, data: { vehiculo: valorVehiculo } });
+  } catch (err: any) {
+    console.error("❌ [Inbox] Error en postVehiculo:", err?.message || err);
+    return res.status(500).json({ success: false, error: "Error interno del servidor" });
+  }
+};
+
 module.exports = {
   parseFlag,
   responderError,
@@ -504,6 +580,7 @@ module.exports = {
   getContexto,
   postReset,
   postBloquear,
+  postVehiculo,
   postWhatsappConfirmarPago,
   patchWhatsappPedidoEstado,
   patchWhatsappPedidoRepartidor,
