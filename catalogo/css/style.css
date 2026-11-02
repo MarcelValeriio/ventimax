@@ -4039,3 +4039,16 @@ body.con-ayuda.con-barra .pie-interior {
   word-break: break-word;
 }
 
+/* Carrito en móvil (< 768 px): sin buscador ni pie de página (clase `vista-carrito` la pone el enrutador en app.js) */
+@media (max-width: 767px) {
+  body.vista-carrito .buscador,
+  body.vista-carrito .pie {
+    display: none;
+  }
+
+  body.vista-carrito .encabezado-fila {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "marca carrito";
+  }
+}
+

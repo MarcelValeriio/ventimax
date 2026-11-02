@@ -3058,6 +3058,8 @@ function enrutar() {
   actualizarBotonAyuda(productoEnVista);
   actualizarBadge();
   actualizarBarraPedido();
+  // En el carrito se ocultan buscador y pie para que el cliente se concentre en su pedido
+  document.body.classList.toggle("vista-carrito", state.vista === "carrito");
 
   // Al cambiar de vista: arriba de la página y el foco en el contenido (salvo mientras se escribe en el buscador)
   if (document.activeElement !== buscadorInput) {
