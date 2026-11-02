@@ -43,6 +43,15 @@ const publicGetLimiter = rateLimit({
   message: { error: "Demasiadas peticiones. Intenta de nuevo más tarde." },
 });
 
+// Nominatim (OSM) permite ~1 petición por segundo: el mapa tiene un límite propio más bajo por IP
+const geocodificacionLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiadas peticiones. Intenta de nuevo más tarde." },
+});
+
 const pedidosWebLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutos
   max: 5, // 5 carritos por IP cada 10 minutos
@@ -63,8 +72,8 @@ router.get("/catalogo", publicGetLimiter, publicController.getCatalogo);
 router.get("/info", publicGetLimiter, publicController.getInfo);
 router.get("/sucursales/estados", publicGetLimiter, publicController.getSucursalesEstados);
 router.get("/sucursales", publicGetLimiter, publicController.getSucursales);
-router.get("/geocodificar", publicGetLimiter, publicController.getGeocodificar);
-router.get("/buscar-direccion", publicGetLimiter, publicController.getBuscarDireccion);
+router.get("/geocodificar", geocodificacionLimiter, publicController.getGeocodificar);
+router.get("/buscar-direccion", geocodificacionLimiter, publicController.getBuscarDireccion);
 router.post("/pedidos", pedidosWebLimiter, publicController.postPedidoWeb);
 
 // 6. Rechazo de cualquier otra ruta bajo /api/public (ej. GET /pedidos/:codigo no existe)

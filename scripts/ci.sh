@@ -41,6 +41,7 @@ SUITES=(
   test-entrega-web.ts
   test-preguntas-frecuentes.ts
   test-pie-pagina.ts
+  test-mapa-carrito.ts
   test-sucursales.ts
   test-e2e-saas.js
   test-full-flow.js

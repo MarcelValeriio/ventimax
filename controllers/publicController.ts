@@ -799,7 +799,7 @@ export async function getGeocodificar(req: any, res: any) {
  */
 export async function getBuscarDireccion(req: any, res: any) {
   try {
-    const q = String(req.query.q || "").trim();
+    const q = String(req.query.q || "").trim().slice(0, 120);
     if (q.length < 3) {
       return res.status(200).json({ ok: true, resultados: [] });
     }
