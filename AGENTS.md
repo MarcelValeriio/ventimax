@@ -291,13 +291,73 @@ Pedido del dueño (2026-11-02): hoy el campo de fotos solo aparece al **editar**
 
 **Cierre:** `npm run build` y `./scripts/ci.sh` en verde (con la suite nueva), `esbuild --bundle` en `ProductTab.js`, recorrido de Chrome con la lista de pantallas, y lista de archivos tocados.
 
-### F1-3 · Importación y exportación Excel/CSV con vista previa — Backend + Frontend · `En curso`
+### F1-3 · Importación y exportación Excel/CSV con vista previa — Backend + Frontend · `Lista para revisión`
 
 Especificación completa: **`docs/plan-haiku-f1.md`, Paso 2**, y diseño en `docs/f1-producto-ampliado.md` §3. Depende de F1-2 (`Aprobada`).
 
 **Aprobación del dueño (2026-11-02):** se autoriza instalar `exceljs` (`npm install exceljs`, solo esa dependencia) y hacer la tarea completa: `.xlsx` y `.csv`. **El formato definitivo de las tablas (columnas exactas de la plantilla del cliente de repuestos) queda pendiente**: usar las columnas del §3.1 del diseño, aisladas en una sola constante (`COLUMNAS_PRODUCTOS` y `COLUMNAS_COMPATIBILIDAD` en `services/importacionProductos.ts`) para cambiarlas después en un solo lugar. No inventar columnas nuevas.
 
 **Cierre:** reglas generales del plan (punto 9), suite `scripts/test-importacion-productos.ts` en `SUITES`, recorrido en Chrome a 390 y 1440 px con un Excel de 10 filas (si no hay herramienta de navegador, decirlo y dejar la lista de pasos para que el dueño la haga). Estado final: `Lista para revisión`.
+
+**Entrega (2026-11-02, Haiku 5.5 subagente, revisión de Claude pendiente)**
+
+Archivos tocados:
+- `services/importacionProductos.ts` (nuevo): parseo xlsx/CSV, análisis sin BD, exportación y plantilla. Columnas en `COLUMNAS_PRODUCTOS` y `COLUMNAS_COMPATIBILIDAD`.
+- `controllers/adminController.ts`: handlers `descargarPlantillaProductos`, `exportarProductos`, `previsualizarImportacionProductos`, `confirmarImportacionProductos`, `desactivarProductosImportacion`. En modo test, `Categoria` pasa a usar el mock (`dbLocal.getCategoriaModel()`), que antes faltaba.
+- `routes/adminRoutes.ts`: multer de importación (2 MB, `.xlsx`/`.csv`, MIME, un solo archivo por campo) y 5 rutas `/api/admin/productos/...` con `config:manage`.
+- `public/src/features/inventory/components/ImportarProductosModal.js` (nuevo): cuatro pasos, con `Icono`, sin HTML crudo.
+- `public/src/features/inventory/components/ProductTab.js`: botón Importar junto a Nuevo y render del modal.
+- `scripts/test-importacion-productos.ts` (nuevo) y `scripts/ci.sh` (`SUITES`, después de `test-fotos-al-crear.ts`).
+- `package.json` y `package-lock.json`: `exceljs` ^4.4.0 (aprobado por el dueño). Ninguna otra dependencia.
+
+Decisiones (para revisar):
+1. Confirmar no aplica nada si hay cualquier error. La vista previa muestra todo y deja el botón deshabilitado.
+2. Celda vacía en una actualización = no cambia el campo. Si un SKU aparece en la hoja Compatibilidad, su lista de vehículos se reemplaza; si no aparece, no se toca. Con el archivo no se puede borrar toda la compatibilidad de un producto.
+3. Tope de 2000 filas **por hoja** (no en total). Mismo tope para el CSV.
+4. SKU repetido en el archivo: se rechazan todas sus filas.
+5. Fórmulas: se lee el valor guardado de la celda; nunca se evalúa nada.
+6. Categoría que no existe: se crea al confirmar (como dice el plan). El §3.2 del diseño la lista como error de vista previa; seguí el plan.
+7. Rutas en español `/api/admin/productos/...` (como dice el plan). El resto del admin usa `/products`.
+8. Solo descarga `.xlsx` (plantilla y exportación). El CSV es solo para subir; para compatibilidad en CSV se suben dos archivos.
+9. Sin transacción: si la importación falla a mitad, queda constancia en la auditoría de lo aplicado antes del error; no hay deshacer.
+10. Desactivar faltantes: endpoint aparte (`POST /api/admin/productos/importar/desactivar`), con confirmación en el panel. Nunca borra.
+
+Verificación:
+- `npm run build`: en verde.
+- `./scripts/ci.sh`: en verde. Salida final: `✅ Build, 48 suites e imports del panel en verde.` La suite nueva imprime:
+```
+  ✅ Archivo: solo .xlsx y .csv, MIME coherente con la extensión, máximo 2 MB
+  ✅ CSV: BOM, separador ; o ,, comillas escapadas, CRLF
+  ✅ xlsx: dos hojas, fórmulas leídas solo por su valor, texto enriquecido
+  ✅ Formato: falta hoja, falta columna, 2001 filas → error; 2000 → ok; archivo roto → error legible
+  ✅ Análisis: nuevos 2, cambios 1, sin cambio 1, errores 13, no en archivo 1
+  ✅ Vista previa: responde el resumen y no escribe en la BD ni en la auditoría
+  ✅ Confirmar con errores: 400 y no aplica nada
+  ✅ Confirmar: crea IMP-NEW1 con categorías y compatibilidad, actualiza IMP-100 por SKU, no borra, audita
+  ✅ Desactivar: solo marca activo=false; ids inválidos → 400
+  ✅ Plantilla: xlsx vacío con las hojas Productos y Compatibilidad
+  ✅ Exportar: ida y vuelta sin cambios fantasma
+  ✅ Estático: sin marca, sin ejecución de código del archivo, permiso config:manage
+  ✅ Panel: modal con Icono (14 íconos de Lucide), sin innerHTML ni on*, enlazado en Inventario
+🎉 TODOS LOS TESTS DE IMPORTACIÓN DE PRODUCTOS (F1-3) PASARON EXITOSAMENTE.
+```
+- Una corrida previa del CI falló **una vez** en `simulate-ig-webhook.js` (`socket hang up`). Corrida sola: 37/0. Corrida completa siguiente: verde. Parece intermitente y no tiene relación con F1-3.
+- `esbuild --bundle`: lo cubre el bucle de `ci.sh` sobre todo `public/src` (incluye `ProductTab.js` e `ImportarProductosModal.js`).
+
+No verificado (no hay herramienta de navegador en esta sesión y no se levantó el Docker local):
+- Recorrido en Chrome a 390 y 1440 px con la consola abierta (0 errores de CSP). Pendiente.
+- Un Excel real de 10 filas del cliente. Solo se probaron archivos generados por la suite.
+
+Pasos del recorrido para el dueño:
+1. `docker compose -f docker-compose.local.yml up -d`, luego `./scripts/dev-local.sh`. Abrir la consola de Chrome **antes** de cargar `http://localhost:3000/panel`.
+2. A 390 px y a 1440 px: Inventario → **Importar** → Paso 1: descargar la plantilla (debe tener las hojas Productos y Compatibilidad).
+3. Hacer un Excel de 10 filas (SKU, Nombre, Categorías, Precio, …) con una fila de compatibilidad por producto. Subirlo → **Ver vista previa**. Revisar nuevos, cambios (antes/después), sin cambio y fuera del archivo.
+4. Poner una fila sin precio: debe aparecer en Errores con su fila, y **Confirmar** debe quedar deshabilitado. Corregir, subir y confirmar.
+5. Comprobar en la lista de productos. Repetir con **Exportar catálogo actual** y volver a subir el mismo archivo: la vista previa no debe mostrar cambios.
+6. Desactivar los productos que faltan: debe pedir confirmación.
+7. Revisar: 0 errores de CSP en la consola; botones de 44 px; sin desplazamiento horizontal de la página en 390 px.
+
+Dudas para Claude (no bloquean la entrega, son decisiones de diseño para revisar): decisiones 1, 2, 6, 8 y 9 de arriba. En especial la 2: sin forma de vaciar la compatibilidad de un producto desde el archivo.
 
 ### F2o · Quitar "Caracas" escrito en el código (regla 5) — Frontend + Backend · `Pendiente`
 
@@ -330,6 +390,14 @@ Base: `docs/f1-producto-ampliado.md` §1.3 y §4; plan: `docs/plan-haiku-f1.md`,
 
 _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde debajo.)_
 
+**F1-3 (Haiku 5.5, 2026-11-02):** no bloquea, pero hay que decidir:
+- Compatibilidad: si un SKU aparece en la hoja Compatibilidad se reemplaza su lista; no hay forma de vaciarla desde el archivo. ¿Se acepta, o se añade una marca explícita?
+- Categoría inexistente: el plan dice que se crea; el §3.2 del diseño la lista como error. Se siguió el plan.
+- Confirmar se niega con cualquier error (sin aplicar parcial). Confirmar que es lo esperado.
+- Riesgo residual: un `.xlsx` de 2 MB comprimido puede expandirse en memoria antes del tope de 2000 filas (no hay límite de descompresión).
+- `package-lock.json`: npm reescribió unas 2100 líneas (reordenamiento; sin cambios de versiones). Revisar en el commit.
+- El commit `6b1e31a` del dueño, hecho durante esta sesión, ya trae una versión anterior de `services/importacionProductos.ts`. El working tree tiene la final.
+
 ## Pendientes del dueño
 
 - **Formato de las tablas de importación (F1-3):** definir las columnas finales de la plantilla Excel/CSV con una muestra del Excel real del cliente de repuestos. Mientras tanto se usan las del §3.1 de `docs/f1-producto-ampliado.md`.
@@ -359,6 +427,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-11-02 | — | F1-3 entregada: importación y exportación xlsx/CSV con vista previa (nada se escribe hasta confirmar), confirmar por SKU sin borrar, desactivación aparte, suite `test-importacion-productos.ts` en `ci.sh` (48 suites en verde). Pendiente: recorrido en Chrome a 390 y 1440 px con Excel de 10 filas (sin herramienta de navegador). `exceljs` aprobado por el dueño — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Lista para revisión |
 | 2026-11-02 | — | F1-2 y F1-2b aprobadas: CI verde (47 suites), recorrido del dueño en Chrome a 390 px correcto (pestañas, búsqueda, fotos al crear con vista previa y reintento como edición). Siguiente: Paso 2 (F1-3) de `docs/plan-haiku-f1.md`, requiere aprobar `exceljs` — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Aprobada |
 | 2026-11-02 | — | F1-2b: fotos al crear producto (estado pendiente, subida tras el POST, reintento como edición); CI verde (47 suites), sin recorrido de Chrome (no había navegador). Ejecutado por **Haiku 5.5** (subagente) | Claude (Cerebro) | Lista para revisión |
 | 2026-11-02 | — | F1-2 entregada por Haiku con CI verde (46 suites) y backend revisado; **Devuelta** por Claude: fallos en el formulario (ID obligatorio sin aviso; pérdida de datos con el buscador abierto) y recorrido de Chrome incompleto. Ver tarea F1-2 — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Devuelta |

@@ -503,7 +503,13 @@ export function analizarImportacion({
     }
     skusArchivo.add(sku);
     if (vistos.has(sku)) {
-      err(`El SKU ${sku} está repetido en el archivo (también en la fila ${vistos.get(sku)}).`);
+      // SKU ambiguo: se rechazan todas sus filas (la primera también, si había quedado aceptada)
+      const primera = vistos.get(sku) as number;
+      err(`El SKU ${sku} está repetido en el archivo (también en la fila ${primera}).`);
+      if (aceptados.has(sku)) {
+        aceptados.delete(sku);
+        errores.push({ hoja: NOMBRE_HOJA.productos, fila: primera, motivo: `El SKU ${sku} está repetido en el archivo (también en la fila ${fila.numero}).` });
+      }
       rechazados.add(sku);
       continue;
     }

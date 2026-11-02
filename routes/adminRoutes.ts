@@ -165,6 +165,50 @@ const handleUploadLogoAliado = (req: any, res: any, next: any) => {
   });
 };
 
+// Importación de productos (F1-3): .xlsx o .csv, hasta 2 MB. El segundo archivo (compatibilidad) solo CSV.
+const uploadImportacionProductos = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024, files: 2, fields: 4 },
+  fileFilter: (req: any, file: any, cb: any) => {
+    const { validarArchivoImportacion } = require("../services/importacionProductos");
+    // Con memoryStorage aún no hay tamaño fiable: el tamaño lo valida multer (límite) y el controlador
+    const r = validarArchivoImportacion({
+      nombre: file.originalname,
+      mimetype: file.mimetype,
+      tamano: 0,
+      soloCsv: file.fieldname === "compatibilidad",
+    });
+    if (r.ok) {
+      cb(null, true);
+    } else {
+      const err: any = new Error(r.error);
+      err.code = "INVALID_FILE_TYPE";
+      cb(err, false);
+    }
+  },
+});
+
+const handleUploadImportacionProductos = (req: any, res: any, next: any) => {
+  uploadImportacionProductos.fields([
+    { name: "archivo", maxCount: 1 },
+    { name: "compatibilidad", maxCount: 1 },
+  ])(req, res, (err: any) => {
+    if (err) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ success: false, error: "El archivo no puede exceder 2 MB." });
+      }
+      if (err.code === "LIMIT_UNEXPECTED_FILE" || err.code === "LIMIT_FILE_COUNT") {
+        return res.status(400).json({ success: false, error: "Sube un solo archivo (y, si es CSV, un segundo de compatibilidad)." });
+      }
+      if (err.code === "INVALID_FILE_TYPE") {
+        return res.status(400).json({ success: false, error: err.message });
+      }
+      return res.status(400).json({ success: false, error: "No se pudo recibir el archivo." });
+    }
+    next();
+  });
+};
+
 module.exports = function (io) {
   const express = require("express");
   const router = express.Router();
@@ -538,6 +582,40 @@ module.exports = function (io) {
     isAuthenticated,
     authorize(["product:delete"]),
     adminController.deleteProduct,
+  );
+  // Importación y exportación de productos por Excel/CSV (F1-3). Permiso config:manage.
+  // La vista previa no escribe en la BD; confirmar aplica por SKU y nunca borra.
+  router.get(
+    "/productos/plantilla",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    adminController.descargarPlantillaProductos,
+  );
+  router.get(
+    "/productos/exportar",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    adminController.exportarProductos,
+  );
+  router.post(
+    "/productos/importar/vista-previa",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    handleUploadImportacionProductos,
+    adminController.previsualizarImportacionProductos,
+  );
+  router.post(
+    "/productos/importar/confirmar",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    handleUploadImportacionProductos,
+    adminController.confirmarImportacionProductos,
+  );
+  router.post(
+    "/productos/importar/desactivar",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    adminController.desactivarProductosImportacion,
   );
   router.post(
     "/products/:id/imagenes",

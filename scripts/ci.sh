@@ -46,6 +46,7 @@ SUITES=(
   test-producto-ampliado.ts
   test-producto-admin-ampliado.ts
   test-fotos-al-crear.ts
+  test-importacion-productos.ts
   test-e2e-saas.js
   test-full-flow.js
   test-cash-logic.js

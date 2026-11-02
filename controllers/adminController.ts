@@ -40,6 +40,7 @@ if (process.env.NODE_ENV === "test") {
   EtiquetaIg = dbLocal.getEtiquetaIgModel();
   MensajeIg = dbLocal.getMensajeIgModel();
   Producto = dbLocal.getProductoModel();
+  Categoria = dbLocal.getCategoriaModel();
   Pedido = dbLocal.getPedidoModel();
   Counter = dbLocal.getCounterModel();
   Auditoria = dbLocal.getAuditoriaModel();

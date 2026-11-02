@@ -14,6 +14,7 @@ import apiClient from "../../../services/apiClient.js";
 import { ListaImagenesOrdenable } from "../../../components/ListaImagenesOrdenable.js";
 import { AyudaTamanoImagen } from "../../../components/AyudaTamanoImagen.js";
 import ConfirmModal from "./ConfirmModal.js";
+import ImportarProductosModal from "./ImportarProductosModal.js";
 
 const e = React.createElement;
 
@@ -452,6 +453,7 @@ const ProductTab = () => {
   // Estados para Modal de Productos y Modal de Categorías
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [productImages, setProductImages] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -1070,6 +1072,18 @@ const ProductTab = () => {
           e(Icono, { nombre: "tags", className: "text-emerald-500" }),
           e("span", { className: "hidden sm:inline" }, "Categorías"),
         ),
+        // Importar desde Excel o CSV (F1-3)
+        e(
+          "button",
+          {
+            onClick: () => setIsImportOpen(true),
+            className:
+              "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 p-2.5 min-h-[44px] rounded-xl border dark:border-gray-700 shadow-sm hover:bg-gray-50 transition flex items-center justify-center gap-2 text-sm font-bold active:scale-95 motion-reduce:transition-none",
+            title: "Importar productos desde Excel o CSV",
+          },
+          e(Icono, { nombre: "file-spreadsheet", className: "text-emerald-500" }),
+          e("span", { className: "hidden sm:inline" }, "Importar"),
+        ),
         e(
           "button",
           {
@@ -1087,6 +1101,12 @@ const ProductTab = () => {
     ),
 
     // Modal de Gestión de Categorías
+    e(ImportarProductosModal, {
+      isOpen: isImportOpen,
+      onClose: () => setIsImportOpen(false),
+      onImported: () => fetchInventory(),
+    }),
+
     e(CategoriesModal, {
       isOpen: isCatModalOpen,
       onClose: () => setIsCatModalOpen(false),
