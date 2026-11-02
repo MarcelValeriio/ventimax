@@ -12,6 +12,7 @@ let AuditoriaOriginal = require("../models/Auditoria");
 const UsuarioOriginal = require("../models/Usuario");
 const SettingOriginal = require("../models/Setting");
 const MetodoEnvioOriginal = require("../models/MetodoEnvio");
+const empresaService = require("../services/empresasEnvio");
 const CarritoWebOriginal = require("../models/CarritoWeb");
 const { registrarAuditoria } = require("../services/auditService"); // Imported audit service
 const { LIMITES, normalizarTexto, normalizarCodigoOEM, validarProductoAmpliado } = require("../services/productoAmpliado");
@@ -4093,14 +4094,29 @@ const postManualSale = async (req, res, io) => {
         });
       }
 
-      const esAConvenir = metodoDB.costoTipo === "a_convenir";
-      const costoReal = esAConvenir ? 0 : (Number(metodoDB.costo) || 0);
+      // Envío nacional: la empresa elegida debe estar entre las del método (misma regla que la web)
+      const esNacional = metodoDB.tipo === "envio_nacional";
+      const empresas = empresaService.normalizarEmpresas(metodoDB.empresas).map((emp: any) => emp.nombre);
+      let empresa = "";
+      if (esNacional && empresas.length > 0) {
+        empresa = String(envio.empresa || "").trim();
+        if (!empresas.includes(empresa)) {
+          return res.status(400).json({
+            success: false,
+            error: "Elige una empresa de envío válida.",
+          });
+        }
+      }
+      const cobroADestino = esNacional && metodoDB.cobroADestino === true;
+      const esAConvenir = !cobroADestino && metodoDB.costoTipo === "a_convenir";
+      const costoReal = esAConvenir || cobroADestino ? 0 : (Number(metodoDB.costo) || 0);
       envioSanitizado = {
         metodoId: String(metodoDB._id),
         nombre: metodoDB.nombre,
         tipo: metodoDB.tipo,
         costo: costoReal,
         aConvenir: esAConvenir,
+        ...(esNacional ? { empresa, cobroADestino } : {}),
       };
     }
 

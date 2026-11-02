@@ -50,6 +50,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
   const [metodosPago, setMetodosPago] = useState([]);
   const [metodosEnvio, setMetodosEnvio] = useState([]);
   const [metodoEnvioId, setMetodoEnvioId] = useState("");
+  const [empresaEnvio, setEmpresaEnvio] = useState("");
 
   useEffect(() => {
     apiClient
@@ -185,7 +186,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
       }
 
       const payload = metodoEnvioId
-        ? { ...manualSale, envio: { metodoId: metodoEnvioId } }
+        ? { ...manualSale, envio: { metodoId: metodoEnvioId, empresa: empresaEnvio } }
         : manualSale;
 
       let res;
@@ -468,6 +469,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                 ubicacion: { direccion: "" },
               });
               setMetodoEnvioId("");
+              setEmpresaEnvio("");
               setComprobanteFile(null);
               setShowManualSaleModal(true);
             },
@@ -2015,6 +2017,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                     const id = evt.target.value;
                     const metodo = metodosEnvio.find((m) => m._id === id);
                     setMetodoEnvioId(id);
+                    setEmpresaEnvio("");
                     if (metodo && metodo.tipo === "retiro" && metodo.direccion) {
                       setManualSale((prev) => ({
                         ...prev,
@@ -2030,6 +2033,44 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                   e("option", { key: m._id, value: m._id }, m.nombre),
                 ),
               ),
+              // Envío nacional: lista de empresas del método para elegir una
+              (() => {
+                const sel = metodosEnvio.find((m) => m._id === metodoEnvioId);
+                if (!sel || sel.tipo !== "envio_nacional" || !sel.empresas || sel.empresas.length === 0) {
+                  return null;
+                }
+                return e(
+                  "div",
+                  { className: "space-y-2", role: "radiogroup", "aria-label": "Empresa de envío" },
+                  e(
+                    "span",
+                    { className: "block text-xs text-gray-500 dark:text-gray-400" },
+                    "Empresa de envío",
+                  ),
+                  sel.empresas.map((emp, idx) => {
+                    const nombre = typeof emp === "string" ? emp : emp.nombre;
+                    const logo = typeof emp === "string" ? "" : emp.logoUrl;
+                    const activa = empresaEnvio === nombre;
+                    return e(
+                      "label",
+                      {
+                        key: idx,
+                        className: `flex items-center gap-3 min-h-[44px] px-3 py-2 border rounded-lg cursor-pointer text-sm ${activa ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30" : "border-gray-200 dark:border-gray-700"}`,
+                      },
+                      e("input", {
+                        type: "radio",
+                        name: "empresa-envio",
+                        value: nombre,
+                        checked: activa,
+                        onChange: () => setEmpresaEnvio(nombre),
+                        className: "accent-emerald-600",
+                      }),
+                      logo ? e("img", { src: logo, alt: "", loading: "lazy", className: "h-6 w-auto object-contain" }) : null,
+                      e("span", { className: "text-gray-800 dark:text-gray-100" }, nombre),
+                    );
+                  }),
+                );
+              })(),
               e(
                 "div",
                 null,
