@@ -40,13 +40,16 @@ const SalesDashboard = ({ userRole = "admin" }) => {
   const [manualSale, setManualSale] = useState({
     cliente: { nombre: "", cedula: "", telefono: "" },
     items: [{ producto: "", price: 0, cantidad: 1 }],
-    pago: { metodo: "Efectivo" },
-    ubicacion: { direccion: "Retiro en tienda" },
+    pago: { metodo: "" },
+    ubicacion: { direccion: "" },
   });
   const [comprobanteFile, setComprobanteFile] = useState(null);
   const [productCatalog, setProductCatalog] = useState([]);
   const [bcvRate, setBcvRate] = useState(0);
   const [brandConfig, setBrandConfig] = useState(null);
+  const [metodosPago, setMetodosPago] = useState([]);
+  const [metodosEnvio, setMetodosEnvio] = useState([]);
+  const [metodoEnvioId, setMetodoEnvioId] = useState("");
 
   useEffect(() => {
     apiClient
@@ -89,6 +92,34 @@ const SalesDashboard = ({ userRole = "admin" }) => {
           }
         })
         .catch((err) => console.error("❌ Error cargando clientes:", err));
+
+      apiClient
+        .get("/api/admin/payments")
+        .then((res) => {
+          if (res.data && res.data.success) {
+            const activos = res.data.data.filter((m) => m.activo !== false);
+            setMetodosPago(activos);
+            setManualSale((prev) => ({
+              ...prev,
+              pago: {
+                ...prev.pago,
+                metodo: activos.some((m) => m.nombre === prev.pago.metodo)
+                  ? prev.pago.metodo
+                  : activos[0]?.nombre || "",
+              },
+            }));
+          }
+        })
+        .catch((err) => console.error("❌ Error cargando métodos de pago:", err));
+
+      apiClient
+        .get("/api/admin/shipping?activo=true")
+        .then((res) => {
+          if (res.data && res.data.success) {
+            setMetodosEnvio(res.data.data);
+          }
+        })
+        .catch((err) => console.error("❌ Error cargando tipos de entrega:", err));
     }
   }, [showManualSaleModal]);
 
@@ -153,18 +184,22 @@ const SalesDashboard = ({ userRole = "admin" }) => {
         return;
       }
 
+      const payload = metodoEnvioId
+        ? { ...manualSale, envio: { metodoId: metodoEnvioId } }
+        : manualSale;
+
       let res;
       if (comprobanteFile) {
         // Con archivo: usar FormData (axios auto-detecta el Content-Type con boundary)
         const formData = new FormData();
-        formData.append("data", JSON.stringify(manualSale));
+        formData.append("data", JSON.stringify(payload));
         formData.append("comprobante", comprobanteFile);
         res = await apiClient.post("/api/admin/manual-sale", formData, {
           headers: { "Content-Type": undefined }, // dejar que axios ponga el boundary
         });
       } else {
         // Sin archivo: enviar JSON directamente
-        res = await apiClient.post("/api/admin/manual-sale", manualSale);
+        res = await apiClient.post("/api/admin/manual-sale", payload);
       }
       if (res.data && res.data.success) {
         window.showToast?.(
@@ -429,9 +464,10 @@ const SalesDashboard = ({ userRole = "admin" }) => {
               setManualSale({
                 cliente: { nombre: "", cedula: "", telefono: "" },
                 items: [{ producto: "", price: 0, cantidad: 1 }],
-                pago: { metodo: "Efectivo" },
-                ubicacion: { direccion: "Retiro en tienda" },
+                pago: { metodo: "" },
+                ubicacion: { direccion: "" },
               });
+              setMetodoEnvioId("");
               setComprobanteFile(null);
               setShowManualSaleModal(true);
             },
@@ -1861,14 +1897,10 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                       className:
                         "w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm",
                     },
-                    e("option", { value: "Efectivo" }, "Efectivo"),
-                    e("option", { value: "Pago Móvil" }, "Pago Móvil"),
-                    e("option", { value: "Transferencia" }, "Transferencia"),
-                    e("option", { value: "Zelle" }, "🇺🇸 Zelle"),
-                    e(
-                      "option",
-                      { value: "Punto de Venta" },
-                      "Punto de Venta",
+                    metodosPago.length === 0 &&
+                      e("option", { value: "" }, "Sin métodos de pago"),
+                    metodosPago.map((m) =>
+                      e("option", { key: m._id, value: m.nombre }, m.nombre),
                     ),
                   ),
                 ),
@@ -1974,6 +2006,29 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                     "text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider",
                 },
                 "4. Tipo de Entrega",
+              ),
+              e(
+                "select",
+                {
+                  value: metodoEnvioId,
+                  onChange: (evt) => {
+                    const id = evt.target.value;
+                    const metodo = metodosEnvio.find((m) => m._id === id);
+                    setMetodoEnvioId(id);
+                    if (metodo && metodo.tipo === "retiro" && metodo.direccion) {
+                      setManualSale((prev) => ({
+                        ...prev,
+                        ubicacion: { direccion: metodo.direccion },
+                      }));
+                    }
+                  },
+                  className:
+                    "w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm",
+                },
+                e("option", { value: "" }, "Selecciona tipo de entrega"),
+                metodosEnvio.map((m) =>
+                  e("option", { key: m._id, value: m._id }, m.nombre),
+                ),
               ),
               e(
                 "div",
