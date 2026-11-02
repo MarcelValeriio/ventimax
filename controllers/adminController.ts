@@ -14,6 +14,8 @@ const SettingOriginal = require("../models/Setting");
 const MetodoEnvioOriginal = require("../models/MetodoEnvio");
 const CarritoWebOriginal = require("../models/CarritoWeb");
 const { registrarAuditoria } = require("../services/auditService"); // Imported audit service
+const { LIMITES, normalizarTexto, normalizarCodigoOEM, validarProductoAmpliado } = require("../services/productoAmpliado");
+const importacionProductos = require("../services/importacionProductos");
 const pushService = require("../services/pushService");
 let Counter = require("../models/Counter");
 
@@ -265,9 +267,53 @@ function responderErrorCatalogo(res, error, mensajeGenerico) {
   return res.status(500).json({ success: false, error: mensajeGenerico });
 }
 
+/** Escapa el texto del usuario para usarlo dentro de una expresión regular (F1-2). */
+const escaparRegex = (texto: string): string => texto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Búsqueda del listado admin (F1-2): nombre (sin acentos), SKU (prefijo), código OEM (prefijo, sin guiones)
+ * o vehículo por marca/modelo y año opcional ("Corolla 2012"). Se aplica sobre los productos ya leídos:
+ * el catálogo es pequeño y así la misma lógica corre igual en la base real y en los mocks.
+ */
+function coincideBusquedaProducto(p: any, q: string): boolean {
+  const textoNorm = normalizarTexto(q);
+  const skuQ = String(q).trim().toUpperCase();
+  if (skuQ && new RegExp(`^${escaparRegex(skuQ)}`).test(String(p.sku || "").toUpperCase())) return true;
+
+  const oemQ = normalizarCodigoOEM(q);
+  if (oemQ && (p.codigosOEM || []).some((c) => new RegExp(`^${escaparRegex(oemQ)}`).test(String(c)))) return true;
+
+  if (textoNorm && new RegExp(escaparRegex(textoNorm)).test(normalizarTexto(p.name))) return true;
+
+  // Vehículo: todas las palabras deben aparecer en la misma fila de compatibilidad; el año (4 dígitos) debe caer en el rango
+  const palabras = textoNorm.split(" ").filter(Boolean);
+  const idxAnio = palabras.findIndex((t) => /^\d{4}$/.test(t) && Number(t) >= LIMITES.anioMin && Number(t) <= LIMITES.anioMax);
+  const anio = idxAnio >= 0 ? Number(palabras[idxAnio]) : null;
+  if (idxAnio >= 0) palabras.splice(idxAnio, 1);
+  if (palabras.length === 0 && anio === null) return false;
+
+  return (p.compatibilidad || []).some((fila) => {
+    const hay = `${fila.marcaNorm || ""} ${fila.modeloNorm || ""}`;
+    if (!palabras.every((t) => new RegExp(escaparRegex(t)).test(hay))) return false;
+    if (anio !== null) {
+      if (fila.anioDesde && anio < fila.anioDesde) return false;
+      if (fila.anioHasta && anio > fila.anioHasta) return false;
+    }
+    return true;
+  });
+}
+
+/** Otro producto (distinto de `idActual`) ya usa ese SKU. Un SKU vacío nunca choca. */
+async function skuRepetido(sku: string, idActual: string): Promise<boolean> {
+  if (!sku) return false;
+  const coincidencias = await Producto.find({ sku });
+  return (coincidencias || []).some((p) => String(p.id) !== String(idActual));
+}
+
 const getProducts = async (req, res) => {
   try {
     const { categoria, sort } = req.query;
+    const q = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 120) : "";
     const filter: any = { activo: true };
     // Sanitización forzando tipo string para evitar inyección NoSQL
     if (categoria) {
@@ -285,10 +331,11 @@ const getProducts = async (req, res) => {
       .sort(sortOption);
 
     // Cada producto trae su precio vigente (F2g) y el descuento; el resto de campos no cambia
-    const data = (products || []).map((p) => {
+    let data = (products || []).map((p) => {
       const plano = typeof p.toObject === "function" ? p.toObject() : { ...p };
       return { ...plano, descuentoPct: descuentoVigente(plano), precioVigente: precioVigente(plano) };
     });
+    if (q) data = data.filter((p) => coincideBusquedaProducto(p, q));
 
     res.json({ success: true, data });
   } catch (error) {
@@ -313,6 +360,12 @@ const postProduct = async (req, res) => {
       stock,
       trackStock,
       descuentoPct,
+      sku,
+      marcaFabricante,
+      codigosOEM,
+      atributos,
+      grupoEquivalencia,
+      compatibilidad,
     } = req.body;
 
     // 1. Validaciones de Campos Obligatorios
@@ -342,8 +395,26 @@ const postProduct = async (req, res) => {
       });
     }
 
+    // 3. Campos ampliados (F1-1/F1-2): validación antes de crear; el hook de Producto no basta por sí solo
+    const ampliado = validarProductoAmpliado({ sku, marcaFabricante, codigosOEM, atributos, grupoEquivalencia, compatibilidad });
+    if (!ampliado.ok) {
+      return res.status(400).json({
+        success: false,
+        error: `No se pudo crear el producto. ${ampliado.errores.join(" ")}`,
+        errores: ampliado.errores,
+      });
+    }
+    const idNuevo = id || `prod-${Date.now()}`;
+    if (await skuRepetido(ampliado.valor.sku, idNuevo)) {
+      return res.status(400).json({
+        success: false,
+        error: `No se pudo crear el producto. Ya existe otro producto con el SKU ${ampliado.valor.sku}.`,
+        errores: [`Ya existe otro producto con el SKU ${ampliado.valor.sku}.`],
+      });
+    }
+
     const newProduct = await Producto.create({
-      id: id || `prod-${Date.now()}`,
+      id: idNuevo,
       name: name.trim(),
       price: numericPrice,
       description: description || "",
@@ -353,6 +424,7 @@ const postProduct = async (req, res) => {
       descuentoPct: descuentoPct !== undefined ? Number(descuentoPct) : 0,
       stock: stock !== undefined ? Number(stock) : 0,
       trackStock: trackStock === true || trackStock === "true",
+      ...ampliado.valor,
     });
 
     const populated = await newProduct.populate(["categoria", "categorias"]);
@@ -387,6 +459,12 @@ const updateProduct = async (req, res) => {
       stock,
       trackStock,
       descuentoPct,
+      sku,
+      marcaFabricante,
+      codigosOEM,
+      atributos,
+      grupoEquivalencia,
+      compatibilidad,
     } = req.body;
 
     const originalProduct = await Producto.findOne({ id: id });
@@ -427,9 +505,32 @@ const updateProduct = async (req, res) => {
     if (trackStock !== undefined)
       updateData.trackStock = trackStock === true || trackStock === "true";
 
+    // Campos ampliados (F1-2): solo los que llegan (undefined = no tocar). Se validan antes del findOneAndUpdate,
+    // que no dispara el hook pre("validate") de Producto.
+    const ampliado = validarProductoAmpliado({ sku, marcaFabricante, codigosOEM, atributos, grupoEquivalencia, compatibilidad });
+    if (!ampliado.ok) {
+      return res.status(400).json({
+        success: false,
+        error: `No se pudo actualizar el producto. ${ampliado.errores.join(" ")}`,
+        errores: ampliado.errores,
+      });
+    }
+    if (await skuRepetido(ampliado.valor.sku, id)) {
+      return res.status(400).json({
+        success: false,
+        error: `No se pudo actualizar el producto. Ya existe otro producto con el SKU ${ampliado.valor.sku}.`,
+        errores: [`Ya existe otro producto con el SKU ${ampliado.valor.sku}.`],
+      });
+    }
+    Object.assign(updateData, ampliado.valor);
+    // Un SKU vacío borra el campo: con índice único disperso no se puede guardar "" ni null
+    const borrarSku = updateData.sku === "";
+    if (borrarSku) delete updateData.sku;
+    const operacion = borrarSku ? { ...updateData, $unset: { sku: "" } } : updateData;
+
     const updatedProduct = await Producto.findOneAndUpdate(
       { id: id },
-      updateData,
+      operacion,
       { returnDocument: "after", runValidators: true },
     ).populate(["categoria", "categorias"]);
 
@@ -487,6 +588,27 @@ const updateProduct = async (req, res) => {
         `control stock: ${originalProduct.trackStock ? "ON" : "OFF"} → ${updateData.trackStock ? "ON" : "OFF"}`,
       );
 
+    // Campos ampliados (F1-2): se comparan en forma normalizada para no reportar cambios falsos
+    const firmaOEM = (lista) => [...(lista || [])].map(String).sort().join(",");
+    const firmaAtributos = (lista) => (lista || []).map((a) => `${a.nombre}:${a.valor || ""}`).join(";");
+    const firmaCompat = (lista) =>
+      (lista || [])
+        .map((f) => [f.marca, f.modelo, f.anioDesde || "", f.anioHasta || "", f.motor || "", f.version || "", f.nota || ""].join("|"))
+        .sort()
+        .join(";");
+    if (ampliado.valor.sku !== undefined && ampliado.valor.sku !== (originalProduct.sku || ""))
+      cambios.push(`SKU: "${originalProduct.sku || "—"}" → "${ampliado.valor.sku || "—"}"`);
+    if (ampliado.valor.marcaFabricante !== undefined && ampliado.valor.marcaFabricante !== (originalProduct.marcaFabricante || ""))
+      cambios.push(`marca fabricante: "${originalProduct.marcaFabricante || "—"}" → "${ampliado.valor.marcaFabricante || "—"}"`);
+    if (ampliado.valor.codigosOEM !== undefined && firmaOEM(ampliado.valor.codigosOEM) !== firmaOEM(originalProduct.codigosOEM))
+      cambios.push(`códigos OEM actualizados (${ampliado.valor.codigosOEM.length})`);
+    if (ampliado.valor.atributos !== undefined && firmaAtributos(ampliado.valor.atributos) !== firmaAtributos(originalProduct.atributos))
+      cambios.push(`atributos actualizados (${ampliado.valor.atributos.length})`);
+    if (ampliado.valor.grupoEquivalencia !== undefined && ampliado.valor.grupoEquivalencia !== (originalProduct.grupoEquivalencia || ""))
+      cambios.push(`grupo de equivalencia: "${originalProduct.grupoEquivalencia || "—"}" → "${ampliado.valor.grupoEquivalencia || "—"}"`);
+    if (ampliado.valor.compatibilidad !== undefined && firmaCompat(ampliado.valor.compatibilidad) !== firmaCompat(originalProduct.compatibilidad))
+      cambios.push(`compatibilidad actualizada (${ampliado.valor.compatibilidad.length} vehículos)`);
+
     // Registrar Auditoría
     await registrarAuditoria(req, {
       recursoId: id,
@@ -529,6 +651,260 @@ const deleteProduct = async (req, res) => {
   } catch (error) {
     console.error("❌ Error en deleteProduct:", error);
     res.status(500).json({ success: false, error: "Error eliminando el producto" });
+  }
+};
+
+// ---------- Importación y exportación de productos (F1-3) ----------
+
+const MIME_XLSX_SALIDA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const LIMITES_IMPORTACION_FILAS = importacionProductos.LIMITES_IMPORTACION.filas;
+
+const documentoPlano = (doc) => (doc && typeof doc.toObject === "function" ? doc.toObject() : doc);
+
+/**
+ * Lee los archivos de la petición (multer) y arma el análisis contra la BD. No escribe nada.
+ * Lo usan la vista previa y la confirmación (que vuelve a analizar el archivo antes de aplicarlo).
+ */
+async function prepararImportacion(req) {
+  const archivos = req.files || {};
+  const archivo = archivos.archivo?.[0];
+  const compat = archivos.compatibilidad?.[0];
+  if (!archivo) return { error: "Sube un archivo .xlsx o .csv." };
+  const validoArchivo = importacionProductos.validarArchivoImportacion({
+    nombre: archivo.originalname,
+    mimetype: archivo.mimetype,
+    tamano: archivo.size,
+  });
+  if (!validoArchivo.ok) return { error: validoArchivo.error };
+  if (compat) {
+    const validoCompat = importacionProductos.validarArchivoImportacion({
+      nombre: compat.originalname,
+      mimetype: compat.mimetype,
+      tamano: compat.size,
+      soloCsv: true,
+    });
+    if (!validoCompat.ok) return { error: validoCompat.error };
+  }
+
+  const lectura = await importacionProductos.leerArchivoImportacion({
+    nombre: archivo.originalname,
+    buffer: archivo.buffer,
+    compatibilidad: compat ? compat.buffer : null,
+  });
+  if (lectura.errores.length) return { error: lectura.errores.join(" "), errores: lectura.errores };
+
+  const productos = (await Producto.find({})) || [];
+  const categorias = (await Categoria.find({}).lean()) || [];
+  const catPorId = new Map(categorias.map((c) => [String(c._id), c.nombre]));
+  const existentes = productos.map((doc) => {
+    const p = documentoPlano(doc);
+    const ids = [p.categoria, ...(p.categorias || [])].map((x) => String(x?._id || x));
+    const nombres = [...new Set(ids.map((id) => catPorId.get(id)).filter(Boolean))];
+    return {
+      id: p.id,
+      sku: p.sku ? String(p.sku).toUpperCase() : undefined,
+      name: p.name,
+      price: Number(p.price),
+      stock: p.stock,
+      trackStock: p.trackStock,
+      activo: p.activo,
+      description: p.description,
+      marcaFabricante: p.marcaFabricante,
+      codigosOEM: p.codigosOEM || [],
+      grupoEquivalencia: p.grupoEquivalencia,
+      categoriaNombres: nombres,
+      compatibilidad: p.compatibilidad || [],
+    };
+  });
+  const resultado = importacionProductos.analizarImportacion({
+    productos: lectura.productos,
+    compatibilidad: lectura.compatibilidad,
+    existentes,
+    categorias: categorias.map((c) => ({ _id: String(c._id), nombre: c.nombre, slug: c.slug })),
+  });
+  return { resultado, nombreArchivo: archivo.originalname, categorias };
+}
+
+const enviarXlsx = (res, buffer, nombreArchivo) => {
+  res.setHeader("Content-Type", MIME_XLSX_SALIDA);
+  res.setHeader("Content-Disposition", `attachment; filename="${nombreArchivo}"`);
+  res.send(buffer);
+};
+
+/** Plantilla vacía con las dos hojas (columnas de services/importacionProductos.ts). */
+const descargarPlantillaProductos = async (req, res) => {
+  try {
+    const buffer = await importacionProductos.generarXlsx({ productos: [], compatibilidad: [] });
+    enviarXlsx(res, buffer, "plantilla-productos.xlsx");
+  } catch (error) {
+    console.error("❌ Error en descargarPlantillaProductos:", error?.message || error);
+    res.status(500).json({ success: false, error: "No se pudo generar la plantilla." });
+  }
+};
+
+/** Catálogo actual en el mismo formato que la plantilla, para editarlo y volver a subirlo. */
+const exportarProductos = async (req, res) => {
+  try {
+    const productos = (await Producto.find({})) || [];
+    const categorias = (await Categoria.find({}).lean()) || [];
+    const filas = importacionProductos.filasExportacion(productos.map(documentoPlano), categorias);
+    const buffer = await importacionProductos.generarXlsx(filas);
+    enviarXlsx(res, buffer, "catalogo-productos.xlsx");
+  } catch (error) {
+    console.error("❌ Error en exportarProductos:", error?.message || error);
+    res.status(500).json({ success: false, error: "No se pudo exportar el catálogo." });
+  }
+};
+
+/** Vista previa: no escribe nada en la BD. */
+const previsualizarImportacionProductos = async (req, res) => {
+  try {
+    const prep = await prepararImportacion(req);
+    if (prep.error) {
+      return res.status(400).json({ success: false, error: prep.error, errores: prep.errores || [] });
+    }
+    res.json({ success: true, data: importacionProductos.publicarResultado(prep.resultado) });
+  } catch (error) {
+    console.error("❌ Error en previsualizarImportacionProductos:", error?.message || error);
+    res.status(500).json({ success: false, error: "No se pudo analizar el archivo." });
+  }
+};
+
+/**
+ * Aplica la importación por SKU: crea o actualiza. Nunca borra. Vuelve a analizar el archivo contra la BD
+ * y no aplica nada si queda algún error.
+ */
+const confirmarImportacionProductos = async (req, res) => {
+  let creados = 0;
+  let actualizados = 0;
+  const categoriasCreadas = [];
+  try {
+    const prep = await prepararImportacion(req);
+    if (prep.error) {
+      return res.status(400).json({ success: false, error: prep.error, errores: prep.errores || [] });
+    }
+    const { resultado, nombreArchivo, categorias } = prep;
+    if (resultado.errores.length) {
+      return res.status(400).json({
+        success: false,
+        error: `El archivo tiene ${resultado.errores.length} error(es). Corrígelos y vuelve a subirlo. No se aplicó nada.`,
+        errores: resultado.errores,
+      });
+    }
+
+    const detalleArchivo = String(nombreArchivo || "").slice(0, 100);
+    const idPorNombre = new Map(categorias.map((c) => [normalizarTexto(c.nombre), String(c._id)]));
+    const idsDe = (nombres) => (nombres || []).map((n) => idPorNombre.get(normalizarTexto(n))).filter(Boolean);
+    try {
+      for (const cat of resultado.aplicar.categoriasNuevas) {
+        const creada = await Categoria.create({ nombre: cat.nombre, slug: cat.slug, padre: null });
+        idPorNombre.set(normalizarTexto(cat.nombre), String(creada._id));
+        categoriasCreadas.push(cat.nombre);
+      }
+      let n = 0;
+      for (const { datos: d } of resultado.aplicar.nuevos) {
+        const ids = idsDe(d.categoriaNombres);
+        await Producto.create({
+          id: `prod-imp-${Date.now()}-${n++}`,
+          sku: d.sku,
+          name: d.name,
+          price: d.price,
+          description: d.description || "",
+          categoria: ids[0],
+          categorias: ids.slice(1),
+          stock: d.stock ?? 0,
+          trackStock: d.trackStock ?? false,
+          activo: d.activo ?? true,
+          marcaFabricante: d.marcaFabricante || "",
+          codigosOEM: d.codigosOEM || [],
+          grupoEquivalencia: d.grupoEquivalencia || "",
+          compatibilidad: d.compatibilidad || [],
+        });
+        creados++;
+      }
+      for (const { id, datos: d } of resultado.aplicar.cambios) {
+        const set: any = {};
+        if (d.name !== undefined) set.name = d.name;
+        if (d.price !== undefined) set.price = d.price;
+        if (d.description !== undefined) set.description = d.description;
+        if (d.stock !== undefined) set.stock = d.stock;
+        if (d.trackStock !== undefined) set.trackStock = d.trackStock;
+        if (d.activo !== undefined) set.activo = d.activo;
+        if (d.marcaFabricante !== undefined) set.marcaFabricante = d.marcaFabricante;
+        if (d.codigosOEM !== undefined) set.codigosOEM = d.codigosOEM;
+        if (d.grupoEquivalencia !== undefined) set.grupoEquivalencia = d.grupoEquivalencia;
+        if (d.compatibilidad !== undefined) set.compatibilidad = d.compatibilidad;
+        if (d.categoriaNombres !== undefined) {
+          const ids = idsDe(d.categoriaNombres);
+          set.categoria = ids[0];
+          set.categorias = ids.slice(1);
+        }
+        await Producto.findOneAndUpdate({ id }, { $set: set }, { returnDocument: "after", runValidators: true });
+        actualizados++;
+      }
+    } catch (error) {
+      // Sin transacción: si falla a mitad, queda constancia de lo aplicado antes del error
+      await registrarAuditoria(req, {
+        recursoId: "importacion",
+        tipoRecurso: "producto",
+        accion: "importar_productos",
+        detalles: `Importación de ${detalleArchivo} interrumpida: ${creados} creados y ${actualizados} actualizados antes del error.`,
+      });
+      throw error;
+    }
+
+    await registrarAuditoria(req, {
+      recursoId: "importacion",
+      tipoRecurso: "producto",
+      accion: "importar_productos",
+      detalles: `Importación de ${detalleArchivo}: ${creados} creados, ${actualizados} actualizados, ${resultado.resumen.sinCambio} sin cambio, ${categoriasCreadas.length} categorías nuevas. Nada se borró; ${resultado.noEnArchivo.length} productos activos no vienen en el archivo.`,
+    });
+    res.json({
+      success: true,
+      data: {
+        creados,
+        actualizados,
+        sinCambio: resultado.resumen.sinCambio,
+        categoriasCreadas,
+        noEnArchivo: resultado.noEnArchivo,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error en confirmarImportacionProductos:", error?.message || error);
+    return responderErrorCatalogo(res, error, "No se pudo completar la importación.");
+  }
+};
+
+/** Desactiva productos que no vinieron en el archivo. Acción aparte, con confirmación en el panel. Nunca borra. */
+const desactivarProductosImportacion = async (req, res) => {
+  try {
+    const ids = req.body?.ids;
+    const valido =
+      Array.isArray(ids) &&
+      ids.length > 0 &&
+      ids.length <= LIMITES_IMPORTACION_FILAS &&
+      ids.every((id) => typeof id === "string" && id.trim() !== "" && id.length <= 60);
+    if (!valido) {
+      return res.status(400).json({ success: false, error: "Indica los productos a desactivar." });
+    }
+    let desactivados = 0;
+    for (const id of ids) {
+      const idLimpio = id.trim();
+      const producto = await Producto.findOne({ id: idLimpio });
+      if (!producto || producto.activo === false) continue;
+      await Producto.findOneAndUpdate({ id: idLimpio }, { $set: { activo: false } }, { returnDocument: "after" });
+      desactivados++;
+    }
+    await registrarAuditoria(req, {
+      recursoId: "importacion",
+      tipoRecurso: "producto",
+      accion: "desactivar_productos_importacion",
+      detalles: `${desactivados} productos desactivados (no vinieron en la última importación). Ningún producto se borró.`,
+    });
+    res.json({ success: true, data: { desactivados } });
+  } catch (error) {
+    console.error("❌ Error en desactivarProductosImportacion:", error?.message || error);
+    res.status(500).json({ success: false, error: "No se pudo desactivar los productos." });
   }
 };
 
@@ -4584,6 +4960,11 @@ module.exports = {
   postProduct,
   updateProduct,
   deleteProduct,
+  descargarPlantillaProductos,
+  exportarProductos,
+  previsualizarImportacionProductos,
+  confirmarImportacionProductos,
+  desactivarProductosImportacion,
   postProductImage,
   deleteProductImage,
   setPrimaryProductImage,

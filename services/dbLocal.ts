@@ -236,6 +236,9 @@ class DbLocal {
           if (update.$set) {
             Object.assign(p, update.$set);
           }
+          if (update.$unset) {
+            for (const k in update.$unset) delete p[k];
+          }
           for (let k in update) {
             if (!k.startsWith("$")) {
               p[k] = update[k];

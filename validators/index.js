@@ -2,7 +2,8 @@ const { z } = require("zod");
 
 // ─── Producto ───
 const productoSchema = z.object({
-  id: z.string().min(1, "El ID del producto es obligatorio"),
+  // Vacío = el servidor genera `prod-<timestamp>` (postProduct)
+  id: z.string().trim().max(60, "El ID del producto no puede pasar de 60 caracteres").optional().default(""),
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
   price: z.coerce.number().positive("El precio debe ser un número positivo"),
   // Descuento por producto (F2g): entero de 0 a 90
@@ -16,6 +17,13 @@ const productoSchema = z.object({
   // Emoji que el bot usa como viñeta en el menú de WhatsApp
   emoji: z.string().max(16).optional(),
   activo: z.boolean().optional().default(true),
+  // Campos ampliados (F1-2): sin tipo aquí para no perderlos; el controlador los valida con validarProductoAmpliado
+  sku: z.unknown().optional(),
+  marcaFabricante: z.unknown().optional(),
+  codigosOEM: z.unknown().optional(),
+  atributos: z.unknown().optional(),
+  grupoEquivalencia: z.unknown().optional(),
+  compatibilidad: z.unknown().optional(),
 });
 
 // Edición: todo opcional y SIN valores por defecto. Con productoSchema.partial() los defaults seguían aplicándose y
@@ -33,6 +41,13 @@ const productoUpdateSchema = z.object({
   categorias: z.array(z.string().regex(/^[a-f\d]{24}$/, "ID de categoría inválido")).max(20).optional(),
   emoji: z.string().max(16).optional(),
   activo: z.boolean().optional(),
+  // Campos ampliados (F1-2): sin tipo aquí para no perderlos; el controlador los valida con validarProductoAmpliado
+  sku: z.unknown().optional(),
+  marcaFabricante: z.unknown().optional(),
+  codigosOEM: z.unknown().optional(),
+  atributos: z.unknown().optional(),
+  grupoEquivalencia: z.unknown().optional(),
+  compatibilidad: z.unknown().optional(),
 });
 
 // ─── Categoría ───
@@ -107,11 +122,18 @@ function validate(schema) {
   return (req, res, next) => {
     const result = schema.safeParse(req.body);
     if (!result.success) {
-      const errors = (result.error?.errors || []).map(e => ({
+      // Zod 4 expone `issues` (no `errors`): con `errors` la lista salía vacía y el mensaje era siempre genérico
+      const errors = (result.error?.issues || result.error?.errors || []).map(e => ({
         campo: e.path?.join(".") || "desconocido",
         mensaje: e.message || "Error de validación",
       }));
-      return res.status(400).json({ success: false, error: "Datos inválidos", details: errors });
+      // El mensaje nombra el campo (F1-2): "Datos inválidos. id: ..." en vez de un genérico
+      const resumen = errors.slice(0, 3).map((e) => `${e.campo}: ${e.mensaje}`).join("; ");
+      return res.status(400).json({
+        success: false,
+        error: resumen ? `Datos inválidos. ${resumen}` : "Datos inválidos.",
+        details: errors,
+      });
     }
     req.body = result.data; // Datos ya validados y con defaults
     next();

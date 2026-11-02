@@ -116,7 +116,7 @@ Firmas en el historial: `— Ejecutado por **Antigravity**`, `— Ejecutado por 
 | Fase | Contenido | Estado |
 |---|---|---|
 | **F0** | Plantilla multimarca: marca `ventimax`, código sin textos de Mr. Pachi, horario, fin de semana y métodos de envío editables desde el panel, arranque seguro, imágenes de producto, guía para nuevos clientes. Las 14 tareas cerradas el 2026-10-28 | **Cerrada** |
-| F1 | Producto ampliado: SKU, marca fabricante, códigos OEM, atributos, compatibilidad por vehículo (marca, modelo, años, motor, versión), grupos de equivalencia; importación desde Excel; bot por vehículo. **Diseño: `docs/f1-producto-ampliado.md`** | Diseñada (espera cierre de F0) |
+| F1 | Producto ampliado: SKU, marca fabricante, códigos OEM, atributos, compatibilidad por vehículo (marca, modelo, años, motor, versión), grupos de equivalencia; importación desde Excel; bot por vehículo. **Diseño: `docs/f1-producto-ampliado.md`** | **En curso** (F1-1 en ejecución desde 2026-11-02; F1-2 a F1-6 pendientes) |
 | F2 | Catálogo web público con carrito y pedido a WhatsApp con código no adivinable. **Diseño: `docs/f2-catalogo-web.md`.** Requisitos de seguridad obligatorios: `docs/auditoria-seguridad-2026-10.md` (sección F2) | **Cerrada** (F2-1 a F2-4 aprobadas, 2026-10-29). Tienda en `https://ventimax-tienda.onrender.com` |
 | F3 | Búsqueda con IA sobre la BD (texto y notas de voz), registro de búsquedas sin resultado, pase a asesor | Pendiente |
 | F4 | Formularios nativos (WhatsApp Flows), lectura de fotos de piezas, equivalencias entre marcas | Pendiente |
@@ -188,237 +188,143 @@ Valen para toda tarea nueva de la tienda (`catalogo/`) y de su gestión en el pa
 
 ## Tareas abiertas
 
-### F2n · Sucursales de envío nacional: empresa → estado → sucursal — Backend + Frontend · `Aprobada`
+### F1-1 · Campos del producto ampliado: modelo, normalización, índices, mocks y suite — Backend · `Aprobada`
 
-Base: `docs/sucursales-envios-investigacion.md` (F2m, aprobada). Decisión del dueño (2026-11-01): en envío nacional el cliente elige **empresa → estado → sucursal**. Sin mapa (eso es F2d). Las reglas del tablero de 2026-11-01 (sin `innerHTML` con datos, sin scripts en línea, Lucide, nada de marca escrita, 44 px, `prefers-reduced-motion`) valen aquí.
+Base: `docs/f1-producto-ampliado.md` §1 (aprobado por el dueño). Solo modelo y servicio: **sin** rutas nuevas, **sin** cambios en el panel ni en el bot (eso es F1-2 y F1-5). Todos los campos nuevos son opcionales: los productos actuales no cambian.
 
-1. **Modelo `models/Sucursal.ts`** (+ tipos, mock en `dbLocal`/`dbMock`): `empresa` (slug en minúsculas: `zoom`, `mrw`, `tealca`), `codigo` (oficial de la empresa), `nombre`, `estado`, `ciudad`, `direccion`, `telefono`, `horario`, `lat`, `lng`, `activa` (por defecto `true`). Índice único `{ empresa, codigo }` e índice `{ empresa, estado, activa }`. Textos recortados a: nombre 80, ciudad 60, dirección 300, teléfono 30, horario 120.
-2. **Carga (no en vivo).** Script `scripts/sync-sucursales.ts`, **manual**, que baja las tres listas con una petición cada una (pausa de 3 s entre empresas, `User-Agent` de navegador normal), las normaliza y hace `upsert` por `{ empresa, codigo }`. Las que ya no vienen se marcan `activa: false`, nunca se borran. Si una empresa devuelve un resultado vacío o con menos de la mitad de lo que había, **no toca esa empresa** y avisa (evita borrar todo por una caída). Modo `--simular` que imprime los conteos sin escribir. Nunca se llama desde el servidor ni desde un cron. Prohibido ejecutarlo contra una base real: el dueño lo corre en Atlas con su `MONGODB_URI`; Claude/Haiku solo contra la base local de Docker.
-   - Mapeos: Zoom (`sku`→`codigo`, `title`, `street`, `city`, `lat`/`lng`, `phone`, `days_str` + horas→`horario`); MRW (`codigo`, `nombre`, `direccion`, `estado`, `latitud`/`longitud`); Tealca (`fields.code`, `post.name`, `state`, `city`, coordenadas de `url_google_map` con `/q=([-\d.]+),([-\d.]+)/`, teléfono sacado del texto de `acerca_de` solo si cabe en un patrón claro, si no vacío). Todo texto de Tealca se limpia de HTML.
-   - **Zoom sin estado:** `services/estadosVenezuela.ts` con la lista de los 24 estados y un mapa ciudad→estado para las 122 ciudades de Zoom. Una ciudad sin estado conocido deja la sucursal fuera, con aviso `⚠️` y su nombre en la salida del script, para completarla a mano. Nunca se inventa el estado.
-   - Normalizar estados a un nombre único (`D.Capital`, `Distrito Capital` → `Distrito Capital`; `Vargas`/`La Guaira` → `La Guaira`).
-3. **API pública** (en `routes/publicRoutes.ts`, mismas reglas del router: sin nada del panel, límite de lectura holgado, `Vary: Origin`, errores genéricos):
-   - `GET /api/public/sucursales/estados?empresa=zoom` → `[{ estado, cantidad }]` ordenado por nombre.
-   - `GET /api/public/sucursales?empresa=zoom&estado=Zulia` → `[{ id, codigo, nombre, ciudad, direccion, telefono, horario }]` (solo activas, orden por ciudad y nombre; `id` es `<empresa>-<codigo>`). **Sin `_id` ni coordenadas** (lista blanca). `empresa` y `estado` se validan contra lista cerrada; valor desconocido → 400 genérico. `Cache-Control: public, max-age=3600`.
-   - `GET /api/public/info`: cada empresa de envío nacional agrega `conSucursales: true` si tiene alguna sucursal activa, para que la tienda sepa si muestra los selectores.
-4. **Vínculo con las empresas del método de envío.** El nombre de la empresa en el método (F2e/F2f, texto libre) se relaciona con el `slug` por un campo nuevo opcional `slug` en cada empresa (`MetodoEnvio.empresas[].slug`, entre los slugs conocidos). El panel lo ofrece como selector "Directorio de sucursales: Ninguno / Zoom / MRW / Tealca" en cada tarjeta de empresa. Sin slug, la empresa funciona como hoy (sin selectores). `/api/public/info` devuelve `slug` solo si tiene sucursales.
-5. **Tienda** (`catalogo/`): al elegir una empresa con `slug`, aparecen dos selectores en cascada: **Estado** (con la cantidad entre paréntesis) y **Sucursal** (cada opción: "código · nombre — ciudad", y debajo la dirección corta). El de sucursal se desactiva hasta elegir estado; cambiar de empresa o de estado limpia lo de abajo. Mientras carga, esqueleto; si falla, mensaje amable y se puede seguir con el campo de texto de siempre (`pideDatos`). **Sin sucursal elegida no se habilita "Pedir por WhatsApp"** cuando la empresa tiene selectores. Lógica sin DOM en `catalogo/js/sucursales.js` (cascada, validación, cuerpo del pedido), probada con Node. Selectores nativos `<select>` (accesibles y cómodos en celular) con etiquetas visibles. El código y la dirección elegidos se ven en el resumen del carrito.
-6. **Pedido:** el `POST /api/public/pedidos` acepta `entrega.sucursalId` (Zod estricto, ≤ 40, formato `^[a-z]+-[A-Za-z0-9-]+$`). El servidor la busca en la base: debe existir, estar activa y **coincidir con la empresa elegida**; si no, 400. Nunca se confía en nombre ni dirección del navegador. Se guarda en `CarritoWeb.entrega.sucursal = { empresa, codigo, nombre, estado, ciudad, direccion }`. El mensaje de WhatsApp agrega "Sucursal: <empresa> <código> — <nombre>, <ciudad> (<estado>)" y la dirección, con textos nuevos en `settings.messages` de **ambas** marcas (y en `test-mensajes-marca.ts`).
-7. **Bot y comanda:** al cargar el código web, la sucursal se muestra en el resumen y **no se vuelve a pedir** (el pedido guarda `entrega.sucursal`); si dejó de estar activa, el bot avisa y la pide como siempre (texto libre). Se muestra en la comanda, la tarjeta del Kanban, el detalle del pedido y la notificación al administrador (`services/envioTexto.ts`, un solo lugar).
-8. **Panel:** en Inventario → Envíos, la tarjeta de empresas agrega el selector "Directorio de sucursales" (punto 4). Bloque de solo lectura en Configuración → Catálogo web: "Directorio de sucursales" con la cantidad activa por empresa y la fecha de la última carga (campo `Setting` o `max(updatedAt)`), con el texto "Se actualiza con `scripts/sync-sucursales.ts` (lo corre el administrador técnico)". Sin botón para ejecutar la carga desde el panel.
-9. **Privacidad y términos:** los datos son de oficinas públicas, sin datos personales. En `docs/nuevo-cliente.md`, sección nueva: cómo correr el script, cada cuánto (sugerido mensual) y el aviso de que Zoom prohíbe en sus términos reproducir su contenido con fines comerciales sin autorización: **decisión del dueño (2026-11-01): se usan las tres empresas** (Zoom, MRW y Tealca) y no se pide permiso a Zoom. Si más adelante cambia de idea, quitar el slug a Zoom basta.
+1. **`models/Producto.ts`** y **`types/models.d.ts` (`IProducto`)**, campos nuevos:
+   - `sku` (String, trim, mayúsculas, máx. 40; índice único **disperso**).
+   - `marcaFabricante` (String, trim, máx. 60).
+   - `codigosOEM` ([String], máx. 30 elementos; cada uno se guarda normalizado: mayúsculas, sin espacios ni guiones, máx. 30 caracteres).
+   - `atributos` ([{ `nombre` máx. 40, `valor` máx. 120 }], máx. 20 elementos).
+   - `grupoEquivalencia` (String, trim, máx. 60).
+   - `compatibilidad` ([{ `marca` (req., máx. 60), `modelo` (req., máx. 60), `marcaNorm`, `modeloNorm`, `anioDesde` (entero 1950–2100), `anioHasta` (entero 1950–2100), `motor` (máx. 20), `version` (máx. 40), `nota` (máx. 120) }], máx. 200 elementos). `marcaNorm`/`modeloNorm` **los calcula el servidor**, no los envía el cliente.
+   - Índices: `{ "compatibilidad.marcaNorm": 1, "compatibilidad.modeloNorm": 1 }` y `{ codigosOEM: 1 }`.
+2. **Servicio nuevo `services/productoAmpliado.ts`** (funciones puras, sin DOM ni BD):
+   - `normalizarTexto(s)`: minúsculas, sin acentos (NFD), sin espacios extra, trim.
+   - `normalizarCodigoOEM(s)`: mayúsculas, quita espacios y guiones.
+   - `normalizarCompatibilidad(lista)`: calcula `marcaNorm`/`modeloNorm` y devuelve `{ ok, valor, errores[] }`. Error si `anioDesde > anioHasta` (cuando ambos existen), si falta marca/modelo, si un año está fuera de 1950–2100 o si se pasa un límite de longitud.
+   - `validarProductoAmpliado(datos)`: valida y normaliza los campos nuevos (`sku`, `codigosOEM`, `atributos`, `compatibilidad`, etc.) con los límites de arriba. Devuelve `{ ok, valor, errores[] }`. Los mensajes de error son en español y genéricos (no revelan internos).
+3. **Hook en el modelo:** `pre("validate")` en `Producto.ts` aplica las funciones de `productoAmpliado.ts` (así Mongoose siempre guarda normalizado). Un error de validación lanza error de Mongoose; no se guarda nada a medias.
+4. **Mocks** (`services/dbLocal.ts`, `services/dbMock.ts`): no ejecutan hooks de Mongoose. Hay que asegurar que los campos nuevos se guardan y se devuelven tal cual en `find`, `findOne`, `create` y `updateOne`, sin perder campos. No tocar la lógica de los campos existentes.
+5. **Suite nueva `scripts/test-producto-ampliado.ts`** y añadirla a `SUITES` en `scripts/ci.sh` (después de `test-sucursales.ts`). Debe cubrir:
+   - Normalizadores: acentos, mayúsculas, espacios y guiones en OEM, `marcaNorm`/`modeloNorm` correctos.
+   - Validación: año desde > hasta → error; años fuera de rango → error; marca vacía → error; límites de longitud y de cantidad → error; producto sin campos nuevos → `ok`.
+   - Mock: un producto con `sku`, `codigosOEM` y `compatibilidad` se guarda y se lee completo; `sku` repetido en el mock no se acepta si el mock aplica índice único (si no lo aplica, documentarlo en la entrega y no inventar la prueba).
+   - Regresión: los campos actuales (`name`, `price`, `categorias`, `descuentoPct`) siguen igual.
+   - Sin texto de marca escrito en el código nuevo.
 
-**Cierre:** suite nueva `scripts/test-sucursales.ts` (en `SUITES`):
-- Normalizadores con muestras reales recortadas de los tres formatos (incluidas Tealca sin ciudad y Zoom sin estado): estado normalizado, coordenadas extraídas, HTML limpio, ciudad desconocida de Zoom omitida con aviso.
-- Sincronización con mock: `upsert` sin duplicar, desaparecidas → `activa: false`, respuesta vacía o menor a la mitad → esa empresa no se toca; `--simular` no escribe.
-- API pública: lista blanca (sin `_id` ni coordenadas), empresa/estado desconocidos → 400, inactivas ausentes, `conSucursales`.
-- Pedido: sucursal de otra empresa → 400, inexistente o inactiva → 400, nombre/dirección enviados por el navegador ignorados, guardado en `CarritoWeb`, texto de WhatsApp con la sucursal; empresa con selectores sin sucursal → 400.
-- Bot: carga la sucursal sin pedirla de nuevo; sucursal desactivada → la pide.
-- Tienda: `sucursales.js` (cascada, limpieza al cambiar, bloqueo sin sucursal), sin `innerHTML`, sin marca escrita. `esbuild --bundle` en los archivos tocados.
-- Chrome a 390 y 1440 px con datos cargados en la base local: empresa → estado → sucursal, cambio de empresa, fallo de la API (cae al campo de texto), 0 errores de CSP.
-- `./scripts/ci.sh` en verde.
+**Restricciones:** no leer `.env`. No ejecutar `git add/commit/stash/reset`. No instalar dependencias (`exceljs` es de F1-3, requiere aprobación). Solo `NODE_ENV=test` y la base local.
 
-#### Entrega y verificación (Antigravity)
-- **Correcciones aplicadas (Claude, 2026-11-01):**
-  1. **Salvaguarda remota estricta y corrección de bypass en `esBaseLocal(uri)` (`scripts/sync-sucursales.ts`):**
-     - Se corrigió `esBaseLocal` para que analice únicamente el host canónico: se descartan credenciales (`...@`), se aísla la autoridad antes de `/` o `?`, se remueve `:puerto` (no admitido en `mongodb+srv://`), y se compara de forma exacta contra `127.0.0.1` o `localhost`.
-     - Si la autoridad tiene más de un `@` (ej. `mongodb://u@evil.com@localhost/x`), se considera ambigua y se rechaza inmediatamente retornando `false`.
-     - Se previenen bypasses donde "localhost" o "127.0.0.1" aparezcan en el usuario, contraseña o query parameters (ej. `?appName=localhost` o `?x=127.0.0.1`).
-     - Para cualquier URI remota, se exige obligatoriamente `--confirmar` si no se corre con `--simular`.
-     - Se documentó en el encabezado del script y en `docs/nuevo-cliente.md` (§6.1).
-  2. **Nuevos casos en suite `scripts/test-sucursales.ts`:**
-     - Se añadieron aserciones para los casos de bypass reportados: `mongodb+srv://u:localhost@cluster.mongodb.net/ventimax` (false), `mongodb+srv://u:p@cluster.mongodb.net/ventimax?appName=localhost` (false), `mongodb+srv://u:p@cluster.mongodb.net/ventimax?x=127.0.0.1` (false), `mongodb://u@evil.com@localhost/x` (false), `mongodb://127.0.0.1:27017/x` (true) y `mongodb://localhost/x` (true).
-     - Se verificó que `validarPermisoEjecucion` y la ejecución en subproceso CLI abortan con código 1 sin escribir si falta `--confirmar`.
-  3. **Evidencia completa de navegador (Tienda y Panel `ShippingNacionalModal` a 1440 y 390 px):**
-     - Se ejecutó el recorrido completo con Chrome Headless vía CDP (puerto 9224) verificando las 4 vistas con **0 errores de consola y 0 violaciones de CSP**.
+**Cierre:** `npm run build` en verde, `./scripts/ci.sh` en verde (todas las suites, incluida la nueva), y la lista de archivos tocados con la salida del `ci.sh` en la entrega.
 
-- **Archivos tocados:**
-  - `models/Sucursal.ts` (creado)
-  - `types/models.d.ts` (definición de ISucursal y tipos ampliados)
-  - `services/estadosVenezuela.ts` (creado: 24 estados y mapeo de 122 ciudades Zoom)
-  - `scripts/sync-sucursales.ts` (creado: sincronización manual, normalizadores, upsert, umbral de seguridad, salvaguarda `--confirmar` para bases remotas)
-  - `services/empresasEnvio.ts` (soporte de slug de directorio: zoom, mrw, tealca)
-  - `models/CarritoWeb.ts`, `models/Pedido.ts` (esquema de sucursal persistida)
-  - `validators/index.js` (validación estricta de entrega con sucursalId)
-  - `config/brand/default/settings.json`, `config/brand/ventimax/settings.json` (clave `webOrderPrefillSucursal`)
-  - `scripts/test-mensajes-marca.ts` (prueba de la clave en ambas marcas)
-  - `services/envioTexto.ts` (funciones centralizadas `textoSucursalEnvio` y `direccionSucursalEnvio`)
-  - `services/orderService.ts`, `controllers/chatFlowController.ts`, `controllers/adminController.ts` (sucursal en notificaciones y comandas)
-  - `services/chatFlowService.ts` (validación de sucursal activa en `aplicarEntregaWeb` y fallback)
-  - `public/src/features/dashboard/KanbanBoard.js`, `public/src/components/OrderDetailsModal.js` (renderizado de sucursal en comanda, tarjeta y modal)
-  - `public/src/features/inventory/components/ShippingNacionalModal.js` (selector de directorio de sucursales por empresa)
-  - `controllers/configAdminController.ts`, `public/src/features/dashboard/SettingsPanel.js` (bloque de solo lectura con conteos de sucursales)
-  - `routes/publicRoutes.ts`, `controllers/publicController.ts` (endpoints `/api/public/sucursales/estados`, `/api/public/sucursales`, flag `conSucursales` en `/api/public/info`)
-  - `catalogo/js/sucursales.js` (creado: lógica no-DOM de cascada, validación y formateo)
-  - `catalogo/js/api.js`, `catalogo/js/entrega.js`, `catalogo/js/app.js`, `catalogo/css/style.css` (selectores en cascada, fallback a texto libre, 0 innerHTML, 0 emojis)
-  - `docs/nuevo-cliente.md` (sección 6.1 documentando sincronización manual, flag `--confirmar` y términos de Zoom)
-  - `services/dbLocal.ts`, `services/dbMock.ts` (modelo mock de Sucursal completo)
-  - `scripts/ci.sh` (inclusión de `test-sucursales.ts` en `SUITES`)
-  - `scripts/test-sucursales.ts` (creado: suite integral con 28 pruebas y 101 aserciones)
-  - `scripts/dev-local.sh` (exportación de `CATALOGO_ORIGEN` para dev local)
-  - `AGENTS.md` (estado a `Lista para revisión`)
+### F1-2 · Panel: pestañas General / Compatibilidad / Equivalencias y búsqueda de productos — Backend + Frontend · `Aprobada`
 
-- **Evidencia de verificación de la suite `scripts/test-sucursales.ts` (28 pruebas / 101 aserciones):**
-  ```text
-  $ NODE_ENV=test BRAND_NAME=ventimax npx tsx scripts/test-sucursales.ts
-  ================================================================================
-  📦 SUITE DE PRUEBAS: SUCURSALES DE ENVÍO NACIONAL (F2n)
-  ================================================================================
+**Corrección (2026-11-02, subagente + Claude):** ID automático al crear (`validators/index.js`: `id` opcional; el `<select>`/input ya no es `required` en `ProductTab.js`), error de validación con el campo (`Datos inválidos. <campo>: <mensaje>`, Zod 4 usa `issues`), y el modal ya no se desmonta al buscar. Verificado en Chrome a 1440 px: crear sin ID genera `prod-<timestamp>`; con el buscador usado el formulario conserva nombre, precio y vehículo; editar muestra una sola fila de vehículo; buscar `Corolla 2012` encuentra el producto y `Corolla 2015` no. CI verde (46 suites).
 
-  1. Normalizadores con muestras reales
-  ⚠️ [Zoom] Ciudad sin estado venezolano conocido: 'MIAMI' (Oficina: ZOOM-MIA - Zoom Miami). Omitida.
-  ⚠️ [Zoom] Ciudad sin estado venezolano conocido: 'CIUDAD_INEXISTENTE_XYZ' (Oficina: ZOOM-DESC - Zoom Ficticio). Omitida.
-    ✅ Zoom: normaliza correctamente y omite ciudades sin estado venezolano
-    ✅ MRW: normaliza estados alternativos (D.Capital, Vargas) a nombres estándar
-    ✅ Tealca: limpia HTML, extrae teléfono y parsea coordenadas de url_google_map
+**Paso 1 del plan (`docs/plan-haiku-f1.md`), 2026-11-02, Claude:**
+- 1440 px, recorrido completo: Nuevo producto con General (nombre, precio, SKU `FA-F1-001`, marca `Mann`, OEM `C-2654; 04465-02220`, atributo `Tipo: Papel plegado`), Compatibilidad (1 fila Toyota Corolla 2009–2014), Equivalencias (grupo `filtro-aire-corolla-09-14`) → Guardar OK (`prod-1793636707991`). Reabrir en edición: todo cargado, OEM normalizado a `C2654; 0446502220`, 1 fila de vehículo, grupo cargado.
+- Búsquedas: `FA-F1` → 1 resultado (SKU). `C-2654` → resultado (OEM con guion). `toyota corolla 2012` → pf-test-001 y el filtro. `Corolla 2015` (previo) → 0.
+- Consola: 0 errores/CSP desde que se activó la captura (login y carga del panel).
+- **Bloqueado: 390 px.** `resize_window` reporta éxito pero `innerWidth` queda en 1800. Medir en un iframe de 390 px del propio panel falla con `SecurityError` (frame bloqueado, cross-origin desde el iframe; el panel no se puede embeber). Sin ancho de 390 real no hay verificación móvil.
+- Decisión pendiente de Claude: cómo medir 390 px (ventana/emulación externa) o aprobar con 390 px como deuda documentada.
 
-  2. Sincronización con mock y protecciones
-  🚨 [Sync] Respuesta vacía para ZOOM. Se omite la actualización para proteger los datos existentes.
-  🚨 [Sync] MRW devolvió 2 sucursales, menos de la mitad de las 10 previas. Se omite para evitar desastres.
-  [SIMULAR] TEALCA: 1 sucursales recibidas (0 previas en BD). Sin cambios.
-    ✅ Salvaguarda remota: exige --confirmar para cualquier URI no local (aborta antes de conectar)
-    ✅ Sincronización: upsert, preservación de datos, desactivación y protección contra caídas
+**Motivo de devolución (Claude, 2026-11-02):** CI verde, pero el recorrido en navegador encontró dos fallos en el formulario nuevo:
+1. **ID obligatorio sin aviso.** Al crear, si el campo ID (placeholder `p-001`) está vacío, el panel muestra solo "Error al guardar: Datos inválidos". Debe generar el ID automáticamente (como hace el backend con `prod-<timestamp>`) o marcar el campo con un mensaje claro.
+2. **Formulario que pierde datos.** Con el modal "Nuevo Producto" abierto, al escribir en el buscador de la lista (detrás del modal) los campos de General quedaron vacíos (nombre, SKU, marca, OEM) y la fila de compatibilidad no se guardó. Reproducción: Nuevo → llenar General → pestaña Compatibilidad → agregar vehículo → (escribir en buscador) → Guardar. Corregir para que el formulario conserve su estado y el buscador no lo reinicie.
+Además: confirmar que el modal de edición carga la compatibilidad guardada (al editar apareció una fila vacía extra).
 
-  3. Endpoints de la API pública
-    ✅ API pública: estados, sucursales (whitelist sin _id ni coords) y conSucursales en /info
+**Pendiente antes de aprobar:** recorrido en Chrome a 390 y 1440 px con consola (0 errores de CSP). Hoy solo hay verificación parcial: se corrió el flujo en 1440 px y una captura en 390 px; la consola no se capturó desde la carga de la página.
 
-  4. Validación de sucursal en pedidos web
-  ⚠️ [Catálogo] POST /api/public/pedidos: entrega rechazada - Debes seleccionar una sucursal de entrega.
-  ⚠️ [Catálogo] POST /api/public/pedidos: entrega rechazada - La sucursal seleccionada no existe o no está disponible.
-  ⚠️ [Catálogo] POST /api/public/pedidos: entrega rechazada - La sucursal seleccionada no pertenece a la empresa de envío elegida.
-    ✅ Pedido: validación estricta de empresa-sucursal, guarda oficial y arma WhatsApp prefill
+Base: `docs/f1-producto-ampliado.md` §4. Depende de F1-1 (`Aprobada`). **Se ejecuta sola**: no se hace en paralelo con F1-4 ni con F1-3.
 
-  5. Flujo del bot de WhatsApp
-    ✅ Bot: retiene sucursal si está activa; si fue desactivada avisa y pide datos al cliente
+1. **Backend (`controllers/adminController.ts`)**:
+   - Crear (`POST`) y actualizar (`PUT`) producto aceptan `sku`, `marcaFabricante`, `codigosOEM`, `atributos`, `grupoEquivalencia` y `compatibilidad`. Solo se copian los campos que llegan (`undefined` = no tocar).
+   - **Antes de cualquier `create` o `findOneAndUpdate`** se llama `validarProductoAmpliado` (de `services/productoAmpliado.ts`). Si `ok` es `false`, responde `400` con los `errores` (son mensajes en español y no revelan internos). Cierra el hueco de F1-1: el hook no corre en `findOneAndUpdate`.
+   - Errores de otro tipo siguen en `500` genérico.
+   - Cada guardado queda en la auditoría de producto que ya existe, con los campos nuevos en el resumen de cambios. No se añade `tipoRecurso` nuevo.
+   - Validar que `sku` no se repita: si ya lo tiene otro producto, `400` con mensaje claro (el índice único también protege, pero el mensaje debe ser legible, no un error de Mongo).
+2. **Listado admin**: `GET` de productos acepta `q`. Busca en `name`, `sku` (prefijo), `codigosOEM` (normalizado con `normalizarCodigoOEM`) y `compatibilidad` (por `marcaNorm`/`modeloNorm` con `normalizarTexto`, y año si el texto trae 4 dígitos, p. ej. "Corolla 2012"). El texto se escapa antes de usarlo en una expresión regular. Si hoy la búsqueda es solo en el navegador, se pasa al servidor; no se rompe lo que ya existe.
+3. **Frontend (panel, `public/src/features/inventory/`)**: el formulario de producto (revisar `components/ProductTab.js` y el modal que lo usa) queda con tres pestañas:
+   - **General:** campos de hoy más SKU, marca fabricante, códigos OEM (un campo de texto separado por `;`, se normaliza al guardar) y atributos (filas nombre/valor, con agregar y quitar).
+   - **Compatibilidad:** tabla editable con marca, modelo, año desde, año hasta, motor, versión y nota; agregar y quitar filas. Motor y versión vacíos = sirve para todos.
+   - **Equivalencias:** campo de grupo de equivalencia y lista de los otros productos con el mismo grupo (solo lectura en esta tarea).
+   - Lista de productos con el buscador nuevo (SKU, OEM, vehículo).
+   - Íconos solo de Lucide (`Icono`). Sin `innerHTML` con datos. Sin scripts en línea. Sin marca escrita en el código.
+   - Móvil primero (390 px), botones táctiles de 44 px, `prefers-reduced-motion` respetado.
+4. **Fuera de alcance:** importación Excel/CSV (F1-3), vehículo del cliente (F1-4), bot (F1-5).
+5. **Suite nueva** `scripts/test-producto-admin-ampliado.ts` en `SUITES` de `ci.sh` (después de `test-producto-ampliado.ts`). Debe cubrir:
+   - POST y PUT con campos nuevos: se guardan normalizados; campos inválidos → `400` con errores; SKU repetido → `400` legible.
+   - PUT sin campos nuevos no cambia nada de ellos (regresión).
+   - Búsqueda: por SKU, por OEM con y sin guiones, por "marca modelo año", y texto con caracteres de regex no rompe.
+   - Frontend: `esbuild --bundle` en cada archivo tocado; sin `innerHTML` con datos; sin marca escrita.
+6. **Recorrido en Chrome** a 390 y 1440 px con la consola abierta: crear un producto con las tres pestañas, buscar por vehículo, 0 errores de CSP. Lista de pantallas en la entrega. Para esto, usar `scripts/dev-local.sh` y `scripts/demo-local.ts` (base local de Docker).
 
-  6. Lógica de la tienda (sucursales.js y entrega.js)
-    ✅ Tienda: funciones sin DOM, cascada, validación y fallback ante fallo de API
+**Restricciones:** igual que F1-1. No leer `.env`. Sin commit. Sin instalar dependencias.
 
-  7. Verificación de integridad y seguridad
-    ✅ Código limpio: sin innerHTML con datos dinámicos ni marcas fijas en código
+**Cierre:** `npm run build` y `./scripts/ci.sh` en verde (con la suite nueva), `esbuild --bundle` en los archivos tocados, recorrido de Chrome con la lista de pantallas, y lista de archivos tocados.
 
-  🎉 TODOS LOS TESTS DE SUCURSALES (F2N) PASARON EXITOSAMENTE (28 pruebas).
-  ```
+### F1-2b · Fotos al crear un producto (subida al guardar) — Frontend · `Aprobada`
 
-- **Evidencia de verificación de `./scripts/ci.sh` (Build, 43 suites e imports en verde):**
-  ```text
-  $ ./scripts/ci.sh
-  ▶ Build
-  > ventimax@1.0.0 build
-  > tsc && node -e "const fs = require('fs'); if (fs.existsSync('config')) fs.cpSync('config', 'dist/config', { recursive: true });"
+**Entrega (2026-11-02, Haiku 5.5, sin browser):** archivos tocados: `public/src/features/inventory/components/ProductTab.js` (estado `fotosPendientes`, vista previa con `URL.createObjectURL`/`revokeObjectURL`, validación de tipo y 5 MB, `subirFotosPendientes` tras el POST, reintento como edición, Guardar deshabilitado con "Subiendo..."; quitado "Guarda el producto para añadir fotos"; modo edición sin cambios), `scripts/test-fotos-al-crear.ts` (nueva, 12 pruebas), `scripts/ci.sh` (suite añadida después de `test-producto-admin-ampliado.ts`). Backend sin cambios.
+Verificación: `npm run build` en verde; `./scripts/ci.sh` en verde: "✅ Build, 47 suites e imports del panel en verde." (`test-fotos-al-crear.ts`: 12 pruebas pasaron); `esbuild@0.23.0 --bundle` de `ProductTab.js` sin errores.
+**No verificado:** recorrido en Chrome a 1440 y 390 px con consola (0 errores de CSP). En esta sesión no había herramienta de navegador disponible, así que no se levantó `dev-local.sh` ni se recorrieron pantallas. Queda para revisión o para el dueño.
+**Desviación menor:** si el `POST` responde sin `id` con fotos pendientes, el modal se cierra y las fotos se pierden (el backend siempre devuelve `id`, así que no debería pasar).
 
-  ▶ test-config-validators.ts ... ✅
-  ▶ test-config-store.ts ... ✅
-  ▶ test-whatsapp-edge-cases.js ... ✅
-  ▶ test-inbox-service.js ... ✅ (364/364)
-  ▶ simulate-ig-webhook.js ... ✅ (37/37)
-  ▶ simulate-messenger-webhook.js ... ✅ (54/54)
-  ▶ test-dynamic-menu.ts ... ✅
-  ▶ test-multicategoria.ts ... ✅
-  ▶ test-mensajes-marca.ts ... ✅
-  ▶ test-privacidad.ts ... ✅
-  ▶ test-horario.ts ... ✅
-  ▶ test-seguridad.ts ... ✅
-  ▶ test-flujo-no-laborable.ts ... ✅
-  ▶ test-metodos-envio.ts ... ✅
-  ▶ test-stock-eliminar.ts ... ✅
-  ▶ test-retiro.ts ... ✅
-  ▶ test-datos-negocio.ts ... ✅
-  ▶ test-rutas-seguridad.ts ... ✅
-  ▶ test-api-publica.ts ... ✅
-  ▶ test-catalogo-web.ts ... ✅
-  ▶ test-catalogo-panel.ts ... ✅
-  ▶ test-banner-tienda.ts ... ✅
-  ▶ test-slider-tienda.ts ... ✅
-  ▶ test-aliados.ts ... ✅
-  ▶ test-faq-tienda.ts ... ✅
-  ▶ test-banner-lateral.ts ... ✅
-  ▶ test-bot-social.ts ... ✅
-  ▶ test-iconos.ts ... ✅
-  ▶ test-panel-referencias.ts ... ✅ (66 archivos)
-  ▶ test-entrega-web.ts ... ✅
-  ▶ test-mapa-carrito.ts ... ✅
-  ▶ test-geocodificacion-publica.ts ... ✅
-  ▶ test-pie-pagina.ts ... ✅
-  ▶ test-sucursales.ts ... ✅
-  ▶ test-flujo-completo.js ... ✅
-  ▶ test-e2e.js ... ✅
-  ▶ test-cash-payment.js ... ✅
-  ▶ test-mixed-payment.js ... ✅
-  ▶ test-sales-summary.js ... ✅
-  ▶ test-quick-replies.js ... ✅
-  ▶ test-ig-quick-replies.js ... ✅
-  ▶ test-web-push-fullstack.js ... ✅
+Pedido del dueño (2026-11-02): hoy el campo de fotos solo aparece al **editar** un producto ya guardado; en "Nuevo producto" sale "Guarda el producto para añadir fotos" (`ProductTab.js`, ya era así en `HEAD`). Debe poder elegir las fotos al crear. Solo frontend: el backend no cambia (`POST /api/admin/products` devuelve el producto con su `id` en `res.data.data`, y `POST /api/admin/products/:id/imagenes` ya existe con su validación de 5 fotos, tipo y tamaño). Depende de que F1-2 esté `Aprobada`.
 
-  ▶ Imports del panel y catálogo (esbuild --bundle)
-  ✅ Build, 43 suites e imports del panel en verde.
-  ```
+1. **Estado local de fotos pendientes** en `public/src/features/inventory/components/ProductTab.js`: al crear (`!editingProduct`) el selector de archivos funciona igual (`accept` JPG/PNG/WebP, `multiple`), pero los archivos se guardan en un estado `fotosPendientes` (array de `File`), no se suben. Máximo 5 en total; si el usuario elige más, se toman las primeras que quepan y se avisa con el mismo toast de hoy.
+2. **Vista previa** con `URL.createObjectURL` (se libera con `URL.revokeObjectURL` al quitar la foto, al cerrar el modal y al desmontar). Cada foto pendiente tiene botón de quitar (`Icono`, 44 px). La primera es la principal; mostrar la etiqueta "Principal" como hoy. No hace falta reordenar en modo crear.
+3. **Validación en el cliente antes de aceptar cada archivo**: tipo (`image/jpeg`, `image/png`, `image/webp`) y tamaño (5 MB, el mismo límite que muestra `AyudaTamanoImagen`). Rechazar con toast de error, sin romper el resto.
+4. **`handleSave` en modo crear:** primero `POST /api/admin/products` (sin cambios). Con el `id` devuelto, subir las fotos pendientes **de una en una**, en orden, a `/api/admin/products/${id}/imagenes` (mismo código que `handleUploadImage`: `FormData` con el campo `imagen`). Si una foto falla, seguir con las demás y juntar los errores.
+5. **Resultado:**
+   - Todas suben: cerrar el modal y toast "Producto guardado exitosamente".
+   - Alguna falla (incluido "Cloudinary no está configurado"): **el producto ya existe**, así que no se vuelve a hacer `POST`. Pasar el modal a modo edición del producto recién creado (`setEditingProduct` con el producto devuelto, `productImages` con lo que sí subió), mostrar un toast de error con el motivo y dejar que el usuario reintente las fotos desde el campo de edición. Nunca crear un segundo producto.
+   - Si el `POST` del producto falla, las fotos pendientes se conservan en el formulario.
+6. Mientras sube, el botón Guardar queda deshabilitado con el estado "Subiendo..." para evitar doble envío.
+7. Quitar el texto "Guarda el producto para añadir fotos". El modo edición no cambia.
+8. Sin `innerHTML`, sin scripts en línea, solo `Icono`, sin marca escrita, 44 px táctiles, 390 px sin scroll horizontal.
+9. **Suite nueva** `scripts/test-fotos-al-crear.ts` en `SUITES` de `ci.sh` (después de `test-producto-admin-ampliado.ts`; los scripts de `ci.sh` ya validan el código del panel leyendo el archivo, seguir ese estilo de las suites del panel). Debe comprobar: `esbuild --bundle` de `ProductTab.js` en verde; ya no existe el texto "Guarda el producto para añadir fotos"; existe `fotosPendientes`, `URL.revokeObjectURL` y la subida a `/imagenes` tras el `POST` de creación; el `POST` de creación no se repite en el reintento; sin `innerHTML` con datos.
+10. **Recorrido en Chrome** (`dev-local.sh`, base de Docker) a 1440 px y 390 px con la consola abierta (0 errores de CSP): crear producto con 2 fotos y ver la vista previa; quitar una; guardar. En local no hay Cloudinary, así que el resultado esperado es el camino de error del punto 5: el producto se crea una sola vez, el modal pasa a edición y muestra "Cloudinary no está configurado". Dejar en la entrega la lista de pantallas. La subida real a Cloudinary la prueba el dueño en producción.
 
-- **Evidencia del recorrido en Chrome a 1440 px y 390 px (Tienda y Panel `ShippingNacionalModal`):**
-  ```text
-  🚀 Levantando Chrome headless limpio en puerto 9224 ...
+**Restricciones:** igual que F1-1. No leer `.env`. Sin commit. Sin instalar dependencias. No tocar el backend. No cambiar el modo de edición de fotos.
 
-  =======================================================
-  🛒 1. VERIFICACIÓN TIENDA: ESCRITORIO (1440 × 900 px)
-  =======================================================
-     Agregando producto al carrito...
-     Seleccionando método Envío Nacional...
-     Envío Nacional seleccionado: true
-     Seleccionando Empresa -> Zoom...
-     Estados cargados (Zoom): [ 'Selecciona un estado…', 'Distrito Capital (1)', 'Miranda (2)' ]
-     Seleccionando Estado -> Miranda...
-     Seleccionando Sucursal -> ZOOM-CCS-01...
-     Fila resumen de sucursal visible: true
-     Texto resumen: Sucursal: ZOOM-CCS-01 · Oficina Chacao (Chacao) — Av. Francisco de Miranda, Torre Cavendes [DEMO]
-     Cambiando a MRW (limpieza de cascada)...
-     Estado limpiado: true
-     Resumen ocultado: true
-     Cambiando a Domesa (empresa sin directorio -> campo de texto libre)...
-     Selectores cascada ausentes: true
-     Campo de texto libre presente: true
+**Cierre:** `npm run build` y `./scripts/ci.sh` en verde (con la suite nueva), `esbuild --bundle` en `ProductTab.js`, recorrido de Chrome con la lista de pantallas, y lista de archivos tocados.
 
-  =======================================================
-  📱 2. VERIFICACIÓN TIENDA: MÓVIL (390 × 844 px)
-  =======================================================
-     Alturas táctiles en móvil (>= 40px): true
-     Resumen de sucursal visible en móvil: true
-     Botón Pedir por WhatsApp habilitado: true
+### F1-3 · Importación y exportación Excel/CSV con vista previa — Backend + Frontend · `En curso`
 
-  =======================================================
-  🖥️ 3. VERIFICACIÓN PANEL: ESCRITORIO (1440 × 900 px)
-  =======================================================
-     Autenticación de panel: { ok: true, status: 200 }
-     Navegando a Inventario en la barra lateral...
-     Pestaña Inventario seleccionada: true
-     Navegando a subpestaña Envíos...
-     Subpestaña Envíos seleccionada: true
-     Abriendo ShippingNacionalModal...
-     Modal de envío abierto: { abierto: true, modo: 'editar' }
-     Modal visible en escritorio: true
-     Selects de directorio de sucursales encontrados: 3
-     Opciones disponibles en el modal: [
-    { value: '', text: 'Ninguno (sin directorio de sucursales)' },
-    { value: 'zoom', text: 'Zoom' },
-    { value: 'mrw', text: 'MRW' },
-    { value: 'tealca', text: 'Tealca' }
-  ]
+Especificación completa: **`docs/plan-haiku-f1.md`, Paso 2**, y diseño en `docs/f1-producto-ampliado.md` §3. Depende de F1-2 (`Aprobada`).
 
-  =======================================================
-  📱 4. VERIFICACIÓN PANEL: MÓVIL (390 × 844 px)
-  =======================================================
-     Altura táctil del select en móvil (>= 40px): true (41 px)
-     Modal adaptado a pantalla móvil: true (ancho: 358 px)
+**Aprobación del dueño (2026-11-02):** se autoriza instalar `exceljs` (`npm install exceljs`, solo esa dependencia) y hacer la tarea completa: `.xlsx` y `.csv`. **El formato definitivo de las tablas (columnas exactas de la plantilla del cliente de repuestos) queda pendiente**: usar las columnas del §3.1 del diseño, aisladas en una sola constante (`COLUMNAS_PRODUCTOS` y `COLUMNAS_COMPATIBILIDAD` en `services/importacionProductos.ts`) para cambiarlas después en un solo lugar. No inventar columnas nuevas.
 
-  =======================================================
-  📋 REGISTRO DE CONSOLA Y CSP EN TODAS LAS PANTALLAS
-  =======================================================
-     Total console errors: 0
-     Total CSP warnings/errors: 0
-  🎉 TODAS LAS VERIFICACIONES (TIENDA Y PANEL A 1440px Y 390px) PASARON EXITOSAMENTE CON 0 ERRORES DE CSP.
-  ```
-- **Desviaciones:** Ninguna. Se incorporaron ambas correcciones solicitadas por Claude. Listo para revisión.
+**Cierre:** reglas generales del plan (punto 9), suite `scripts/test-importacion-productos.ts` en `SUITES`, recorrido en Chrome a 390 y 1440 px con un Excel de 10 filas (si no hay herramienta de navegador, decirlo y dejar la lista de pasos para que el dueño la haga). Estado final: `Lista para revisión`.
 
----
+### F2o · Quitar "Caracas" escrito en el código (regla 5) — Frontend + Backend · `Pendiente`
+
+Resto menor de F2d. El área de búsqueda del mapa y el sufijo de ciudad deben salir de la marca/panel, no del código. Ocurrencias: `catalogo/js/mapa.js` (líneas 4, 12 y 40: comentario, coordenadas por defecto y placeholder) y `services/geocodingService.ts` (líneas 88, 102 y 103: regex y sufijo `, Caracas, Venezuela`).
+
+1. Añadir a la marca (`config/brand/ventimax/`, no a `default/`) y a su validador un bloque `mapa`: `ciudad` (texto), `pais` (texto), `centro: { lat, lng }`, `palabrasArea` (lista para el regex de "ya trae ciudad"). Valores de VentiMax: los actuales de Caracas/Venezuela.
+2. Exponerlo en `GET /api/public/marca` (lista blanca) y usarlo en `catalogo/js/mapa.js` (centro por defecto y placeholder `Buscar calle, avenida o sector en <ciudad>…`) y en `geocodingService.ts` (sufijo y regex construidos con escape de regex). Si falta el bloque, usar solo el país y no agregar ciudad.
+3. Sin textos de marca en el código resultante; los comentarios tampoco nombran Caracas.
+4. Suite nueva `scripts/test-mapa-marca.ts` en `SUITES` (después de `test-mapa-carrito.ts`): sufijo y regex salen de la marca, otra marca de prueba cambia el resultado, texto con caracteres de regex no rompe, `grep` de "Caracas" en los dos archivos da 0 coincidencias. Regresión: `test-mapa-carrito.ts` sigue en 7/7.
+5. Recorrido en Chrome a 390 y 1440 px de la tienda (mapa del carrito: pin inicial, buscador, 0 errores de CSP).
+
+**Cierre:** `npm run build`, `./scripts/ci.sh` en verde, `esbuild --bundle` en los archivos tocados, lista de archivos y de pantallas.
+
+### F1-4 · Vehículo del cliente (`Etiqueta`, `EtiquetaIg`, ficha del Inbox, copiloto) — Backend + Frontend · `Pendiente`
+
+Base: `docs/f1-producto-ampliado.md` §1.3 y §4; plan: `docs/plan-haiku-f1.md`, Paso 3. Depende de F1-1 (`Aprobada`). **No cambia el flujo del bot** (eso es F1-5). Se puede hacer en paralelo con F1-3, pero sin tocar `ProductTab.js`, `adminController.ts` de productos ni `routes/adminRoutes.ts` de importación.
+
+1. **Modelos** `models/Etiqueta.ts`, `models/EtiquetaIg.ts` y `types/models.d.ts`: `vehiculo: { marca, modelo, anio, motor, version }`, todo opcional. Límites: marca/modelo 60, motor 20, versión 40, año entero 1950–2100. El servidor calcula `marcaNorm` y `modeloNorm` con `normalizarTexto` de `services/productoAmpliado.ts`.
+2. **Servicio** `services/vehiculoCliente.ts` (funciones puras): `validarVehiculo(datos)` → `{ ok, valor, errores[] }` (mensajes en español, genéricos) y `describirVehiculo(v)` → "Toyota Corolla 2012 1.8" (omite lo vacío).
+3. **Endpoint** para fijar o borrar el vehículo de un contacto desde el Inbox, en el flujo de etiquetas que ya existe (`inboxController.ts`/`adminController.ts`): permiso de edición de etiquetas que ya exista, validación con `validarVehiculo` antes de guardar, auditoría (sin `tipoRecurso` nuevo; si hace falta, añadirlo al enum de `models/Auditoria.ts`), `500` genérico.
+4. **Panel:** la ficha del cliente en el Inbox (`public/src/features/inbox/`) muestra el vehículo y permite editarlo o borrarlo. Sin vehículo, solo el botón de agregar. Solo `Icono`, sin `innerHTML` con datos, 44 px táctiles, 390 px sin scroll horizontal.
+5. **Copiloto de venta manual** (`InboxManualOrderModal.js` y el servicio que extrae el pedido, `services/inboxService.ts`): al extraer un pedido del chat, también **propone** el vehículo; el humano confirma antes de guardarse. Ampliar solo su salida y validación; no cambiar nada más.
+6. **No tocar** `features/whatsapp/**`, `features/instagram/**` ni el flujo del bot.
+7. Suite nueva `scripts/test-vehiculo-cliente.ts` en `SUITES` (después de `test-mapa-carrito.ts` o de la última suite de F1): validación, normalización, persistencia en ambos modelos (mock `dbLocal.ts`/`dbMock.ts`), endpoint con y sin permiso, copiloto propone y no guarda solo, regresión (etiquetas sin vehículo no cambian), sin marca escrita.
+8. Recorrido en Chrome a 390 y 1440 px de la ficha del Inbox con datos de `demo-local.ts`, 0 errores de CSP.
+
+**Cierre:** `npm run build`, `./scripts/ci.sh` en verde (con la suite nueva), `esbuild --bundle` en los archivos tocados, lista de archivos y de pantallas.
 
 ## Dudas para Claude
 
@@ -426,14 +332,14 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 ## Pendientes del dueño
 
+- **Formato de las tablas de importación (F1-3):** definir las columnas finales de la plantilla Excel/CSV con una muestra del Excel real del cliente de repuestos. Mientras tanto se usan las del §3.1 de `docs/f1-producto-ampliado.md`.
+
 - **Antes de abrir a clientes reales:** el WhatsApp de Datos del negocio (584242555659) es el número personal del dueño, usado solo para pruebas (decisión del 2026-10-29). Cambiarlo por el WhatsApp Business de VentiMax al conectar Meta.
 - **Mr. Pachi (fuera de este repo):** su Instagram envía el número del administrador porque `WHATSAPP_PHONE` está vacío allá (su código cae a `ADMIN_PHONE_NUMBER`). Poner el número de ventas de Pachi en `WHATSAPP_PHONE` (panel de Pachi → variables, o Render → reply-bot-pachi → Environment). Revisado el 2026-10-29: VentiMax y Pachi no comparten base de datos, Cloudinary ni servidor.
 
-- **Render → Blueprints → ventimax → Manual Sync** después del push del 2026-10-29 16:25, para que la tienda tome la cabecera `Cache-Control: no-cache` (evita que tras un despliegue se mezclen archivos nuevos y viejos).
+- ~~**Render → Blueprints → ventimax → Manual Sync**~~ (cabecera `no-cache` y tienda `ventimax-tienda`): **hecho** el 2026-11-02.
 
-- **URGENTE: cambiar la contraseña del usuario de base de datos de Atlas.** La `MONGODB_URI` real (usuario y contraseña de producción) se subió a GitHub dentro de `.env.example` en el commit `3391fa5` (2026-10-28). Claude devolvió la plantilla a `MONGODB_URI=` vacío el 2026-10-29. Pasos: Atlas → Database Access → usuario → Edit → Edit Password → Autogenerate → Update User; después actualizar `MONGODB_URI` en Render (Environment) con la contraseña nueva. Con la contraseña cambiada, la vieja que quedó en el historial ya no sirve.
-
-- **Render → Blueprints → ventimax → Manual Sync** para crear la tienda (`ventimax-tienda`) y aplicar `CATALOGO_ORIGEN` en el servidor; el push no lo hizo solo (2026-10-29).
+- ~~**URGENTE: cambiar la contraseña de Atlas**~~: **hecho** el 2026-11-02 (`MONGODB_URI` nueva en Render). La contraseña vieja del commit `3391fa5` ya no sirve.
 
 - **Limpiar el historial de GitHub** de los datos de clientes de Mr. Pachi (comandos dados por Claude el 2026-10-28). Hacerlo cuando el working tree esté limpio, después del commit de F0-9.
 
@@ -453,6 +359,11 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-11-02 | — | F1-2 y F1-2b aprobadas: CI verde (47 suites), recorrido del dueño en Chrome a 390 px correcto (pestañas, búsqueda, fotos al crear con vista previa y reintento como edición). Siguiente: Paso 2 (F1-3) de `docs/plan-haiku-f1.md`, requiere aprobar `exceljs` — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Aprobada |
+| 2026-11-02 | — | F1-2b: fotos al crear producto (estado pendiente, subida tras el POST, reintento como edición); CI verde (47 suites), sin recorrido de Chrome (no había navegador). Ejecutado por **Haiku 5.5** (subagente) | Claude (Cerebro) | Lista para revisión |
+| 2026-11-02 | — | F1-2 entregada por Haiku con CI verde (46 suites) y backend revisado; **Devuelta** por Claude: fallos en el formulario (ID obligatorio sin aviso; pérdida de datos con el buscador abierto) y recorrido de Chrome incompleto. Ver tarea F1-2 — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Devuelta |
+| 2026-11-02 | — | F1-2 corregida (ID automático, error por campo, modal estable); verificada en Chrome a 1440 px. Pendiente: 390 px y consola de CSP desde la carga — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Lista para revisión |
+| 2026-11-02 | — | F1-1: campos ampliados del producto (sku, marca fabricante, códigos OEM, atributos, grupo de equivalencia, compatibilidad), `services/productoAmpliado.ts`, hook `pre("validate")`, suite `test-producto-ampliado.ts` en `ci.sh` (45 suites en verde). Revisado por Claude. Pendiente para F1-2: `findOneAndUpdate` no pasa por el hook; las rutas deben llamar `validarProductoAmpliado` antes de actualizar — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Aprobada |
 | 2026-11-01 | — | F2d: mapa con buscador en el carrito revisado y cerrado. Claude añadió límite propio a `/geocodificar` y `/buscar-direccion` (OSM permite ~1 petición/s), tope de 120 caracteres a la búsqueda y la suite `test-mapa-carrito.ts` (7/7) en `ci.sh` — Ejecutado por **Claude** | Claude (Cerebro) | Aprobada |
 | 2026-11-01 | — | F2n: sucursales de envío nacional revisada y aprobada (CI en verde: build, 43 suites e imports; validación de sucursal en servidor contra la base, lista blanca sin `_id` ni coordenadas, salvaguarda `--confirmar` en el script) — Ejecutado por **Claude** | Claude (Cerebro) | Aprobada |
 | 2026-11-01 | — | AGENTS.md aligerado de ~3200 a ~470 líneas: tareas cerradas y historial movidos a `docs/historico-tablero.md`; quedan reglas, hoja de ruta, tareas abiertas y pendientes — Ejecutado por **Claude** | Claude (Cerebro) | Completado |

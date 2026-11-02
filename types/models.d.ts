@@ -211,6 +211,23 @@ export interface IProductoImagen {
   publicId?: string;
 }
 
+export interface IProductoAtributo {
+  nombre: string; // máx. 40
+  valor: string; // máx. 120
+}
+
+export interface IProductoCompatibilidad {
+  marca: string; // máx. 60
+  modelo: string; // máx. 60
+  marcaNorm?: string; // lo calcula el servidor (services/productoAmpliado.ts)
+  modeloNorm?: string;
+  anioDesde?: number; // 1950 a 2100
+  anioHasta?: number; // 1950 a 2100
+  motor?: string; // máx. 20; vacío = cualquier motor
+  version?: string; // máx. 40; vacío = cualquier versión
+  nota?: string; // máx. 120
+}
+
 export interface IProducto {
   _id?: string;
   id: string; // ej. 'prod-001'
@@ -225,6 +242,13 @@ export interface IProducto {
   activo?: boolean;
   stock?: number;
   trackStock?: boolean;
+  // Campos ampliados (F1-1), todos opcionales
+  sku?: string; // máx. 40, mayúsculas; único disperso
+  marcaFabricante?: string; // máx. 60
+  codigosOEM?: string[]; // máx. 30 códigos, normalizados (mayúsculas, sin espacios ni guiones)
+  atributos?: IProductoAtributo[]; // máx. 20
+  grupoEquivalencia?: string; // máx. 60
+  compatibilidad?: IProductoCompatibilidad[]; // máx. 200
   createdAt?: Date;
   updatedAt?: Date;
 }

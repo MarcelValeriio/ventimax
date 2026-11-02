@@ -43,6 +43,58 @@ const precioUsdHijos = (p) => {
   return hijos;
 };
 
+// Campos ampliados del producto (F1-2): helpers de presentación. Los valores definitivos los normaliza el servidor.
+const CLASE_INPUT_PRODUCTO = "w-full min-h-[44px] p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all";
+const ETIQUETA_PRODUCTO = "block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1";
+const MAX_ATRIBUTOS = 20;
+const MAX_COMPATIBILIDAD = 200;
+const TABS_PRODUCTO = [
+  { id: "general", nombre: "General", icono: "file-text" },
+  { id: "compat", nombre: "Compatibilidad", icono: "truck" },
+  { id: "equiv", nombre: "Equivalencias", icono: "layers" },
+];
+const FILA_COMPAT_VACIA = { marca: "", modelo: "", anioDesde: "", anioHasta: "", motor: "", version: "", nota: "" };
+const CAMPOS_COMPAT = ["marca", "modelo", "anioDesde", "anioHasta", "motor", "version", "nota"];
+// Fotos (F1-2b): mismo criterio que el servidor (JPG, PNG o WebP, hasta 5 MB, máximo 5 por producto)
+const FORMATOS_FOTO = ["image/jpeg", "image/png", "image/webp"];
+const MAX_BYTES_FOTO = 5 * 1024 * 1024;
+const MAX_FOTOS = 5;
+
+/** Códigos OEM escritos "a; b; c" -> lista. Cada código se normaliza en el servidor (mayúsculas, sin guiones). */
+const listaOEMDesdeTexto = (texto) =>
+  String(texto || "")
+    .split(";")
+    .map((c) => c.trim())
+    .filter(Boolean);
+
+/** Grupo de equivalencia comparable: sin acentos, minúsculas y espacios simples. */
+const normalizarGrupoEquivalencia = (texto) =>
+  String(texto || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+/** Campo de texto con etiqueta visible, para los formularios de pestañas. */
+const CampoProducto = ({ label, value, onChange, type = "text", placeholder, maxLength, min, max, step, inputMode, ariaLabel }) =>
+  e("div", null,
+    e("label", { className: ETIQUETA_PRODUCTO }, label),
+    e("input", {
+      type,
+      value: value ?? "",
+      onChange: (ev) => onChange(ev.target.value),
+      placeholder,
+      maxLength,
+      min,
+      max,
+      step,
+      inputMode,
+      "aria-label": ariaLabel || label,
+      className: CLASE_INPUT_PRODUCTO,
+    }),
+  );
+
 // Componente Modal de Categorías (Componente Funcional Estricto)
 const CategoriesModal = ({
   isOpen,
@@ -390,6 +442,12 @@ const ProductTab = () => {
   // Estados para Filtros y Ordenamiento
   const [selectedCategory, setSelectedCategory] = useState("");
   const [sortDirection, setSortDirection] = useState("asc");
+  // Búsqueda (F1-2): se escribe en `busqueda` y se envía al servidor 300 ms después (`q`)
+  const [busqueda, setBusqueda] = useState("");
+  const [busquedaAplicada, setBusquedaAplicada] = useState("");
+  // Pestaña activa del formulario de producto y catálogo completo (para la lista de equivalentes)
+  const [tabProducto, setTabProducto] = useState("general");
+  const [catalogoCompleto, setCatalogoCompleto] = useState([]);
 
   // Estados para Modal de Productos y Modal de Categorías
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -397,7 +455,18 @@ const ProductTab = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [productImages, setProductImages] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
+  // Fotos elegidas al crear un producto (F1-2b): se suben al guardar, después del POST
+  const [fotosPendientes, setFotosPendientes] = useState([]);
+  const [urlsFotosPendientes, setUrlsFotosPendientes] = useState([]);
+  const [subiendoFotos, setSubiendoFotos] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Vista previa de las fotos pendientes: cada URL se libera al cambiar la lista (quitar) y al desmontar
+  useEffect(() => {
+    const urls = fotosPendientes.map((f) => URL.createObjectURL(f));
+    setUrlsFotosPendientes(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [fotosPendientes]);
   const [formData, setFormData] = useState({
     id: "",
     name: "",
@@ -407,6 +476,12 @@ const ProductTab = () => {
     categoria: "",
     stock: "",
     trackStock: false,
+    sku: "",
+    marcaFabricante: "",
+    codigosOEMTexto: "",
+    atributos: [],
+    grupoEquivalencia: "",
+    compatibilidad: [],
   });
 
   // Estado para Confirmación
@@ -436,11 +511,13 @@ const ProductTab = () => {
       const query = [];
       if (selectedCategory) query.push(`categoria=${selectedCategory}`);
       if (sortDirection) query.push(`sort=${sortDirection}`);
+      if (busquedaAplicada) query.push(`q=${encodeURIComponent(busquedaAplicada)}`);
 
       const queryString = query.length > 0 ? `?${query.join("&")}` : "";
       const { data } = await apiClient.get(`/api/admin/products${queryString}`);
       if (data.success) {
         setProducts(data.data || []);
+        setError(null);
       }
     } catch (err) {
       console.error("❌ Error cargando inventario:", err.message);
@@ -478,9 +555,24 @@ const ProductTab = () => {
     }
   };
 
+  // Debounce de la búsqueda: 300 ms después de la última tecla
+  useEffect(() => {
+    const timer = setTimeout(() => setBusquedaAplicada(busqueda.trim().slice(0, 120)), 300);
+    return () => clearTimeout(timer);
+  }, [busqueda]);
+
   useEffect(() => {
     fetchInventory();
-  }, [selectedCategory, sortDirection]);
+  }, [selectedCategory, sortDirection, busquedaAplicada]);
+
+  const cargarCatalogoCompleto = async () => {
+    try {
+      const { data } = await apiClient.get("/api/admin/products");
+      if (data.success) setCatalogoCompleto(data.data || []);
+    } catch (err) {
+      console.error("❌ Error cargando catálogo para equivalencias:", err.message);
+    }
+  };
 
   useEffect(() => {
     fetchCategorias();
@@ -504,6 +596,7 @@ const ProductTab = () => {
     if (product) {
       setEditingProduct(product);
       setProductImages(product.imagenes || []);
+      setFotosPendientes([]);
       setFormData({
         id: product.id,
         name: product.name,
@@ -520,10 +613,25 @@ const ProductTab = () => {
           : [],
         stock: product.stock ?? 0,
         trackStock: product.trackStock === true,
+        sku: product.sku || "",
+        marcaFabricante: product.marcaFabricante || "",
+        codigosOEMTexto: (product.codigosOEM || []).join("; "),
+        atributos: (product.atributos || []).map((a) => ({ nombre: a.nombre || "", valor: a.valor || "" })),
+        grupoEquivalencia: product.grupoEquivalencia || "",
+        compatibilidad: (product.compatibilidad || []).map((f) => ({
+          marca: f.marca || "",
+          modelo: f.modelo || "",
+          anioDesde: f.anioDesde ?? "",
+          anioHasta: f.anioHasta ?? "",
+          motor: f.motor || "",
+          version: f.version || "",
+          nota: f.nota || "",
+        })),
       });
     } else {
       setEditingProduct(null);
       setProductImages([]);
+      setFotosPendientes([]);
       setFormData({
         id: "",
         name: "",
@@ -534,9 +642,50 @@ const ProductTab = () => {
         categorias: [],
         stock: "",
         trackStock: false,
+        sku: "",
+        marcaFabricante: "",
+        codigosOEMTexto: "",
+        atributos: [],
+        grupoEquivalencia: "",
+        compatibilidad: [],
       });
     }
+    setTabProducto("general");
+    cargarCatalogoCompleto();
     setIsModalOpen(true);
+  };
+
+  // Al crear: las fotos se guardan en `fotosPendientes` y se suben al guardar el producto (F1-2b)
+  const handleSeleccionarFotosNuevas = (ev) => {
+    const seleccion = Array.from(ev.target.files || []);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    const validas = [];
+    for (const file of seleccion) {
+      if (!FORMATOS_FOTO.includes(file.type)) {
+        window.showToast?.(`${file.name}: formato no permitido. Usa JPG, PNG o WebP.`, "error");
+        continue;
+      }
+      if (file.size > MAX_BYTES_FOTO) {
+        window.showToast?.(`${file.name}: supera el máximo de 5 MB.`, "error");
+        continue;
+      }
+      validas.push(file);
+    }
+    const cupo = Math.max(0, MAX_FOTOS - fotosPendientes.length);
+    const aceptadas = validas.slice(0, cupo);
+    if (aceptadas.length < validas.length) {
+      window.showToast?.(
+        `Solo caben ${cupo} foto(s) más (máx 5). Se subirán las primeras ${aceptadas.length}.`,
+        "warning"
+      );
+    }
+    if (aceptadas.length > 0) {
+      setFotosPendientes((prev) => [...prev, ...aceptadas].slice(0, MAX_FOTOS));
+    }
+  };
+
+  const handleQuitarFotoPendiente = (idx) => {
+    setFotosPendientes((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const handleUploadImage = async (ev) => {
@@ -649,11 +798,88 @@ const ProductTab = () => {
       // Esperamos a que termine la animación antes de desmontar el modal de React
       setTimeout(() => {
         setIsModalOpen(false);
+        setFotosPendientes([]);
       }, 400);
     } else {
       setIsModalOpen(false);
+      setFotosPendientes([]);
     }
   };
+
+  // Tras el POST del producto nuevo: sube las fotos pendientes de una en una. No vuelve a hacer el POST.
+  // Si alguna falla, el producto ya existe: el modal pasa a edición para reintentar las fotos (F1-2b).
+  const subirFotosPendientes = async (creado) => {
+    const archivos = [...fotosPendientes];
+    const errores = [];
+    let ultimo = creado;
+    for (const file of archivos) {
+      try {
+        const data = new FormData();
+        data.append("imagen", file);
+        const res = await apiClient.post(
+          `/api/admin/products/${creado.id}/imagenes`,
+          data,
+          { headers: { "Content-Type": "multipart/form-data" } }
+        );
+        if (res.data?.data) ultimo = res.data.data;
+      } catch (err) {
+        const motivo = err.response?.data?.error || err.response?.data?.message || err.message;
+        errores.push(`${file.name}: ${motivo}`);
+      }
+    }
+    fetchInventory();
+    if (errores.length === 0) {
+      handleCloseModal();
+      window.showToast?.("Producto guardado exitosamente");
+      return;
+    }
+    setEditingProduct(ultimo);
+    setProductImages(ultimo.imagenes || []);
+    setFormData((prev) => ({ ...prev, id: ultimo.id }));
+    setFotosPendientes([]);
+    window.showToast?.(`Producto guardado, pero no se subieron las fotos. ${errores.join(" ")}`, "error");
+  };
+
+  // Fotos del formulario: al crear son las pendientes; al editar, las ya guardadas (F1-2b)
+  const cuentaFotos = editingProduct ? productImages.length : fotosPendientes.length;
+  const renderFotosPendientes = () =>
+    e(
+      "div",
+      { className: "grid grid-cols-5 gap-2 mt-2" },
+      fotosPendientes.map((file, idx) =>
+        e(
+          "div",
+          {
+            key: `${idx}-${file.name}`,
+            className: "relative aspect-square rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900",
+          },
+          urlsFotosPendientes[idx] &&
+            e("img", {
+              src: urlsFotosPendientes[idx],
+              alt: `Foto ${idx + 1}`,
+              className: "w-full h-full object-cover",
+            }),
+          idx === 0 &&
+            e(
+              "span",
+              { className: "absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold" },
+              "Principal"
+            ),
+          e(
+            "button",
+            {
+              type: "button",
+              title: "Quitar foto",
+              "aria-label": `Quitar foto ${idx + 1}`,
+              onClick: () => handleQuitarFotoPendiente(idx),
+              disabled: subiendoFotos,
+              className: "absolute top-0 right-0 min-h-[44px] min-w-[44px] flex items-center justify-center bg-black/60 hover:bg-black/80 text-white rounded-bl-xl transition motion-reduce:transition-none",
+            },
+            e(Icono, { nombre: "x" })
+          )
+        )
+      )
+    );
 
   const handleSave = async (ev) => {
     if (ev) ev.preventDefault();
@@ -664,7 +890,22 @@ const ProductTab = () => {
       window.showToast?.("El descuento debe ser un número entero entre 0 y 90.", "error");
       return;
     }
-    const payload = { ...formData, descuentoPct };
+    const { codigosOEMTexto, ...resto } = formData;
+    const payload = {
+      ...resto,
+      descuentoPct,
+      sku: String(formData.sku || "").trim().toUpperCase(),
+      marcaFabricante: String(formData.marcaFabricante || "").trim(),
+      codigosOEM: listaOEMDesdeTexto(codigosOEMTexto),
+      atributos: (formData.atributos || [])
+        .map((a) => ({ nombre: String(a.nombre || "").trim(), valor: String(a.valor || "").trim() }))
+        .filter((a) => a.nombre || a.valor),
+      grupoEquivalencia: String(formData.grupoEquivalencia || "").trim(),
+      compatibilidad: (formData.compatibilidad || []).filter((f) =>
+        CAMPOS_COMPAT.some((k) => String(f[k] ?? "").trim() !== "")),
+    };
+    const conFotos = !editingProduct && fotosPendientes.length > 0;
+    if (conFotos) setSubiendoFotos(true);
     try {
       if (editingProduct) {
         await apiClient.put(
@@ -672,13 +913,27 @@ const ProductTab = () => {
           payload,
         );
       } else {
-        await apiClient.post("/api/admin/products", payload);
+        const resCrear = await apiClient.post("/api/admin/products", payload);
+        const creado = resCrear.data?.data;
+        if (conFotos && creado?.id) {
+          await subirFotosPendientes(creado);
+          return;
+        }
       }
       handleCloseModal();
       fetchInventory();
       window.showToast?.("Producto guardado exitosamente");
     } catch (err) {
-      window.showToast?.("Error al guardar: " + err.message, "error");
+      const datos = err.response?.data;
+      const detalle = Array.isArray(datos?.errores) && datos.errores.length
+        ? datos.errores.join(" ")
+        : datos?.error || err.message;
+      // Si el error es de una pestaña, se abre esa pestaña para corregirlo
+      if (/Compatibilidad/.test(detalle)) setTabProducto("compat");
+      else if (/Atributo|SKU|marca del fabricante|códigos OEM/i.test(detalle)) setTabProducto("general");
+      window.showToast?.("Error al guardar: " + detalle, "error");
+    } finally {
+      if (conFotos) setSubiendoFotos(false);
     }
   };
 
@@ -704,7 +959,9 @@ const ProductTab = () => {
     setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
   };
 
-  if (loading && products.length === 0)
+  // Con el modal abierto no se reemplaza la vista: si se desmontara el árbol, el modal y lo escrito en su formulario
+  // se pierden. La búsqueda (que recarga la lista) no debe tocar el formulario (F1-2, devolución)
+  if (loading && products.length === 0 && !isModalOpen)
     return e(
       "div",
       { className: "p-10 text-center text-gray-400" },
@@ -712,7 +969,7 @@ const ProductTab = () => {
       "Cargando catálogo...",
     );
 
-  if (error)
+  if (error && !isModalOpen)
     return e(
       "div",
       { className: "p-10 text-center text-red-500" },
@@ -756,6 +1013,21 @@ const ProductTab = () => {
       e(
         "div",
         { className: "flex flex-wrap items-center gap-2 w-full lg:w-auto" },
+        // Buscador (F1-2): SKU, código OEM o vehículo
+        e(
+          "div",
+          { className: "relative flex-1 lg:flex-none lg:w-72" },
+          e(Icono, { nombre: "search", className: "absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" }),
+          e("input", {
+            type: "search",
+            value: busqueda,
+            maxLength: 120,
+            onChange: (ev) => setBusqueda(ev.target.value),
+            placeholder: "SKU, código OEM o vehículo (ej. Corolla 2012)",
+            "aria-label": "Buscar productos por SKU, código OEM o vehículo",
+            className: "w-full min-h-[44px] pl-9 pr-3 p-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 dark:text-gray-100 outline-none text-sm shadow-sm focus:ring-2 focus:ring-emerald-500",
+          }),
+        ),
         // Category Filter
         e(
           "select",
@@ -837,7 +1109,7 @@ const ProductTab = () => {
           {
             "data-blendy-to": "product-modal-morph",
             className:
-              "bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]",
+              "bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md md:max-w-2xl overflow-hidden flex flex-col max-h-[90vh]",
           },
           e("div", { className: "w-full flex flex-col min-h-0 flex-1" }, [
             e(
@@ -868,6 +1140,30 @@ const ProductTab = () => {
             e(
               "form",
               { onSubmit: handleSave, className: "p-6 space-y-4 overflow-y-auto min-h-0 flex-1" },
+            e(
+              "div",
+              { role: "tablist", "aria-label": "Secciones del producto", className: "flex gap-1 p-1 rounded-xl bg-gray-100 dark:bg-gray-900/60" },
+              TABS_PRODUCTO.map((t) => {
+                const activa = tabProducto === t.id;
+                return e(
+                  "button",
+                  {
+                    key: t.id,
+                    type: "button",
+                    role: "tab",
+                    "aria-selected": activa ? "true" : "false",
+                    onClick: () => setTabProducto(t.id),
+                    className: `flex-1 min-h-[44px] px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors motion-reduce:transition-none ${activa ? "bg-white dark:bg-gray-800 text-emerald-700 dark:text-emerald-400 shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`,
+                  },
+                  e(Icono, { nombre: t.icono }),
+                  t.nombre,
+                );
+              }),
+            ),
+            // Pestaña General: campos de siempre y los ampliados
+            tabProducto === "general" && e(
+              "div",
+              { className: "space-y-4" },
               // ID Field
               e(
                 "div",
@@ -884,12 +1180,12 @@ const ProductTab = () => {
                   type: "text",
                   value: formData.id,
                   disabled: !!editingProduct,
-                  required: true,
+                  // Vacío al crear = el servidor genera el ID (F1-2); por eso no va `required`
                   onChange: (ev) =>
-                    setFormData({ ...formData, id: ev.target.value }),
+                    setFormData((prev) => ({ ...prev, id: ev.target.value })),
                   className:
                     "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none disabled:opacity-50 transition-all",
-                  placeholder: "p-001",
+                  placeholder: editingProduct ? "p-001" : "p-001 (vacío = automático)",
                 }),
               ),
               // Name Field
@@ -909,7 +1205,7 @@ const ProductTab = () => {
                   value: formData.name,
                   required: true,
                   onChange: (ev) =>
-                    setFormData({ ...formData, name: ev.target.value }),
+                    setFormData((prev) => ({ ...prev, name: ev.target.value })),
                   className:
                     "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all",
                   placeholder: "Ej: Producto Especial",
@@ -933,7 +1229,7 @@ const ProductTab = () => {
                   value: formData.price,
                   required: true,
                   onChange: (ev) =>
-                    setFormData({ ...formData, price: ev.target.value }),
+                    setFormData((prev) => ({ ...prev, price: ev.target.value })),
                   className:
                     "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all",
                 }),
@@ -958,7 +1254,7 @@ const ProductTab = () => {
                   inputMode: "numeric",
                   value: formData.descuentoPct,
                   onChange: (ev) =>
-                    setFormData({ ...formData, descuentoPct: ev.target.value }),
+                    setFormData((prev) => ({ ...prev, descuentoPct: ev.target.value })),
                   placeholder: "0",
                   className:
                     "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all",
@@ -1014,10 +1310,10 @@ const ProductTab = () => {
                       className: `relative w-11 h-6 rounded-full transition-colors duration-200 ${formData.trackStock ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-600"}`,
                       onClick: (ev) => {
                         ev.preventDefault();
-                        setFormData({
-                          ...formData,
-                          trackStock: !formData.trackStock,
-                        });
+                        setFormData((prev) => ({
+                          ...prev,
+                          trackStock: !prev.trackStock,
+                        }));
                       },
                     },
                     e("div", {
@@ -1043,7 +1339,7 @@ const ProductTab = () => {
                       min: "0",
                       value: formData.stock,
                       onChange: (ev) =>
-                        setFormData({ ...formData, stock: ev.target.value }),
+                        setFormData((prev) => ({ ...prev, stock: ev.target.value })),
                       className:
                         "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all",
                       placeholder: "0",
@@ -1072,11 +1368,11 @@ const ProductTab = () => {
                       const updatedSec = (formData.categorias || []).filter(
                         (id) => String(id) !== String(newCat),
                       );
-                      setFormData({
-                        ...formData,
+                      setFormData((prev) => ({
+                        ...prev,
                         categoria: newCat,
                         categorias: updatedSec,
-                      });
+                      }));
                     },
                     className:
                       "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all",
@@ -1148,17 +1444,17 @@ const ProductTab = () => {
                                   ? [...formData.categorias]
                                   : [];
                                 if (ev.target.checked) {
-                                  setFormData({
-                                    ...formData,
+                                  setFormData((prev) => ({
+                                    ...prev,
                                     categorias: [...current, c._id],
-                                  });
+                                  }));
                                 } else {
-                                  setFormData({
-                                    ...formData,
+                                  setFormData((prev) => ({
+                                    ...prev,
                                     categorias: current.filter(
                                       (id) => String(id) !== String(c._id),
                                     ),
-                                  });
+                                  }));
                                 }
                               },
                               className:
@@ -1185,11 +1481,104 @@ const ProductTab = () => {
                 e("textarea", {
                   value: formData.description,
                   onChange: (ev) =>
-                    setFormData({ ...formData, description: ev.target.value }),
+                    setFormData((prev) => ({ ...prev, description: ev.target.value })),
                   className:
                     "w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none h-20 transition-all resize-none",
                   placeholder: "Ingredientes, tamaño...",
                 }),
+              ),
+              // Identificación ampliada (F1-2)
+              e(
+                "div",
+                { className: "grid grid-cols-1 sm:grid-cols-2 gap-4" },
+                CampoProducto({
+                  label: "SKU",
+                  value: formData.sku,
+                  maxLength: 40,
+                  placeholder: "Código interno",
+                  onChange: (v) => setFormData((prev) => ({ ...prev, sku: v })),
+                }),
+                CampoProducto({
+                  label: "Marca fabricante",
+                  value: formData.marcaFabricante,
+                  maxLength: 60,
+                  onChange: (v) => setFormData((prev) => ({ ...prev, marcaFabricante: v })),
+                }),
+              ),
+              CampoProducto({
+                label: "Códigos OEM (separados por ;)",
+                value: formData.codigosOEMTexto,
+                maxLength: 1000,
+                placeholder: "Un código por cada número de parte original",
+                onChange: (v) => setFormData((prev) => ({ ...prev, codigosOEMTexto: v })),
+              }),
+              // Atributos (ficha técnica): filas nombre / valor
+              e(
+                "div",
+                { className: "space-y-2" },
+                e(
+                  "div",
+                  { className: "flex justify-between items-center" },
+                  e("span", { className: ETIQUETA_PRODUCTO }, "Atributos"),
+                  e(
+                    "button",
+                    {
+                      type: "button",
+                      disabled: formData.atributos.length >= MAX_ATRIBUTOS,
+                      onClick: () =>
+                        setFormData((prev) => ({ ...prev, atributos: [...prev.atributos, { nombre: "", valor: "" }] })),
+                      className: "min-h-[44px] px-3 text-xs font-bold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-50 transition motion-reduce:transition-none flex items-center gap-1.5",
+                    },
+                    e(Icono, { nombre: "plus" }),
+                    "Agregar atributo",
+                  ),
+                ),
+                formData.atributos.length === 0 &&
+                  e("p", { className: "text-xs text-gray-400" }, "Sin atributos. Por ejemplo: tamaño, potencia o material."),
+                formData.atributos.map((a, i) =>
+                  e(
+                    "div",
+                    { key: i, className: "grid grid-cols-[1fr_1fr_auto] gap-2 items-center" },
+                    e("input", {
+                      type: "text",
+                      value: a.nombre,
+                      maxLength: 40,
+                      placeholder: "Nombre",
+                      "aria-label": `Atributo ${i + 1}: nombre`,
+                      onChange: (ev) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          atributos: prev.atributos.map((x, j) => (j === i ? { ...x, nombre: ev.target.value } : x)),
+                        })),
+                      className: CLASE_INPUT_PRODUCTO,
+                    }),
+                    e("input", {
+                      type: "text",
+                      value: a.valor,
+                      maxLength: 120,
+                      placeholder: "Valor",
+                      "aria-label": `Atributo ${i + 1}: valor`,
+                      onChange: (ev) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          atributos: prev.atributos.map((x, j) => (j === i ? { ...x, valor: ev.target.value } : x)),
+                        })),
+                      className: CLASE_INPUT_PRODUCTO,
+                    }),
+                    e(
+                      "button",
+                      {
+                        type: "button",
+                        title: "Quitar atributo",
+                        "aria-label": `Quitar atributo ${i + 1}`,
+                        onClick: () =>
+                          setFormData((prev) => ({ ...prev, atributos: prev.atributos.filter((_, j) => j !== i) })),
+                        className: "min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 transition motion-reduce:transition-none",
+                      },
+                      e(Icono, { nombre: "trash" }),
+                    ),
+                  ),
+                ),
               ),
               // Sección de Imágenes del Producto
               e(
@@ -1204,15 +1593,15 @@ const ProductTab = () => {
                       className:
                         "block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest",
                     },
-                    `Fotos del Producto (${productImages.length}/5)`
+                    `Fotos del Producto (${cuentaFotos}/5)`
                   ),
-                  editingProduct && productImages.length < 5 &&
+                  cuentaFotos < MAX_FOTOS &&
                     e(
                       "button",
                       {
                         type: "button",
                         onClick: () => fileInputRef.current?.click(),
-                        disabled: uploadingImage,
+                        disabled: uploadingImage || subiendoFotos,
                         className:
                           "text-xs px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold rounded-lg hover:bg-emerald-500/20 transition flex items-center gap-1",
                       },
@@ -1221,16 +1610,7 @@ const ProductTab = () => {
                     )
                 ),
                 e(AyudaTamanoImagen, { medidas: "1000 × 1000 px (cuadrada)", detalle: "JPG, PNG o WebP, hasta 5 MB" }),
-                !editingProduct
-                  ? e(
-                      "div",
-                      {
-                        className:
-                          "p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-dashed border-gray-200 dark:border-gray-700 text-xs text-gray-400 text-center",
-                      },
-                      "Guarda el producto para añadir fotos"
-                    )
-                  : e(
+                e(
                       "div",
                       null,
                       e("input", {
@@ -1238,10 +1618,10 @@ const ProductTab = () => {
                         ref: fileInputRef,
                         accept: "image/jpeg,image/png,image/webp",
                         multiple: true,
-                        onChange: handleUploadImage,
+                        onChange: editingProduct ? handleUploadImage : handleSeleccionarFotosNuevas,
                         className: "hidden",
                       }),
-                      productImages.length === 0
+                      cuentaFotos === 0
                         ? e(
                             "div",
                             {
@@ -1251,6 +1631,8 @@ const ProductTab = () => {
                             },
                             "No hay fotos. Haz clic en 'Subir fotos' y elige hasta 5 a la vez."
                           )
+                        : !editingProduct
+                        ? renderFotosPendientes()
                         : e(
                             ListaImagenesOrdenable,
                             {
@@ -1304,6 +1686,113 @@ const ProductTab = () => {
                           )
                     )
               ),
+              ),
+            // Pestaña Compatibilidad: vehículos a los que sirve el producto
+            tabProducto === "compat" && e(
+              "div",
+              { className: "space-y-3" },
+              e(
+                "div",
+                { className: "flex justify-between items-center gap-2" },
+                e("p", { className: "text-xs text-gray-500 dark:text-gray-400" }, "Motor y versión vacíos: sirve para todos los del modelo."),
+                e(
+                  "button",
+                  {
+                    type: "button",
+                    disabled: formData.compatibilidad.length >= MAX_COMPATIBILIDAD,
+                    onClick: () =>
+                      setFormData((prev) => ({ ...prev, compatibilidad: [...prev.compatibilidad, { ...FILA_COMPAT_VACIA }] })),
+                    className: "shrink-0 min-h-[44px] px-3 text-xs font-bold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-50 transition motion-reduce:transition-none flex items-center gap-1.5",
+                  },
+                  e(Icono, { nombre: "plus" }),
+                  "Agregar vehículo",
+                ),
+              ),
+              formData.compatibilidad.length === 0 &&
+                e(
+                  "div",
+                  { className: "p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-dashed border-gray-200 dark:border-gray-700 text-xs text-gray-400 text-center" },
+                  "Sin vehículos. Agrega marca y modelo para que el producto aparezca en la búsqueda por vehículo.",
+                ),
+              formData.compatibilidad.map((f, i) => {
+                const cambiar = (campo) => (valor) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    compatibilidad: prev.compatibilidad.map((x, j) => (j === i ? { ...x, [campo]: valor } : x)),
+                  }));
+                return e(
+                  "div",
+                  { key: i, className: "p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 space-y-2" },
+                  e(
+                    "div",
+                    { className: "grid grid-cols-1 sm:grid-cols-2 gap-2" },
+                    CampoProducto({ label: `Vehículo ${i + 1}: marca`, ariaLabel: `Vehículo ${i + 1}: marca`, value: f.marca, maxLength: 60, onChange: cambiar("marca") }),
+                    CampoProducto({ label: `Vehículo ${i + 1}: modelo`, ariaLabel: `Vehículo ${i + 1}: modelo`, value: f.modelo, maxLength: 60, onChange: cambiar("modelo") }),
+                  ),
+                  e(
+                    "div",
+                    { className: "grid grid-cols-2 sm:grid-cols-4 gap-2" },
+                    CampoProducto({ label: "Año desde", type: "number", inputMode: "numeric", min: 1950, max: 2100, value: f.anioDesde, onChange: cambiar("anioDesde") }),
+                    CampoProducto({ label: "Año hasta", type: "number", inputMode: "numeric", min: 1950, max: 2100, value: f.anioHasta, onChange: cambiar("anioHasta") }),
+                    CampoProducto({ label: "Motor", value: f.motor, maxLength: 20, placeholder: "Vacío = todos", onChange: cambiar("motor") }),
+                    CampoProducto({ label: "Versión", value: f.version, maxLength: 40, placeholder: "Vacío = todas", onChange: cambiar("version") }),
+                  ),
+                  e(
+                    "div",
+                    { className: "flex gap-2 items-end" },
+                    e("div", { className: "flex-1" }, CampoProducto({ label: "Nota", value: f.nota, maxLength: 120, onChange: cambiar("nota") })),
+                    e(
+                      "button",
+                      {
+                        type: "button",
+                        title: "Quitar vehículo",
+                        "aria-label": `Quitar vehículo ${i + 1}`,
+                        onClick: () =>
+                          setFormData((prev) => ({ ...prev, compatibilidad: prev.compatibilidad.filter((_, j) => j !== i) })),
+                        className: "min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 transition motion-reduce:transition-none",
+                      },
+                      e(Icono, { nombre: "trash" }),
+                    ),
+                  ),
+                );
+              }),
+            ),
+            // Pestaña Equivalencias: grupo y los otros productos del grupo (solo lectura)
+            tabProducto === "equiv" && (() => {
+              const grupo = normalizarGrupoEquivalencia(formData.grupoEquivalencia);
+              const equivalentes = grupo
+                ? catalogoCompleto.filter((p) => String(p.id) !== String(formData.id) && normalizarGrupoEquivalencia(p.grupoEquivalencia) === grupo)
+                : [];
+              return e(
+                "div",
+                { className: "space-y-3" },
+                CampoProducto({
+                  label: "Grupo de equivalencia",
+                  value: formData.grupoEquivalencia,
+                  maxLength: 60,
+                  placeholder: "Mismo texto en las piezas que se pueden cambiar",
+                  onChange: (v) => setFormData((prev) => ({ ...prev, grupoEquivalencia: v })),
+                }),
+                e("p", { className: "text-xs text-gray-500 dark:text-gray-400" },
+                  "Los productos con el mismo grupo se muestran como equivalentes."),
+                !grupo
+                  ? e("p", { className: "text-xs text-gray-400" }, "Escribe un grupo para ver sus equivalentes.")
+                  : equivalentes.length === 0
+                    ? e("p", { className: "text-xs text-gray-400" }, "Ningún otro producto comparte este grupo.")
+                    : e(
+                        "ul",
+                        { className: "divide-y divide-gray-100 dark:divide-gray-700 rounded-xl border border-gray-200 dark:border-gray-700" },
+                        equivalentes.map((p) =>
+                          e(
+                            "li",
+                            { key: p.id, className: "px-3 py-2 flex justify-between gap-3 text-sm" },
+                            e("span", { className: "text-gray-800 dark:text-gray-100" }, p.name),
+                            e("span", { className: "text-xs text-gray-400 shrink-0" }, p.sku || p.id),
+                          ),
+                        ),
+                      ),
+              );
+            })(),
               // Footer Buttons
               e(
                 "div",
@@ -1322,10 +1811,11 @@ const ProductTab = () => {
                   "button",
                   {
                     type: "submit",
+                    disabled: subiendoFotos,
                     className:
-                      "flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition font-bold text-sm active:scale-[0.98]",
+                      "flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition font-bold text-sm active:scale-[0.98] disabled:opacity-60 disabled:cursor-wait",
                   },
-                  "Guardar Cambios",
+                  subiendoFotos ? "Subiendo..." : "Guardar Cambios",
                 ),
               ),
             ),

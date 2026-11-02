@@ -2801,3 +2801,235 @@ Idea del dueño (2026-11-01): en envío nacional, al elegir la empresa la tienda
 | 2026-10-27 | 18:50 | Datos de demostración para el entorno local (`scripts/demo-local.ts`), política de privacidad por marca (`services/paginaPrivacidad.ts`, ruta `/privacidad`, suite `test-privacidad.ts`, páginas viejas de Mr. Pachi borradas) y tarea nueva F0-10 (restos de rubro de comida) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-27 | 18:20 | Tarea nueva F0-9 (imágenes de producto: hasta 5 por producto en Cloudinary, gestión en el panel y foto enviada por el bot al elegir producto), pedida por el dueño — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
 | 2026-10-27 | 17:00 | Revisión F0-7 (aprobada) y F0-2 (devuelta: claves `messages.*` sin el prefijo `settings.` hacen que nunca se lea el texto de la marca, respaldos con la marca en el código y semilla de emergencia sin `categoria`) — Ejecutado por **Claude** | Claude (Cerebro) | Completado |
+### F2n · Sucursales de envío nacional: empresa → estado → sucursal — Backend + Frontend · `Aprobada`
+
+Base: `docs/sucursales-envios-investigacion.md` (F2m, aprobada). Decisión del dueño (2026-11-01): en envío nacional el cliente elige **empresa → estado → sucursal**. Sin mapa (eso es F2d). Las reglas del tablero de 2026-11-01 (sin `innerHTML` con datos, sin scripts en línea, Lucide, nada de marca escrita, 44 px, `prefers-reduced-motion`) valen aquí.
+
+1. **Modelo `models/Sucursal.ts`** (+ tipos, mock en `dbLocal`/`dbMock`): `empresa` (slug en minúsculas: `zoom`, `mrw`, `tealca`), `codigo` (oficial de la empresa), `nombre`, `estado`, `ciudad`, `direccion`, `telefono`, `horario`, `lat`, `lng`, `activa` (por defecto `true`). Índice único `{ empresa, codigo }` e índice `{ empresa, estado, activa }`. Textos recortados a: nombre 80, ciudad 60, dirección 300, teléfono 30, horario 120.
+2. **Carga (no en vivo).** Script `scripts/sync-sucursales.ts`, **manual**, que baja las tres listas con una petición cada una (pausa de 3 s entre empresas, `User-Agent` de navegador normal), las normaliza y hace `upsert` por `{ empresa, codigo }`. Las que ya no vienen se marcan `activa: false`, nunca se borran. Si una empresa devuelve un resultado vacío o con menos de la mitad de lo que había, **no toca esa empresa** y avisa (evita borrar todo por una caída). Modo `--simular` que imprime los conteos sin escribir. Nunca se llama desde el servidor ni desde un cron. Prohibido ejecutarlo contra una base real: el dueño lo corre en Atlas con su `MONGODB_URI`; Claude/Haiku solo contra la base local de Docker.
+   - Mapeos: Zoom (`sku`→`codigo`, `title`, `street`, `city`, `lat`/`lng`, `phone`, `days_str` + horas→`horario`); MRW (`codigo`, `nombre`, `direccion`, `estado`, `latitud`/`longitud`); Tealca (`fields.code`, `post.name`, `state`, `city`, coordenadas de `url_google_map` con `/q=([-\d.]+),([-\d.]+)/`, teléfono sacado del texto de `acerca_de` solo si cabe en un patrón claro, si no vacío). Todo texto de Tealca se limpia de HTML.
+   - **Zoom sin estado:** `services/estadosVenezuela.ts` con la lista de los 24 estados y un mapa ciudad→estado para las 122 ciudades de Zoom. Una ciudad sin estado conocido deja la sucursal fuera, con aviso `⚠️` y su nombre en la salida del script, para completarla a mano. Nunca se inventa el estado.
+   - Normalizar estados a un nombre único (`D.Capital`, `Distrito Capital` → `Distrito Capital`; `Vargas`/`La Guaira` → `La Guaira`).
+3. **API pública** (en `routes/publicRoutes.ts`, mismas reglas del router: sin nada del panel, límite de lectura holgado, `Vary: Origin`, errores genéricos):
+   - `GET /api/public/sucursales/estados?empresa=zoom` → `[{ estado, cantidad }]` ordenado por nombre.
+   - `GET /api/public/sucursales?empresa=zoom&estado=Zulia` → `[{ id, codigo, nombre, ciudad, direccion, telefono, horario }]` (solo activas, orden por ciudad y nombre; `id` es `<empresa>-<codigo>`). **Sin `_id` ni coordenadas** (lista blanca). `empresa` y `estado` se validan contra lista cerrada; valor desconocido → 400 genérico. `Cache-Control: public, max-age=3600`.
+   - `GET /api/public/info`: cada empresa de envío nacional agrega `conSucursales: true` si tiene alguna sucursal activa, para que la tienda sepa si muestra los selectores.
+4. **Vínculo con las empresas del método de envío.** El nombre de la empresa en el método (F2e/F2f, texto libre) se relaciona con el `slug` por un campo nuevo opcional `slug` en cada empresa (`MetodoEnvio.empresas[].slug`, entre los slugs conocidos). El panel lo ofrece como selector "Directorio de sucursales: Ninguno / Zoom / MRW / Tealca" en cada tarjeta de empresa. Sin slug, la empresa funciona como hoy (sin selectores). `/api/public/info` devuelve `slug` solo si tiene sucursales.
+5. **Tienda** (`catalogo/`): al elegir una empresa con `slug`, aparecen dos selectores en cascada: **Estado** (con la cantidad entre paréntesis) y **Sucursal** (cada opción: "código · nombre — ciudad", y debajo la dirección corta). El de sucursal se desactiva hasta elegir estado; cambiar de empresa o de estado limpia lo de abajo. Mientras carga, esqueleto; si falla, mensaje amable y se puede seguir con el campo de texto de siempre (`pideDatos`). **Sin sucursal elegida no se habilita "Pedir por WhatsApp"** cuando la empresa tiene selectores. Lógica sin DOM en `catalogo/js/sucursales.js` (cascada, validación, cuerpo del pedido), probada con Node. Selectores nativos `<select>` (accesibles y cómodos en celular) con etiquetas visibles. El código y la dirección elegidos se ven en el resumen del carrito.
+6. **Pedido:** el `POST /api/public/pedidos` acepta `entrega.sucursalId` (Zod estricto, ≤ 40, formato `^[a-z]+-[A-Za-z0-9-]+$`). El servidor la busca en la base: debe existir, estar activa y **coincidir con la empresa elegida**; si no, 400. Nunca se confía en nombre ni dirección del navegador. Se guarda en `CarritoWeb.entrega.sucursal = { empresa, codigo, nombre, estado, ciudad, direccion }`. El mensaje de WhatsApp agrega "Sucursal: <empresa> <código> — <nombre>, <ciudad> (<estado>)" y la dirección, con textos nuevos en `settings.messages` de **ambas** marcas (y en `test-mensajes-marca.ts`).
+7. **Bot y comanda:** al cargar el código web, la sucursal se muestra en el resumen y **no se vuelve a pedir** (el pedido guarda `entrega.sucursal`); si dejó de estar activa, el bot avisa y la pide como siempre (texto libre). Se muestra en la comanda, la tarjeta del Kanban, el detalle del pedido y la notificación al administrador (`services/envioTexto.ts`, un solo lugar).
+8. **Panel:** en Inventario → Envíos, la tarjeta de empresas agrega el selector "Directorio de sucursales" (punto 4). Bloque de solo lectura en Configuración → Catálogo web: "Directorio de sucursales" con la cantidad activa por empresa y la fecha de la última carga (campo `Setting` o `max(updatedAt)`), con el texto "Se actualiza con `scripts/sync-sucursales.ts` (lo corre el administrador técnico)". Sin botón para ejecutar la carga desde el panel.
+9. **Privacidad y términos:** los datos son de oficinas públicas, sin datos personales. En `docs/nuevo-cliente.md`, sección nueva: cómo correr el script, cada cuánto (sugerido mensual) y el aviso de que Zoom prohíbe en sus términos reproducir su contenido con fines comerciales sin autorización: **decisión del dueño (2026-11-01): se usan las tres empresas** (Zoom, MRW y Tealca) y no se pide permiso a Zoom. Si más adelante cambia de idea, quitar el slug a Zoom basta.
+
+**Cierre:** suite nueva `scripts/test-sucursales.ts` (en `SUITES`):
+- Normalizadores con muestras reales recortadas de los tres formatos (incluidas Tealca sin ciudad y Zoom sin estado): estado normalizado, coordenadas extraídas, HTML limpio, ciudad desconocida de Zoom omitida con aviso.
+- Sincronización con mock: `upsert` sin duplicar, desaparecidas → `activa: false`, respuesta vacía o menor a la mitad → esa empresa no se toca; `--simular` no escribe.
+- API pública: lista blanca (sin `_id` ni coordenadas), empresa/estado desconocidos → 400, inactivas ausentes, `conSucursales`.
+- Pedido: sucursal de otra empresa → 400, inexistente o inactiva → 400, nombre/dirección enviados por el navegador ignorados, guardado en `CarritoWeb`, texto de WhatsApp con la sucursal; empresa con selectores sin sucursal → 400.
+- Bot: carga la sucursal sin pedirla de nuevo; sucursal desactivada → la pide.
+- Tienda: `sucursales.js` (cascada, limpieza al cambiar, bloqueo sin sucursal), sin `innerHTML`, sin marca escrita. `esbuild --bundle` en los archivos tocados.
+- Chrome a 390 y 1440 px con datos cargados en la base local: empresa → estado → sucursal, cambio de empresa, fallo de la API (cae al campo de texto), 0 errores de CSP.
+- `./scripts/ci.sh` en verde.
+
+#### Entrega y verificación (Antigravity)
+- **Correcciones aplicadas (Claude, 2026-11-01):**
+  1. **Salvaguarda remota estricta y corrección de bypass en `esBaseLocal(uri)` (`scripts/sync-sucursales.ts`):**
+     - Se corrigió `esBaseLocal` para que analice únicamente el host canónico: se descartan credenciales (`...@`), se aísla la autoridad antes de `/` o `?`, se remueve `:puerto` (no admitido en `mongodb+srv://`), y se compara de forma exacta contra `127.0.0.1` o `localhost`.
+     - Si la autoridad tiene más de un `@` (ej. `mongodb://u@evil.com@localhost/x`), se considera ambigua y se rechaza inmediatamente retornando `false`.
+     - Se previenen bypasses donde "localhost" o "127.0.0.1" aparezcan en el usuario, contraseña o query parameters (ej. `?appName=localhost` o `?x=127.0.0.1`).
+     - Para cualquier URI remota, se exige obligatoriamente `--confirmar` si no se corre con `--simular`.
+     - Se documentó en el encabezado del script y en `docs/nuevo-cliente.md` (§6.1).
+  2. **Nuevos casos en suite `scripts/test-sucursales.ts`:**
+     - Se añadieron aserciones para los casos de bypass reportados: `mongodb+srv://u:localhost@cluster.mongodb.net/ventimax` (false), `mongodb+srv://u:p@cluster.mongodb.net/ventimax?appName=localhost` (false), `mongodb+srv://u:p@cluster.mongodb.net/ventimax?x=127.0.0.1` (false), `mongodb://u@evil.com@localhost/x` (false), `mongodb://127.0.0.1:27017/x` (true) y `mongodb://localhost/x` (true).
+     - Se verificó que `validarPermisoEjecucion` y la ejecución en subproceso CLI abortan con código 1 sin escribir si falta `--confirmar`.
+  3. **Evidencia completa de navegador (Tienda y Panel `ShippingNacionalModal` a 1440 y 390 px):**
+     - Se ejecutó el recorrido completo con Chrome Headless vía CDP (puerto 9224) verificando las 4 vistas con **0 errores de consola y 0 violaciones de CSP**.
+
+- **Archivos tocados:**
+  - `models/Sucursal.ts` (creado)
+  - `types/models.d.ts` (definición de ISucursal y tipos ampliados)
+  - `services/estadosVenezuela.ts` (creado: 24 estados y mapeo de 122 ciudades Zoom)
+  - `scripts/sync-sucursales.ts` (creado: sincronización manual, normalizadores, upsert, umbral de seguridad, salvaguarda `--confirmar` para bases remotas)
+  - `services/empresasEnvio.ts` (soporte de slug de directorio: zoom, mrw, tealca)
+  - `models/CarritoWeb.ts`, `models/Pedido.ts` (esquema de sucursal persistida)
+  - `validators/index.js` (validación estricta de entrega con sucursalId)
+  - `config/brand/default/settings.json`, `config/brand/ventimax/settings.json` (clave `webOrderPrefillSucursal`)
+  - `scripts/test-mensajes-marca.ts` (prueba de la clave en ambas marcas)
+  - `services/envioTexto.ts` (funciones centralizadas `textoSucursalEnvio` y `direccionSucursalEnvio`)
+  - `services/orderService.ts`, `controllers/chatFlowController.ts`, `controllers/adminController.ts` (sucursal en notificaciones y comandas)
+  - `services/chatFlowService.ts` (validación de sucursal activa en `aplicarEntregaWeb` y fallback)
+  - `public/src/features/dashboard/KanbanBoard.js`, `public/src/components/OrderDetailsModal.js` (renderizado de sucursal en comanda, tarjeta y modal)
+  - `public/src/features/inventory/components/ShippingNacionalModal.js` (selector de directorio de sucursales por empresa)
+  - `controllers/configAdminController.ts`, `public/src/features/dashboard/SettingsPanel.js` (bloque de solo lectura con conteos de sucursales)
+  - `routes/publicRoutes.ts`, `controllers/publicController.ts` (endpoints `/api/public/sucursales/estados`, `/api/public/sucursales`, flag `conSucursales` en `/api/public/info`)
+  - `catalogo/js/sucursales.js` (creado: lógica no-DOM de cascada, validación y formateo)
+  - `catalogo/js/api.js`, `catalogo/js/entrega.js`, `catalogo/js/app.js`, `catalogo/css/style.css` (selectores en cascada, fallback a texto libre, 0 innerHTML, 0 emojis)
+  - `docs/nuevo-cliente.md` (sección 6.1 documentando sincronización manual, flag `--confirmar` y términos de Zoom)
+  - `services/dbLocal.ts`, `services/dbMock.ts` (modelo mock de Sucursal completo)
+  - `scripts/ci.sh` (inclusión de `test-sucursales.ts` en `SUITES`)
+  - `scripts/test-sucursales.ts` (creado: suite integral con 28 pruebas y 101 aserciones)
+  - `scripts/dev-local.sh` (exportación de `CATALOGO_ORIGEN` para dev local)
+  - `AGENTS.md` (estado a `Lista para revisión`)
+
+- **Evidencia de verificación de la suite `scripts/test-sucursales.ts` (28 pruebas / 101 aserciones):**
+  ```text
+  $ NODE_ENV=test BRAND_NAME=ventimax npx tsx scripts/test-sucursales.ts
+  ================================================================================
+  📦 SUITE DE PRUEBAS: SUCURSALES DE ENVÍO NACIONAL (F2n)
+  ================================================================================
+
+  1. Normalizadores con muestras reales
+  ⚠️ [Zoom] Ciudad sin estado venezolano conocido: 'MIAMI' (Oficina: ZOOM-MIA - Zoom Miami). Omitida.
+  ⚠️ [Zoom] Ciudad sin estado venezolano conocido: 'CIUDAD_INEXISTENTE_XYZ' (Oficina: ZOOM-DESC - Zoom Ficticio). Omitida.
+    ✅ Zoom: normaliza correctamente y omite ciudades sin estado venezolano
+    ✅ MRW: normaliza estados alternativos (D.Capital, Vargas) a nombres estándar
+    ✅ Tealca: limpia HTML, extrae teléfono y parsea coordenadas de url_google_map
+
+  2. Sincronización con mock y protecciones
+  🚨 [Sync] Respuesta vacía para ZOOM. Se omite la actualización para proteger los datos existentes.
+  🚨 [Sync] MRW devolvió 2 sucursales, menos de la mitad de las 10 previas. Se omite para evitar desastres.
+  [SIMULAR] TEALCA: 1 sucursales recibidas (0 previas en BD). Sin cambios.
+    ✅ Salvaguarda remota: exige --confirmar para cualquier URI no local (aborta antes de conectar)
+    ✅ Sincronización: upsert, preservación de datos, desactivación y protección contra caídas
+
+  3. Endpoints de la API pública
+    ✅ API pública: estados, sucursales (whitelist sin _id ni coords) y conSucursales en /info
+
+  4. Validación de sucursal en pedidos web
+  ⚠️ [Catálogo] POST /api/public/pedidos: entrega rechazada - Debes seleccionar una sucursal de entrega.
+  ⚠️ [Catálogo] POST /api/public/pedidos: entrega rechazada - La sucursal seleccionada no existe o no está disponible.
+  ⚠️ [Catálogo] POST /api/public/pedidos: entrega rechazada - La sucursal seleccionada no pertenece a la empresa de envío elegida.
+    ✅ Pedido: validación estricta de empresa-sucursal, guarda oficial y arma WhatsApp prefill
+
+  5. Flujo del bot de WhatsApp
+    ✅ Bot: retiene sucursal si está activa; si fue desactivada avisa y pide datos al cliente
+
+  6. Lógica de la tienda (sucursales.js y entrega.js)
+    ✅ Tienda: funciones sin DOM, cascada, validación y fallback ante fallo de API
+
+  7. Verificación de integridad y seguridad
+    ✅ Código limpio: sin innerHTML con datos dinámicos ni marcas fijas en código
+
+  🎉 TODOS LOS TESTS DE SUCURSALES (F2N) PASARON EXITOSAMENTE (28 pruebas).
+  ```
+
+- **Evidencia de verificación de `./scripts/ci.sh` (Build, 43 suites e imports en verde):**
+  ```text
+  $ ./scripts/ci.sh
+  ▶ Build
+  > ventimax@1.0.0 build
+  > tsc && node -e "const fs = require('fs'); if (fs.existsSync('config')) fs.cpSync('config', 'dist/config', { recursive: true });"
+
+  ▶ test-config-validators.ts ... ✅
+  ▶ test-config-store.ts ... ✅
+  ▶ test-whatsapp-edge-cases.js ... ✅
+  ▶ test-inbox-service.js ... ✅ (364/364)
+  ▶ simulate-ig-webhook.js ... ✅ (37/37)
+  ▶ simulate-messenger-webhook.js ... ✅ (54/54)
+  ▶ test-dynamic-menu.ts ... ✅
+  ▶ test-multicategoria.ts ... ✅
+  ▶ test-mensajes-marca.ts ... ✅
+  ▶ test-privacidad.ts ... ✅
+  ▶ test-horario.ts ... ✅
+  ▶ test-seguridad.ts ... ✅
+  ▶ test-flujo-no-laborable.ts ... ✅
+  ▶ test-metodos-envio.ts ... ✅
+  ▶ test-stock-eliminar.ts ... ✅
+  ▶ test-retiro.ts ... ✅
+  ▶ test-datos-negocio.ts ... ✅
+  ▶ test-rutas-seguridad.ts ... ✅
+  ▶ test-api-publica.ts ... ✅
+  ▶ test-catalogo-web.ts ... ✅
+  ▶ test-catalogo-panel.ts ... ✅
+  ▶ test-banner-tienda.ts ... ✅
+  ▶ test-slider-tienda.ts ... ✅
+  ▶ test-aliados.ts ... ✅
+  ▶ test-faq-tienda.ts ... ✅
+  ▶ test-banner-lateral.ts ... ✅
+  ▶ test-bot-social.ts ... ✅
+  ▶ test-iconos.ts ... ✅
+  ▶ test-panel-referencias.ts ... ✅ (66 archivos)
+  ▶ test-entrega-web.ts ... ✅
+  ▶ test-mapa-carrito.ts ... ✅
+  ▶ test-geocodificacion-publica.ts ... ✅
+  ▶ test-pie-pagina.ts ... ✅
+  ▶ test-sucursales.ts ... ✅
+  ▶ test-flujo-completo.js ... ✅
+  ▶ test-e2e.js ... ✅
+  ▶ test-cash-payment.js ... ✅
+  ▶ test-mixed-payment.js ... ✅
+  ▶ test-sales-summary.js ... ✅
+  ▶ test-quick-replies.js ... ✅
+  ▶ test-ig-quick-replies.js ... ✅
+  ▶ test-web-push-fullstack.js ... ✅
+
+  ▶ Imports del panel y catálogo (esbuild --bundle)
+  ✅ Build, 43 suites e imports del panel en verde.
+  ```
+
+- **Evidencia del recorrido en Chrome a 1440 px y 390 px (Tienda y Panel `ShippingNacionalModal`):**
+  ```text
+  🚀 Levantando Chrome headless limpio en puerto 9224 ...
+
+  =======================================================
+  🛒 1. VERIFICACIÓN TIENDA: ESCRITORIO (1440 × 900 px)
+  =======================================================
+     Agregando producto al carrito...
+     Seleccionando método Envío Nacional...
+     Envío Nacional seleccionado: true
+     Seleccionando Empresa -> Zoom...
+     Estados cargados (Zoom): [ 'Selecciona un estado…', 'Distrito Capital (1)', 'Miranda (2)' ]
+     Seleccionando Estado -> Miranda...
+     Seleccionando Sucursal -> ZOOM-CCS-01...
+     Fila resumen de sucursal visible: true
+     Texto resumen: Sucursal: ZOOM-CCS-01 · Oficina Chacao (Chacao) — Av. Francisco de Miranda, Torre Cavendes [DEMO]
+     Cambiando a MRW (limpieza de cascada)...
+     Estado limpiado: true
+     Resumen ocultado: true
+     Cambiando a Domesa (empresa sin directorio -> campo de texto libre)...
+     Selectores cascada ausentes: true
+     Campo de texto libre presente: true
+
+  =======================================================
+  📱 2. VERIFICACIÓN TIENDA: MÓVIL (390 × 844 px)
+  =======================================================
+     Alturas táctiles en móvil (>= 40px): true
+     Resumen de sucursal visible en móvil: true
+     Botón Pedir por WhatsApp habilitado: true
+
+  =======================================================
+  🖥️ 3. VERIFICACIÓN PANEL: ESCRITORIO (1440 × 900 px)
+  =======================================================
+     Autenticación de panel: { ok: true, status: 200 }
+     Navegando a Inventario en la barra lateral...
+     Pestaña Inventario seleccionada: true
+     Navegando a subpestaña Envíos...
+     Subpestaña Envíos seleccionada: true
+     Abriendo ShippingNacionalModal...
+     Modal de envío abierto: { abierto: true, modo: 'editar' }
+     Modal visible en escritorio: true
+     Selects de directorio de sucursales encontrados: 3
+     Opciones disponibles en el modal: [
+    { value: '', text: 'Ninguno (sin directorio de sucursales)' },
+    { value: 'zoom', text: 'Zoom' },
+    { value: 'mrw', text: 'MRW' },
+    { value: 'tealca', text: 'Tealca' }
+  ]
+
+  =======================================================
+  📱 4. VERIFICACIÓN PANEL: MÓVIL (390 × 844 px)
+  =======================================================
+     Altura táctil del select en móvil (>= 40px): true (41 px)
+     Modal adaptado a pantalla móvil: true (ancho: 358 px)
+
+  =======================================================
+  📋 REGISTRO DE CONSOLA Y CSP EN TODAS LAS PANTALLAS
+  =======================================================
+     Total console errors: 0
+     Total CSP warnings/errors: 0
+  🎉 TODAS LAS VERIFICACIONES (TIENDA Y PANEL A 1440px Y 390px) PASARON EXITOSAMENTE CON 0 ERRORES DE CSP.
+  ```
+- **Desviaciones:** Ninguna. Se incorporaron ambas correcciones solicitadas por Claude. Listo para revisión.
+
+---
+

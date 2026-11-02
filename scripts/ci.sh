@@ -43,6 +43,9 @@ SUITES=(
   test-pie-pagina.ts
   test-mapa-carrito.ts
   test-sucursales.ts
+  test-producto-ampliado.ts
+  test-producto-admin-ampliado.ts
+  test-fotos-al-crear.ts
   test-e2e-saas.js
   test-full-flow.js
   test-cash-logic.js
