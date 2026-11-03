@@ -144,7 +144,8 @@ const SalesDashboard = ({ userRole = "admin" }) => {
     const updatedItems = [...manualSale.items];
     updatedItems[index] = {
       producto: productName,
-      price: prod ? prod.price : 0,
+      // Precio vigente (con el descuento del producto, F2g); el backend cobra el mismo valor
+      price: prod ? (typeof prod.precioVigente === "number" ? prod.precioVigente : prod.price) : 0,
       cantidad: updatedItems[index].cantidad || 1,
     };
     setManualSale((prev) => ({
@@ -1750,7 +1751,7 @@ const SalesDashboard = ({ userRole = "admin" }) => {
                           e(
                             "option",
                             { key: p.id, value: p.name },
-                            `${p.name} ($${p.price})${p.trackStock ? ` - Stock: ${p.stock}` : ''}`,
+                            `${p.name} ($${typeof p.precioVigente === "number" ? p.precioVigente : p.price}${p.descuentoPct > 0 ? ` -${p.descuentoPct}%` : ''})${p.trackStock ? ` - Stock: ${p.stock}` : ''}`,
                           ),
                         ),
                       ),
