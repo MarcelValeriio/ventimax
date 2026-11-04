@@ -10,6 +10,8 @@ const { listarPreguntasTienda } = require("../services/preguntasFrecuentesServic
 const { formatearHorarioAtencion } = require("../services/horarioService");
 const { normalizarEmpresas, nombresEmpresas } = require("../services/empresasEnvio");
 const { precioVigente, descuentoVigente } = require("../services/precios");
+const { calcularDescuentoVolumen, resumenDescuentoVolumen } = require("../services/descuentoVolumen");
+const { getConfigDescuentoVolumenSync } = require("../services/descuentoVolumenService");
 const { getBannerTiendaSync } = require("../services/bannerTiendaService");
 const { getBannerLateralSync } = require("../services/bannerLateralService");
 const { getSliderTiendaPublico } = require("../services/sliderTiendaService");
@@ -95,6 +97,19 @@ function obtenerNumeroWhatsApp(incluirAdmin = true): string | null {
   }
 
   return null;
+}
+
+/**
+ * Descuento por volumen (F1-9) para la vista previa de la tienda: solo activo y tramos.
+ * Es solo visual: el servidor vuelve a calcular el descuento en cada pedido.
+ */
+function descuentoVolumenPublico(): { activo: boolean; tramos: { minUnidades: number; pct: number }[] } {
+  const cfg = getConfigDescuentoVolumenSync();
+  if (!cfg || cfg.activo !== true || !Array.isArray(cfg.tramos)) return { activo: false, tramos: [] };
+  return {
+    activo: true,
+    tramos: cfg.tramos.map((t: any) => ({ minUnidades: Number(t.minUnidades), pct: Number(t.pct) })),
+  };
 }
 
 /**
@@ -565,6 +580,7 @@ export async function getInfo(req: any, res: any) {
       bannerLateral,
       slider,
       aliados,
+      descuentoVolumen: descuentoVolumenPublico(),
       instagram: obtenerInstagramPublico(),
       contacto,
       legal,
@@ -631,6 +647,8 @@ export async function postPedidoWeb(req: any, res: any) {
 
     // 3. Verificación de productos en base de datos (por id de texto estricto)
     let totalUsd = 0;
+    // Líneas para el descuento por volumen (F1-9): precio base y descuento propio del producto de la base
+    const lineasDescuento: any[] = [];
     const itemsGuardar: Array<{
       productoId: string;
       nombre: string;
@@ -677,6 +695,7 @@ export async function postPedidoWeb(req: any, res: any) {
       // Precio vigente del producto de la base (F2g): lo que se cobra en la tienda
       const precioUnitario = precioVigente(prod);
       totalUsd += precioUnitario * cantidad;
+      lineasDescuento.push({ precioBase: Number(prod.price) || 0, descuentoProductoPct: descuentoVigente(prod), cantidad });
       itemsGuardar.push({
         productoId: prod.id,
         nombre: prod.name,
@@ -705,6 +724,9 @@ export async function postPedidoWeb(req: any, res: any) {
       totalUsd += entregaGuardar.costo;
     }
 
+    // Descuento por volumen (F1-9): el servidor cuenta, elige el tramo y resta el monto (nunca el navegador)
+    const descuentoVolumen = resumenDescuentoVolumen(lineasDescuento, getConfigDescuentoVolumenSync());
+    totalUsd = Math.round((totalUsd - descuentoVolumen.montoUsd) * 100) / 100;
     totalUsd = Math.round(totalUsd * 100) / 100;
 
     // 4. Verificación de número de WhatsApp
@@ -775,6 +797,7 @@ export async function postPedidoWeb(req: any, res: any) {
       return res.status(200).json({
         codigo,
         totalUsd,
+        descuentoVolumen,
         totalBs,
         enlaceWhatsApp,
         expira: expiraEn.toISOString(),
@@ -786,6 +809,7 @@ export async function postPedidoWeb(req: any, res: any) {
       codigo,
       items: itemsGuardar,
       total: totalUsd,
+      descuentoVolumen,
       entrega: entregaGuardar,
       estado: "pendiente",
       telefono: null,
@@ -799,6 +823,7 @@ export async function postPedidoWeb(req: any, res: any) {
     return res.status(200).json({
       codigo,
       totalUsd,
+      descuentoVolumen,
       totalBs,
       enlaceWhatsApp,
       expira: expiraEn.toISOString(),

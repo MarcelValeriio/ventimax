@@ -24,6 +24,8 @@ const { getCaracasTime, formatBs, formatUsd } = require("../utils/helpers");
 const { enviarTexto } = require("./whatsapp");
 const { getPasoLabel } = require("../utils/pasoEmbudo");
 const { getConfig } = require("./configStore");
+const { calcularDescuentoVolumen, resumenDescuentoVolumen } = require("./descuentoVolumen");
+const { getConfigDescuentoVolumenSync } = require("./descuentoVolumenService");
 
 /**
  * Helper único para calcular el total en USD de un carrito o pedido.
@@ -53,7 +55,26 @@ function calcularTotalCarrito(carrito: any): number {
     costoEnvio = Number(envio.costo);
   }
 
-  return Math.round((subtotal + costoEnvio) * 100) / 100;
+  // Descuento por volumen (F1-9): solo si el carrito lo marca (tienda web o venta manual).
+  // Se recalcula con los ítems actuales y la configuración vigente; nunca con un monto guardado.
+  const descuento = !Array.isArray(carrito) && carrito.aplicaDescuentoVolumen === true
+    ? calcularDescuentoVolumen(lineasDescuentoDeItems(items), getConfigDescuentoVolumenSync()).montoUsd
+    : 0;
+
+  return Math.round((subtotal + costoEnvio - descuento) * 100) / 100;
+}
+
+/** Líneas que usa el descuento por volumen: precio que se cobra, descuento propio del producto y cantidad. */
+function lineasDescuentoDeItems(items: any[]) {
+  return items.map((item: any) => ({
+    precioBase: item?.price !== undefined ? item.price : item?.precio,
+    descuentoProductoPct: item?.descuentoProductoPct,
+    cantidad: item?.cantidad,
+  }));
+}
+
+function pedidoInicialItems(carrito: any): any[] {
+  return Array.isArray(carrito?.items) ? carrito.items : [];
 }
 
 class OrderService {
@@ -165,7 +186,7 @@ class OrderService {
 
       const pedidoInicial = {
         whatsappId: tel,
-        items: Array.isArray(carrito?.items) ? carrito.items : [],
+        items: pedidoInicialItems(carrito),
         cliente: {
           nombre: carrito?.nombre || "Sin nombre",
           cedula: carrito?.cedula || "Sin cédula",
@@ -189,6 +210,11 @@ class OrderService {
               ? { direccion: carrito.direccion_manual, latitud: null, longitud: null }
               : { direccion: "Pendiente de definir", latitud: null, longitud: null },
         ...(carrito?.envio ? { envio: carrito.envio } : {}),
+        // Descuento por volumen (F1-9) calculado con los ítems de este carrito; el total ya lo resta
+        descuentoVolumen:
+          carrito?.aplicaDescuentoVolumen === true
+            ? resumenDescuentoVolumen(lineasDescuentoDeItems(pedidoInicialItems(carrito)), getConfigDescuentoVolumenSync())
+            : { pct: 0, montoUsd: 0, unidadesElegibles: 0 },
         ...(carrito?.origenWeb?.codigo
           ? { origenWeb: { codigo: carrito.origenWeb.codigo } }
           : carrito?.codigoWeb

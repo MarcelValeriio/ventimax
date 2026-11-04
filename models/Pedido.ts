@@ -52,6 +52,11 @@ const PedidoSchema = new Schema<IPedido>({
   origenWeb: {
     codigo: { type: String, default: null }
   },
+  descuentoVolumen: {
+    pct: { type: Number, default: 0 },
+    montoUsd: { type: Number, default: 0 },
+    unidadesElegibles: { type: Number, default: 0 },
+  },
   pago: {
     metodo: { type: String },
     montoUSD: { type: Number },

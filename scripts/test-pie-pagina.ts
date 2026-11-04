@@ -70,6 +70,7 @@ async function runTests() {
       "bannerLateral",
       "slider",
       "aliados",
+      "descuentoVolumen",
       "instagram",
       "contacto",
       "legal",

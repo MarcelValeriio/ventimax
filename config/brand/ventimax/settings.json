@@ -70,6 +70,13 @@
     "vigenciaHoras": 72,
     "activo": true
   },
+  "descuentoVolumen": {
+    "activo": false,
+    "tramos": [
+      { "minUnidades": 5, "pct": 3 },
+      { "minUnidades": 10, "pct": 5 }
+    ]
+  },
   "tienda": {
     "preguntasFrecuentes": [
       { "pregunta": "¿Los ventiladores tienen garantía?", "respuesta": "" },

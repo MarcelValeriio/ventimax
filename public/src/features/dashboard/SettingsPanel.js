@@ -383,6 +383,11 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
   const [bannerSaving, setBannerSaving] = useState(false);
   const [productosBanner, setProductosBanner] = useState([]);
 
+  // Descuento por volumen (F1-9): interruptor y tramos (unidades desde y porcentaje)
+  const [descVol, setDescVol] = useState({ activo: false, tramos: [] });
+  const [descVolLoading, setDescVolLoading] = useState(false);
+  const [descVolSaving, setDescVolSaving] = useState(false);
+
   // Banner lateral de la tienda (imágenes verticales)
   const [bannerLat, setBannerLat] = useState({ activo: false, imagenes: [] });
   const [bannerLatLoading, setBannerLatLoading] = useState(false);
@@ -574,6 +579,25 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
     fetchCatalogoConfig();
     fetchAbusoReporte();
   }, [isAdmin]);
+
+  // Carga el descuento por volumen (F1-9, solo admin)
+  useEffect(() => {
+    const fetchDescVol = async () => {
+      try {
+        setDescVolLoading(true);
+        const client = window.apiClient || apiClient;
+        const res = await client.get("/api/admin/config/descuento-volumen");
+        if (res.data?.success && res.data?.config) {
+          setDescVol({ activo: Boolean(res.data.config.activo), tramos: res.data.config.tramos || [] });
+        }
+      } catch (err) {
+        console.warn("No se pudo cargar el descuento por volumen:", err);
+      } finally {
+        setDescVolLoading(false);
+      }
+    };
+    fetchDescVol();
+  }, []);
 
   // Carga el cintillo de la tienda y la lista de productos para elegir uno (F2g, solo admin)
   useEffect(() => {
@@ -899,6 +923,47 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
       toast(err.response?.data?.error || err.message || "Error al guardar configuración", "error");
     } finally {
       setCatalogoSaving(false);
+    }
+  };
+
+  const setTramoDescVol = (indice, campo, valor) => {
+    setDescVol((prev) => ({
+      ...prev,
+      tramos: prev.tramos.map((tr, i) => (i === indice ? { ...tr, [campo]: valor } : tr)),
+    }));
+  };
+
+  const agregarTramoDescVol = () => {
+    setDescVol((prev) => {
+      const ultimo = prev.tramos[prev.tramos.length - 1];
+      const minUnidades = ultimo ? Math.min(500, Number(ultimo.minUnidades) + 5) : 5;
+      const pct = ultimo ? Math.min(50, Number(ultimo.pct) + 2) : 3;
+      return { ...prev, tramos: [...prev.tramos, { minUnidades, pct }] };
+    });
+  };
+
+  const quitarTramoDescVol = (indice) => {
+    setDescVol((prev) => ({ ...prev, tramos: prev.tramos.filter((_, i) => i !== indice) }));
+  };
+
+  const handleSaveDescVol = async () => {
+    setDescVolSaving(true);
+    try {
+      const client = window.apiClient || apiClient;
+      const res = await client.put("/api/admin/config/descuento-volumen", {
+        activo: descVol.activo,
+        tramos: descVol.tramos.map((tr) => ({ minUnidades: Number(tr.minUnidades), pct: Number(tr.pct) })),
+      });
+      if (res.data?.success && res.data?.config) {
+        setDescVol({ activo: Boolean(res.data.config.activo), tramos: res.data.config.tramos || [] });
+        toast("Descuento por volumen guardado correctamente", "success");
+      }
+    } catch (err) {
+      console.error("Error guardando el descuento por volumen:", err);
+      // El error del servidor se muestra tal cual (validación de tramos)
+      toast(err.response?.data?.error || err.message || "Error al guardar el descuento por volumen", "error");
+    } finally {
+      setDescVolSaving(false);
     }
   };
 
@@ -1816,6 +1881,85 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
           },
             bannerSaving && e(Icono, { nombre: "loader-circle", girar: true }),
             bannerSaving ? "Guardando..." : "Guardar cintillo"
+          )
+        )
+      )
+    ),
+    e("section", { key: "descuento-volumen", className: "space-y-3" },
+      e("h3", { className: "text-[11px] font-black uppercase tracking-widest text-gray-400 px-1" }, "Descuento por volumen"),
+      e("div", { className: "bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-6 space-y-6" },
+        e("div", { className: "flex items-start justify-between gap-4" },
+          e("div", { className: "flex items-center gap-3" },
+            e("div", { className: `w-10 h-10 rounded-2xl flex items-center justify-center text-sm ${ICON_TONES.teal}` },
+              e(Icono, { nombre: "tag" })
+            ),
+            e("div", null,
+              e("h4", { className: "text-sm font-bold text-gray-800 dark:text-gray-100" }, "Descuento por cantidad"),
+              e("p", { className: "text-xs text-gray-500 dark:text-gray-400 mt-0.5" },
+                descVol.activo
+                  ? "Activo: la tienda y la venta manual aplican el tramo más alto alcanzado."
+                  : "Desactivado: no se aplica descuento por volumen."
+              ),
+              e("p", { className: "text-xs text-gray-500 dark:text-gray-400 mt-1" },
+                "Solo cuentan las unidades de productos sin descuento propio. Los tramos no se suman."
+              )
+            )
+          ),
+          e("div", { className: "min-h-[44px] flex items-center" },
+            e(Toggle, {
+              checked: descVol.activo,
+              onChange: () => setDescVol({ ...descVol, activo: !descVol.activo }),
+              disabled: descVolLoading,
+              label: "Activar descuento por volumen",
+            })
+          )
+        ),
+        e("div", { className: "space-y-3 pt-2 border-t border-gray-100 dark:border-gray-700" },
+          descVol.tramos.length === 0 && e("p", { className: "text-xs text-gray-500 dark:text-gray-400" }, "Sin tramos: agrega al menos uno para activar el descuento."),
+          descVol.tramos.map((tr, i) =>
+            e("div", { key: `tramo-${i}`, className: "flex flex-wrap items-end gap-3" },
+              e("label", { className: "flex-1 min-w-[120px] space-y-1" },
+                e("span", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Desde (unidades)"),
+                e("input", {
+                  type: "number", min: 2, max: 500, step: 1,
+                  value: tr.minUnidades,
+                  onChange: (ev) => setTramoDescVol(i, "minUnidades", ev.target.value),
+                  className: "w-full min-h-[44px] px-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm",
+                })
+              ),
+              e("label", { className: "flex-1 min-w-[120px] space-y-1" },
+                e("span", { className: "text-xs font-bold text-gray-700 dark:text-gray-300" }, "Descuento (%)"),
+                e("input", {
+                  type: "number", min: 1, max: 50, step: 1,
+                  value: tr.pct,
+                  onChange: (ev) => setTramoDescVol(i, "pct", ev.target.value),
+                  className: "w-full min-h-[44px] px-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm",
+                })
+              ),
+              e("button", {
+                type: "button",
+                onClick: () => quitarTramoDescVol(i),
+                "aria-label": "Quitar tramo",
+                className: "min-h-[44px] min-w-[44px] rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center justify-center",
+              }, e(Icono, { nombre: "trash" }))
+            )
+          ),
+          e("button", {
+            type: "button",
+            onClick: agregarTramoDescVol,
+            disabled: descVol.tramos.length >= 5,
+            className: "min-h-[44px] px-4 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-2 disabled:opacity-50",
+          }, e(Icono, { nombre: "plus" }), "Agregar tramo")
+        ),
+        e("div", { className: "flex justify-end pt-2" },
+          e("button", {
+            type: "button",
+            onClick: handleSaveDescVol,
+            disabled: descVolSaving || descVolLoading,
+            className: "px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 transition disabled:opacity-50 flex items-center gap-2 min-h-[44px]",
+          },
+            descVolSaving && e(Icono, { nombre: "loader-circle", girar: true }),
+            descVolSaving ? "Guardando..." : "Guardar descuento por volumen"
           )
         )
       )

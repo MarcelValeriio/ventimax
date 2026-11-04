@@ -373,6 +373,19 @@ module.exports = function (io) {
     authorize(["config:manage"]),
     configAdminController.updateBannerTiendaConfig,
   );
+  // Descuento por volumen (F1-9, solo Admin con config:manage)
+  router.get(
+    "/config/descuento-volumen",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.getDescuentoVolumenConfig,
+  );
+  router.put(
+    "/config/descuento-volumen",
+    isAuthenticated,
+    authorize(["config:manage"]),
+    configAdminController.updateDescuentoVolumenConfig,
+  );
   // Banner lateral de la tienda (imágenes verticales, solo Admin con config:manage)
   // La subida usa el mismo multer de 5 MB (JPG, PNG, WebP) que las fotos de producto
   router.get(

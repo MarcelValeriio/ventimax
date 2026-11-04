@@ -1,14 +1,18 @@
 /**
- * services/zoomCiudades.ts (F1-8, corrección 2026-11-04)
+ * services/zoomCiudades.ts (F1-8, regenerado 2026-11-04)
  *
  * Código de ciudad de Zoom (ciudad_destinatario de CalcularTarifa) por código de oficina (codoficina / sku del
  * directorio de sucursales). Sirve para las oficinas en ciudades que getCiudades no lista: Zoom solo lista 38
  * ciudades en getCiudades, pero sus oficinas están en más ciudades, y sin este dato el estimado no sale.
  *
- * Origen: se consultó getOficinas para cada codciudad (una petición a la vez, 2026-11-04). Cada oficina devuelta
- * queda asociada a su codciudad. Solo tiene números: los nombres de ciudad no van en el código.
+ * Origen: getOficinas consultado para cada codciudad de 1 a 240 y para las de getCiudades (una petición por
+ * segundo). Cada oficina queda asociada a la codciudad donde Zoom la lista. Solo tiene números: los nombres de
+ * ciudad no van en el código.
  *
- * Se usa primero que la búsqueda por nombre. Si Zoom reasigna códigos, hay que volver a generar esta tabla.
+ * Se usa primero que la búsqueda por nombre. services/zoomCiudadesMonitor.ts revisa esta tabla una vez por semana
+ * y avisa si Zoom cambió códigos. Para regenerarla (requiere red, no va en ci.sh):
+ *   npx tsx scripts/regenerar-zoom-ciudades.ts --seco   (solo muestra cuántas cambian)
+ *   npx tsx scripts/regenerar-zoom-ciudades.ts          (escribe este archivo si hay cambios)
  */
 
 export const CODIGO_CIUDAD_POR_OFICINA_ZOOM: Record<string, number> = {

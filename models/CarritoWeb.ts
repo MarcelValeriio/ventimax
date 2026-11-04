@@ -16,6 +16,12 @@ const CarritoWebSchema = new Schema<ICarritoWeb>(
     codigo: { type: String, required: true, unique: true, uppercase: true, trim: true },
     items: { type: [CarritoWebItemSchema], required: true },
     total: { type: Number, required: true },
+    // Descuento por volumen (F1-9): monto ya restado en total; el servidor lo calcula
+    descuentoVolumen: {
+      pct: { type: Number, default: 0 },
+      montoUsd: { type: Number, default: 0 },
+      unidadesElegibles: { type: Number, default: 0 },
+    },
     // Entrega elegida en la tienda (F2c). La ubicación es un dato personal: se borra con el carrito (TTL)
     entrega: {
       type: new Schema(

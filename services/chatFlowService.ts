@@ -67,6 +67,8 @@ const { filtroPorCategoria } = require("./catalogQuery");
 const { getFlujoNoLaborableSync } = require("./flujoNoLaborableService");
 const { nombresEmpresas } = require("./empresasEnvio");
 const { precioVigente, etiquetaPrecio, descuentoVigente } = require("./precios");
+const { resumenDescuentoVolumen } = require("./descuentoVolumen");
+const { getConfigDescuentoVolumenSync } = require("./descuentoVolumenService");
 const {
   getProximoDiaHabil,
   getHoraAperturaFormateada,
@@ -1364,6 +1366,7 @@ class ChatFlowService {
           id: prodDirecto.id,
           name: prodDirecto.name,
           price: precioVigente(prodDirecto),
+          descuentoProductoPct: descuentoVigente(prodDirecto),
         };
         await orderService.setEstado(
           from,
@@ -1410,6 +1413,7 @@ class ChatFlowService {
         id: producto.id,
         name: producto.name,
         price: precioVigente(producto),
+        descuentoProductoPct: descuentoVigente(producto),
       };
       await orderService.setEstado(
         from,
@@ -1497,11 +1501,13 @@ class ChatFlowService {
         if (existingItem) {
           existingItem.cantidad += cantidad;
           if (prod.price !== undefined) existingItem.price = prod.price;
+          existingItem.descuentoProductoPct = prod.descuentoProductoPct;
         } else {
           carrito.items.push({
             id: prod.id,
             producto: prod.name,
             price: prod.price,
+            descuentoProductoPct: prod.descuentoProductoPct,
             cantidad,
           });
         }
@@ -2716,6 +2722,7 @@ class ChatFlowService {
       id: string;
       producto: string;
       price: number;
+      descuentoProductoPct: number;
       cantidad: number;
     }> = [];
     const avisosCambios: string[] = [];
@@ -2758,8 +2765,22 @@ class ChatFlowService {
         id: prod.id,
         producto: prod.name,
         price: precioActual,
+        descuentoProductoPct: descuentoVigente(prod),
         cantidad,
       });
+    }
+
+    // Descuento por volumen (F1-9): se recalcula con los precios y la configuración de este momento.
+    // Si cambió respecto al pedido web guardado, se avisa con los demás cambios.
+    const descuentoNuevo = resumenDescuentoVolumen(
+      itemsCargados.map((i) => ({ precioBase: i.price, descuentoProductoPct: i.descuentoProductoPct, cantidad: i.cantidad })),
+      getConfigDescuentoVolumenSync(),
+    );
+    const pctAntesVolumen = Number(cwDoc.descuentoVolumen?.pct) || 0;
+    if (itemsCargados.length > 0 && descuentoNuevo.pct !== pctAntesVolumen) {
+      avisosCambios.push(
+        `• Descuento por volumen: ahora es ${descuentoNuevo.pct > 0 ? `-${descuentoNuevo.pct}%` : "ninguno"} (antes ${pctAntesVolumen > 0 ? `-${pctAntesVolumen}%` : "ninguno"}).`
+      );
     }
 
     // 6. Si no queda ninguna línea tras quitar agotados/inactivos:
@@ -2789,6 +2810,9 @@ class ChatFlowService {
       items: itemsCargados,
       codigoWeb: codigo,
       origenWeb: { codigo },
+      // El carrito web recibe el descuento por volumen mientras tenga ítems (se recalcula en cada total)
+      aplicaDescuentoVolumen: true,
+      descuentoVolumen: descuentoNuevo,
     };
 
     // 8b. Entrega elegida en la tienda (F2c): si el método sigue activo, el bot no vuelve a preguntarla

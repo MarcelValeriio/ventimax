@@ -50,6 +50,7 @@ SUITES=(
   test-importacion-productos.ts
   test-peso-producto.ts
   test-cotizador-envio.ts
+  test-zoom-codigos.ts
   test-vehiculo-cliente.ts
   test-mapa-venta-manual.ts
   test-e2e-saas.js
@@ -59,6 +60,7 @@ SUITES=(
   test-sales-summary.js
   test-instagram-quick-replies.js
   test-web-push-fullstack.js
+  test-descuento-volumen.ts
 )
 
 fallos=()

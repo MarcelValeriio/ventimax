@@ -220,6 +220,34 @@ function totalOrientativo() {
 }
 
 /**
+ * Descuento por volumen (F1-9): solo vista previa. El servidor vuelve a calcularlo en cada pedido y su
+ * cifra es la que vale. Solo cuentan los productos sin descuento propio (descuentoPct 0).
+ */
+function previewDescuentoVolumen() {
+  const cfg = state.info?.descuentoVolumen;
+  if (!cfg || cfg.activo !== true || !Array.isArray(cfg.tramos) || cfg.tramos.length === 0) return null;
+  let unidades = 0;
+  let subtotal = 0;
+  for (const item of state.carrito) {
+    const prod = productosDelCatalogo().find((p) => p.id === item.productoId);
+    if (!prod || Number(prod.descuentoPct) > 0) continue;
+    unidades += item.cantidad;
+    subtotal += prod.precioUsd * item.cantidad;
+  }
+  let tramo = null;
+  for (const t of cfg.tramos) {
+    if (unidades >= t.minUnidades) tramo = t;
+  }
+  const siguiente = cfg.tramos.find((t) => t.minUnidades > unidades) || null;
+  return {
+    pct: tramo ? tramo.pct : 0,
+    monto: tramo ? Math.round((subtotal * tramo.pct) / 100 * 100) / 100 : 0,
+    faltan: siguiente ? siguiente.minUnidades - unidades : 0,
+    siguientePct: siguiente ? siguiente.pct : 0,
+  };
+}
+
+/**
  * Barra fija inferior "Ver pedido": aparece en el catálogo y en la ficha cuando hay algo en el pedido.
  * En el carrito y la confirmación no hace falta.
  */
@@ -2242,6 +2270,12 @@ function renderizarCarrito() {
   const filaEstimadoEnvio = el("div", { className: "envio-estimado hidden", role: "status" });
   let claveEstimado = "";
 
+  // Descuento por volumen (F1-9): vista previa; el total final lo confirma el servidor
+  const dtDescuento = el("dt", {});
+  const ddDescuento = el("dd", {});
+  const filaDescuento = el("div", { className: "resumen-fila resumen-descuento hidden" }, dtDescuento, ddDescuento);
+  const pistaDescuento = el("p", { className: "descuento-volumen-pista hidden", role: "status" });
+
   function pintarEstimado(texto) {
     filaEstimadoEnvio.textContent = texto || "";
     filaEstimadoEnvio.classList.toggle("hidden", !texto);
@@ -2291,7 +2325,20 @@ function renderizarCarrito() {
             : pideEntrega
               ? "Elige cómo recibirlo"
               : "Se acuerda por WhatsApp";
-    const total = subtotalUsd + costo.monto;
+    const descuento = previewDescuentoVolumen();
+    const montoDescuento = descuento && descuento.pct > 0 ? descuento.monto : 0;
+    filaDescuento.classList.toggle("hidden", montoDescuento <= 0);
+    if (montoDescuento > 0) {
+      dtDescuento.textContent = `Descuento por volumen −${descuento.pct} %`;
+      ddDescuento.textContent = `−${formatearUsd(montoDescuento)}`;
+    }
+    const pistaTexto = descuento && descuento.faltan > 0
+      ? `Agrega ${descuento.faltan} ${descuento.faltan === 1 ? "unidad" : "unidades"} más para −${descuento.siguientePct} % de descuento por volumen. Los productos en oferta no cuentan.`
+      : "";
+    pistaDescuento.textContent = pistaTexto;
+    pistaDescuento.classList.toggle("hidden", !pistaTexto);
+
+    const total = subtotalUsd - montoDescuento + costo.monto;
     limpiarElemento(valorTotal);
     valorTotal.append(precioUsd(total, "precio-grande"), state.catalogo?.tasa ? lineaBs(Math.round(total * state.catalogo.tasa * 100) / 100) : null);
 
@@ -2335,10 +2382,12 @@ function renderizarCarrito() {
       "dl",
       { className: "resumen-filas" },
       el("div", { className: "resumen-fila" }, el("dt", {}, unidades === 1 ? "1 producto" : `${unidades} productos`), el("dd", {}, formatearUsd(subtotalUsd))),
+      filaDescuento,
       el("div", { className: "resumen-fila" }, el("dt", {}, "Envío"), valorEnvio),
       filaSucursalResumen,
       el("div", { className: "resumen-fila resumen-total" }, el("dt", {}, "Total"), valorTotal)
     ),
+    pistaDescuento,
     honeypotInput,
     alertBox,
     hayAgotados ? el("p", { className: "alerta" }, "Hay un producto agotado en tu pedido. Quítalo para poder pedir.") : null,

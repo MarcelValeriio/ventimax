@@ -32,10 +32,16 @@ const initAgenda = async (io = null) => {
     agenda.define("cotizador mrw diario", async () => {
       await cotizadorEnvio.ejecutarJobMrw();
     });
+    // Códigos de oficina de Zoom (services/zoomCiudades.ts): revisión semanal que solo avisa (el job decide)
+    const zoomCiudadesMonitor = require('./zoomCiudadesMonitor');
+    agenda.define("cotizador zoom codigos", async () => {
+      await zoomCiudadesMonitor.ejecutarRevisionZoomSemanal();
+    });
 
     await agenda.start();
     await agenda.every("5 minutes", "reactivacion checkout");
     await agenda.every("10 minutes", "cotizador mrw diario");
+    await agenda.every("1 day", "cotizador zoom codigos");
     // Arranque: si la tabla de MRW tiene más de 24 h, se actualiza (no bloquea el arranque)
     cotizadorEnvio.iniciarCotizadorEnvio().catch(() => {});
   }

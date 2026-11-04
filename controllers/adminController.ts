@@ -71,6 +71,8 @@ const {
 const { formatBs, formatUsd } = require("../utils/helpers");
 const { filtroPorCategoria } = require("../services/catalogQuery");
 const { precioVigente, descuentoVigente } = require("../services/precios");
+const { resumenDescuentoVolumen } = require("../services/descuentoVolumen");
+const { getConfigDescuentoVolumenSync } = require("../services/descuentoVolumenService");
 const { getPasoLabel } = require("../utils/pasoEmbudo");
 const { esOrdenValido } = require("../utils/ordenImagenes");
 // Definición ÚNICA de `requiereAtencion` (§6.2.1 del contrato del Inbox Unificado).
@@ -4051,6 +4053,8 @@ const postManualSale = async (req, res, io) => {
       item.price = precioVigente(prod);
       item.producto = prod.name;
       item.id = prod.id;
+      // Descuento propio del producto (F1-9): dato de la base; nunca lo envía el navegador
+      item.descuentoProductoPct = descuentoVigente(prod);
 
       if (prod.trackStock && prod.stock < Number(item.cantidad)) {
         return res.status(400).json({
@@ -4169,9 +4173,19 @@ const postManualSale = async (req, res, io) => {
       };
     }
 
+    // Descuento por volumen (F1-9): solo si el operador lo enciende; el servidor decide el tramo
+    const aplicarDescuentoVolumen = body.aplicarDescuentoVolumen === true;
+    const descuentoVolumen = aplicarDescuentoVolumen
+      ? resumenDescuentoVolumen(
+          items.map((it: any) => ({ precioBase: it.price, descuentoProductoPct: it.descuentoProductoPct, cantidad: it.cantidad })),
+          getConfigDescuentoVolumenSync(),
+        )
+      : { pct: 0, montoUsd: 0, unidadesElegibles: 0 };
+
     const montoUSD = orderService.calcularTotalCarrito({
       items,
       envio: envioSanitizado,
+      aplicaDescuentoVolumen: aplicarDescuentoVolumen,
     });
 
     // Obtener tasa BCV
@@ -4249,6 +4263,7 @@ const postManualSale = async (req, res, io) => {
         vuelto: pago?.vuelto || 0,
       },
       ...(envioSanitizado ? { envio: envioSanitizado } : {}),
+      descuentoVolumen,
       stockDescontado,
       notas: notas || "",
       ctwaClid: ctwaClid,
@@ -4379,7 +4394,7 @@ const postManualSale = async (req, res, io) => {
       accion: "venta_manual",
       anterior: "n/a",
       nuevo: "entregado",
-      detalles: `Venta manual registrada. Cliente: ${pedido.cliente.nombre}. Total: $${montoUSD.toFixed(2)} USD (${tasa ? `Bs. ${montoVES.toFixed(2)}` : "Tasa BCV no disp."})`,
+      detalles: `Venta manual registrada. Cliente: ${pedido.cliente.nombre}. Total: $${montoUSD.toFixed(2)} USD (${tasa ? `Bs. ${montoVES.toFixed(2)}` : "Tasa BCV no disp."})${descuentoVolumen.pct > 0 ? `. Descuento por volumen -${descuentoVolumen.pct}% ($${descuentoVolumen.montoUsd.toFixed(2)})` : ""}`,
     });
 
     res.status(201).json({ success: true, data: pedido });

@@ -430,6 +430,11 @@ mongoose
     await initCatalogoConfig();
     console.log("✅ Configuración del catálogo web inicializada");
 
+    // Descuento por volumen (F1-9): la tienda, el bot y la venta manual leen la caché en memoria
+    const { init: initDescuentoVolumen } = require("./services/descuentoVolumenService");
+    await initDescuentoVolumen();
+    console.log("✅ Descuento por volumen inicializado");
+
     // Cintillo promocional de la tienda (F2g): la API pública lo lee de memoria
     const { init: initBannerTienda } = require("./services/bannerTiendaService");
     await initBannerTienda();

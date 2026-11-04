@@ -2,12 +2,14 @@ import { Request, Response } from "express";
 const axios = require("axios");
 const { configStore, EDITABLE_KEYS, SECRET_KEYS, getConfig, setConfig } = require("../services/configStore");
 const { registrarAuditoria } = require("../services/auditService");
+const { validarConfigDescuentoVolumen } = require("../services/descuentoVolumen");
 const { validarValorConfig, validarHorarioAtencion, validarFlujoNoLaborable, validarDatosNegocio, validarConfigCatalogo, validarBannerTienda, validarBannerLateral, validarSliderTienda } = require("../services/configValidators");
 const { getHorario, setHorario, formatearHorarioAtencion } = require("../services/horarioService");
 const { getFlujoNoLaborable, setFlujoNoLaborable } = require("../services/flujoNoLaborableService");
 const { getDatosNegocio, setDatosNegocio } = require("../services/datosNegocioService");
 const { getConfigCatalogo, setConfigCatalogo } = require("../services/catalogoConfigService");
 const { getBannerTienda, setBannerTienda } = require("../services/bannerTiendaService");
+const { getConfigDescuentoVolumen, setConfigDescuentoVolumen } = require("../services/descuentoVolumenService");
 const { getBannerLateral, setBannerLateral } = require("../services/bannerLateralService");
 const { getSliderTienda, setSliderTienda } = require("../services/sliderTiendaService");
 const cloudinaryService = require("../services/cloudinaryService");
@@ -758,6 +760,47 @@ export const postSliderTiendaImagen = async (req: any, res: Response) => {
   }
 };
 
+/**
+ * Obtiene la configuración del descuento por volumen (F1-9).
+ */
+export const getDescuentoVolumenConfig = async (req: Request, res: Response) => {
+  try {
+    const config = await getConfigDescuentoVolumen();
+    res.json({ success: true, config });
+  } catch (error: any) {
+    console.error("❌ Error obteniendo el descuento por volumen:", error);
+    res.status(500).json({ success: false, error: "Error al obtener el descuento por volumen" });
+  }
+};
+
+/**
+ * Actualiza el descuento por volumen (F1-9). Con auditoría.
+ */
+export const updateDescuentoVolumenConfig = async (req: Request, res: Response) => {
+  try {
+    const payload = req.body?.descuentoVolumen !== undefined ? req.body.descuentoVolumen : req.body;
+    const validacion = validarConfigDescuentoVolumen(payload);
+    if (!validacion.ok) {
+      return res.status(400).json({ success: false, error: validacion.error });
+    }
+
+    const anterior = await getConfigDescuentoVolumen();
+    const guardado = await setConfigDescuentoVolumen(validacion.value);
+
+    await registrarAuditoria(req, {
+      tipoRecurso: "config",
+      accion: "update",
+      recursoId: "descuentoVolumen",
+      detalles: { previo: anterior, nuevo: guardado },
+    });
+
+    res.json({ success: true, message: "Descuento por volumen guardado correctamente", config: guardado });
+  } catch (error: any) {
+    console.error("❌ Error actualizando el descuento por volumen:", error);
+    res.status(500).json({ success: false, error: "Error al guardar el descuento por volumen" });
+  }
+};
+
 module.exports = {
   getConfigAdmin,
   updateConfigAdmin,
@@ -781,4 +824,7 @@ module.exports = {
   getSliderTiendaConfig,
   updateSliderTiendaConfig,
   postSliderTiendaImagen,
+  getDescuentoVolumenConfig,
+  updateDescuentoVolumenConfig,
 };
+

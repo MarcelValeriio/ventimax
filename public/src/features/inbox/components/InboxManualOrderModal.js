@@ -96,6 +96,8 @@ const InboxManualOrderModal = ({
   const [comprobanteAIUrl, setComprobanteAIUrl] = useState("");
   const [vehiculoPropuesto, setVehiculoPropuesto] = useState(null);
   const [asociarVehiculo, setAsociarVehiculo] = useState(true);
+  // Descuento por volumen (F1-9): apagado por defecto; el servidor decide si aplica
+  const [aplicaDescuentoVolumen, setAplicaDescuentoVolumen] = useState(false);
   const [formData, setFormData] = useState({
     cliente: { nombre: "", cedula: "", telefono: whatsappId, direccion: "" },
     notas: "",
@@ -326,6 +328,7 @@ const InboxManualOrderModal = ({
       ubicacion: { direccion: formData.cliente.direccion || "Retiro en tienda" },
       envio: formData.envio || null,
       ...(asociarVehiculo && vehiculoPropuesto ? { vehiculo: vehiculoPropuesto } : {}),
+      aplicarDescuentoVolumen: aplicaDescuentoVolumen,
       pago: {
         ...formData.pago,
         metodo: formData.pago.metodo.nombre,
@@ -360,7 +363,14 @@ const InboxManualOrderModal = ({
             console.warn("⚠️ [Inbox] Error asociando vehículo:", vehErr);
           }
         }
-        window.showToast?.("Venta manual generada");
+        // El servidor dice si el descuento por volumen aplicó (el navegador solo envía el interruptor)
+        const descVol = res.data.data?.descuentoVolumen;
+        const textoDescuento = descVol && descVol.pct > 0
+          ? `. Descuento por volumen -${descVol.pct} % aplicado.`
+          : aplicaDescuentoVolumen
+            ? ". El descuento por volumen no aplicó: está apagado o no llega al tramo mínimo."
+            : "";
+        window.showToast?.("Venta manual generada" + textoDescuento);
         if (typeof onSaved === "function") onSaved(res.data.data || null);
         if (typeof onClose === "function") onClose();
       } else {
@@ -699,6 +709,19 @@ const InboxManualOrderModal = ({
                     ],
                   ),
 
+                  // ── F1-9: descuento por volumen (interruptor, apagado por defecto)
+                  e(
+                    "label",
+                    { className: "flex items-center gap-3 min-h-[44px] text-sm font-bold text-gray-700 dark:text-gray-300 cursor-pointer" },
+                    e("input", {
+                      type: "checkbox",
+                      className: "h-5 w-5",
+                      checked: aplicaDescuentoVolumen,
+                      onChange: (ev) => setAplicaDescuentoVolumen(ev.target.checked),
+                      "data-testid": "venta-descuento-volumen",
+                    }),
+                    "Aplicar descuento por volumen (si la compra llega al tramo)"
+                  ),
                   // ── WA-137: método de pago ───────────────────────────────
                   e(
                     "div",

@@ -104,6 +104,7 @@ export interface IPedido {
   origenWeb?: {
     codigo?: string;
   };
+  descuentoVolumen?: { pct: number; montoUsd: number; unidadesElegibles: number };
   pago?: IPagoPedido;
   stockDescontado?: { producto: string; cantidad: number }[];
   ctwaClid?: string | null;
@@ -580,6 +581,7 @@ export interface ICarritoWeb {
   codigo: string;
   items: ICarritoWebItem[];
   total: number;
+  descuentoVolumen?: { pct: number; montoUsd: number; unidadesElegibles: number };
   entrega?: IEntregaCarritoWeb | null;
   estado: "pendiente" | "vinculado";
   telefono?: string | null;
