@@ -65,6 +65,17 @@ const COSTO_TIPOS_VALIDOS = ["fijo", "a_convenir"];
 // Cotizador por empresa (F1-8): "ninguno" = sin estimado. Solo lo cambia quien tiene config:manage.
 const COTIZADORES = ["ninguno", "mrw", "zoom"];
 
+/** Si el método tiene una empresa con cotizador MRW, pide la tabla en segundo plano (no espera ni lanza). */
+function prepararCotizadorMrw(empresas: any) {
+  try {
+    if (empresaService.normalizarEmpresas(empresas).some((e: any) => e.cotizador === "mrw")) {
+      require("../services/cotizadorEnvio").asegurarTablaMrw();
+    }
+  } catch {
+    /* el estimado es informativo: nunca rompe el guardado */
+  }
+}
+
 /** Mapa nombre de empresa -> cotizador ("ninguno" si no tiene), para comparar cambios. */
 function cotizadoresDe(lista: any): Record<string, string> {
   const mapa: Record<string, string> = {};
@@ -205,6 +216,7 @@ const createShippingMethod = async (req: any, res: any) => {
       detalles: `Método de envío creado: ${shipping.nombre} (${shipping.tipo}, ${shipping.costoTipo})`,
     });
 
+    prepararCotizadorMrw(shipping.empresas);
     res.status(201).json({ success: true, data: shipping });
   } catch (error: any) {
     return responderErrorEnvio(res, error, "Error al guardar el método de envío", "createShippingMethod");
@@ -324,6 +336,7 @@ const updateShippingMethod = async (req: any, res: any) => {
       detalles: `Método de envío actualizado: ${shipping.nombre}`,
     });
 
+    prepararCotizadorMrw(shipping.empresas);
     res.json({ success: true, data: shipping });
   } catch (error: any) {
     return responderErrorEnvio(res, error, "Error al actualizar el método de envío", "updateShippingMethod");

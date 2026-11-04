@@ -16,6 +16,7 @@ import axios from "axios";
 const bcv = require("./bcv");
 const configManager = require("./configManager");
 const { normalizarTexto } = require("./productoAmpliado");
+const { CODIGO_CIUDAD_POR_OFICINA_ZOOM } = require("./zoomCiudades");
 /** Día (AAAA-MM-DD) en la zona horaria de la marca. */
 function fechaDeZona(d: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -154,6 +155,25 @@ export function buscarCiudadZoom(ciudades: any[], nombre: string): string | null
   return hit && hit.codciudad !== undefined && hit.codciudad !== null ? String(hit.codciudad) : null;
 }
 
+/** Código de ciudad de Zoom de una oficina (services/zoomCiudades.ts). Null si la oficina no está en la tabla. */
+export function codigoCiudadDeOficinaZoom(oficina: string): string | null {
+  const clave = String(oficina || "");
+  if (!Object.prototype.hasOwnProperty.call(CODIGO_CIUDAD_POR_OFICINA_ZOOM, clave)) return null;
+  return String(CODIGO_CIUDAD_POR_OFICINA_ZOOM[clave]);
+}
+
+const ultimoAvisoZoom = new Map<string, string>();
+
+/** Log de un motivo sin tarifa de Zoom: como mucho una vez por motivo y día. No lleva datos del cliente. */
+function avisarZoomSinTarifa(motivo: string): void {
+  const hoy = fechaDeZona();
+  if (ultimoAvisoZoom.get(motivo) === hoy) return;
+  if (ultimoAvisoZoom.size > 1000) ultimoAvisoZoom.clear(); // el texto de ciudad viene del cliente: se acota
+  ultimoAvisoZoom.set(motivo, hoy);
+  const limpio = motivo.replace(/[\x00-\x1f\x7f]/g, "").slice(0, 120);
+  console.warn(`⚠️ [Cotizador] Zoom sin tarifa: ${limpio}`);
+}
+
 /** Lista de ciudades de la respuesta de getCiudades (acepta lista directa o dentro de entidadRespuesta). */
 export function extraerListaZoom(data: any): any[] {
   if (Array.isArray(data)) return data;
@@ -240,6 +260,8 @@ export async function actualizarTablaMrw(
   const ahora = opciones.ahora || new Date();
   actualizandoMrw = true;
   ultimoIntentoMrw = ahora.getTime();
+  const inicio = Date.now();
+  console.log(`🔄 [Cotizador] Actualizando la tabla de MRW (${MRW_KG_MIN}-${MRW_KG_MAX} kg)…`);
   try {
     const retiro: Record<string, number> = {};
     for (let kg = MRW_KG_MIN; kg <= MRW_KG_MAX; kg++) {
@@ -250,6 +272,7 @@ export async function actualizarTablaMrw(
     await Setting.findOneAndUpdate({ key: CLAVE_SETTING_MRW }, { key: CLAVE_SETTING_MRW, value: tabla }, { upsert: true });
     tablaMrwMemoria = tabla;
     ultimoErrorMrw = null;
+    console.log(`✅ [Cotizador] Tabla de MRW lista (${tabla.fecha}) en ${Math.round((Date.now() - inicio) / 1000)} s`);
     return { ok: true };
   } catch (err: any) {
     ultimoErrorMrw = String(err?.message || err);
@@ -267,10 +290,16 @@ export async function actualizarTablaMrw(
 async function listarCiudadesZoom(): Promise<any[]> {
   const hoy = fechaDeZona();
   if (ciudadesZoom && ciudadesZoom.fecha === hoy) return ciudadesZoom.lista;
-  const { data } = await axios.get(`${ZOOM_BASE}/getCiudades`, { timeout: TIMEOUT_MS });
-  const lista = extraerListaZoom(data);
-  ciudadesZoom = { fecha: hoy, lista };
-  return lista;
+  try {
+    const { data } = await axios.get(`${ZOOM_BASE}/getCiudades`, { timeout: TIMEOUT_MS });
+    const lista = extraerListaZoom(data);
+    ciudadesZoom = { fecha: hoy, lista };
+    return lista;
+  } catch (err: any) {
+    // Sin lista en vivo no se cachea el fallo: se reintenta en la próxima cotización.
+    avisarZoomSinTarifa(`no se pudo leer la lista de ciudades (${err?.response?.status || err?.code || "red"})`);
+    return [];
+  }
 }
 
 function ciudadOrigenMarca(): string {
@@ -286,23 +315,40 @@ export async function cotizarZoom(p: {
   montoMercanciaBs: number;
 }): Promise<ResultadoCotizacion | null> {
   const origenNombre = ciudadOrigenMarca();
-  if (!origenNombre || !p.ciudadDestino) return null;
+  if (!origenNombre || (!p.ciudadDestino && !p.oficina)) return null;
   const ciudades = await listarCiudadesZoom();
   const ciudadOrigen = buscarCiudadZoom(ciudades, origenNombre);
-  const ciudadDestino = buscarCiudadZoom(ciudades, p.ciudadDestino);
-  if (!ciudadOrigen || !ciudadDestino) return null;
+  if (!ciudadOrigen) {
+    avisarZoomSinTarifa(`ciudad de origen no encontrada "${origenNombre}"`);
+    return null;
+  }
+  // Primero la oficina (tabla fija, exacta); si no está, el nombre de la ciudad en la lista en vivo.
+  const ciudadDestino = codigoCiudadDeOficinaZoom(p.oficina) || buscarCiudadZoom(ciudades, p.ciudadDestino);
+  if (!ciudadDestino) {
+    avisarZoomSinTarifa(`ciudad no encontrada "${p.ciudadDestino}"`);
+    return null;
+  }
 
   const hoy = fechaDeZona();
   const clave = `${ciudadDestino}|${p.oficina}|${p.kg}`;
   const enCache = cacheZoom.get(clave);
   if (enCache && enCache.fecha === hoy) return { montoBs: enCache.montoBs, fecha: hoy };
 
-  const { data } = await axios.get(
-    urlTarifaZoom({ ciudadOrigen, ciudadDestino, oficina: p.oficina, kg: p.kg, montoBs: p.montoMercanciaBs }),
-    { timeout: TIMEOUT_MS },
-  );
+  let data: any;
+  try {
+    ({ data } = await axios.get(
+      urlTarifaZoom({ ciudadOrigen, ciudadDestino, oficina: p.oficina, kg: p.kg, montoBs: p.montoMercanciaBs }),
+      { timeout: TIMEOUT_MS },
+    ));
+  } catch (err: any) {
+    avisarZoomSinTarifa(`error en la tarifa a "${p.ciudadDestino}" (${err?.response?.status || err?.code || "red"})`);
+    return null;
+  }
   const montoBs = parsearBs(data?.entidadRespuesta?.total);
-  if (montoBs === null) return null;
+  if (montoBs === null) {
+    avisarZoomSinTarifa(`la tarifa a "${p.ciudadDestino}" no trae total`);
+    return null;
+  }
   cacheZoom.set(clave, { fecha: hoy, montoBs });
   return { montoBs, fecha: hoy };
 }
@@ -327,6 +373,7 @@ export async function cotizarEnvio(p: {
       const kg = kgRedondeoArriba(p.kg);
       if (kg < MRW_KG_MIN || kg > MRW_KG_MAX) return null;
       const tabla = tablaMrwMemoria || (await cargarTablaMrw());
+      if (!tabla) asegurarTablaMrw(); // sin tabla todavía: se pide en segundo plano (como mucho una vez por hora)
       const bs = tabla?.retiro?.[String(kg)];
       return typeof bs === "number" && bs > 0 ? { montoBs: bs, fecha: tabla!.fecha } : null;
     }
@@ -376,6 +423,19 @@ export async function ejecutarJobMrw(ahora: Date = new Date()): Promise<void> {
   }
 }
 
+/**
+ * Lanza la actualización de la tabla de MRW en segundo plano si no hay tabla de hoy, no se está actualizando y no
+ * hubo un intento en la última hora. No espera ni lanza. En pruebas no hace nada (sin red real).
+ */
+export function asegurarTablaMrw(ahora: Date = new Date()): boolean {
+  if (process.env.NODE_ENV === "test") return false;
+  if (actualizandoMrw) return false;
+  if (tablaMrwMemoria && tablaMrwMemoria.fecha === fechaDeZona(ahora)) return false;
+  if (ultimoIntentoMrw && ahora.getTime() - ultimoIntentoMrw < MS_HORA) return false;
+  actualizarTablaMrw({ ahora }).catch(() => {});
+  return true;
+}
+
 /** Arranque: carga la tabla guardada y la actualiza si tiene más de 24 h (solo si hay empresas MRW). */
 export async function iniciarCotizadorEnvio(): Promise<void> {
   try {
@@ -411,6 +471,7 @@ export function _resetParaPruebas(): void {
   actualizandoMrw = false;
   cacheZoom.clear();
   ciudadesZoom = null;
+  ultimoAvisoZoom.clear();
 }
 
 module.exports = {
@@ -422,6 +483,7 @@ module.exports = {
   debeActualizarMrw,
   tablaVieja,
   buscarCiudadZoom,
+  codigoCiudadDeOficinaZoom,
   extraerListaZoom,
   urlTarifaZoom,
   consultarMrwKg,
@@ -433,6 +495,7 @@ module.exports = {
   getUltimoErrorMrw,
   hayEmpresasCon,
   ejecutarJobMrw,
+  asegurarTablaMrw,
   iniciarCotizadorEnvio,
   oficinaDeSucursal,
   ciudadDeSucursal,

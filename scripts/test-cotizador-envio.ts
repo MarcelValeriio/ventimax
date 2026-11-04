@@ -269,6 +269,11 @@ async function runTests() {
     assert.strictEqual(await cot.cotizarEnvio({ cotizador: "mrw", kg: 1 }), null);
   });
 
+  await prueba("asegurarTablaMrw: en pruebas no lanza la actualización (sin red real)", async () => {
+    cot._resetParaPruebas();
+    assert.strictEqual(cot.asegurarTablaMrw(), false);
+  });
+
   await prueba("job MRW sin empresas MRW configuradas no llama a la red", async () => {
     resetMocks();
     cot._resetParaPruebas();
@@ -310,6 +315,95 @@ async function runTests() {
     zoomFalla = true;
     assert.strictEqual(await cot.cotizarEnvio({ cotizador: "zoom", kg: 1, ciudadDestino: "Maracaibo", oficina: "", montoMercanciaBs: 10 }), null);
     zoomFalla = false;
+  });
+
+  // Oficinas en ciudades que getCiudades no lista: el código de ciudad sale de la tabla por oficina (2262 = 102).
+  await prueba("Zoom: oficina fuera de getCiudades usa la tabla por oficina (2262 → ciudad 102), con su oficina", async () => {
+    resetMocks();
+    cot._resetParaPruebas();
+    const r = await cot.cotizarEnvio({ cotizador: "zoom", kg: 2, ciudadDestino: "CANTAURA", oficina: "2262", montoMercanciaBs: 1000 });
+    assert.strictEqual(r.montoBs, 22150.58);
+    const q = new URL(llamadasGet.find((u) => u.includes("CalcularTarifa"))!).searchParams;
+    assert.strictEqual(q.get("ciudad_destinatario"), "102");
+    assert.strictEqual(q.get("oficina_retirar"), "2262");
+  });
+
+  await prueba("Zoom: tabla por oficina solo con códigos de oficina exactos (sin nombres, sin claves heredadas)", () => {
+    assert.strictEqual(cot.codigoCiudadDeOficinaZoom("2262"), "102");
+    assert.strictEqual(cot.codigoCiudadDeOficinaZoom(" 2262 "), null);
+    assert.strictEqual(cot.codigoCiudadDeOficinaZoom("99999999"), null);
+    assert.strictEqual(cot.codigoCiudadDeOficinaZoom("constructor"), null);
+    assert.strictEqual(cot.codigoCiudadDeOficinaZoom(""), null);
+  });
+
+  await prueba("Zoom: el origen (ciudad de la marca) sale de la lista en vivo (Caracas = 101 en la lista de prueba)", async () => {
+    resetMocks();
+    cot._resetParaPruebas();
+    await cot.cotizarEnvio({ cotizador: "zoom", kg: 3, ciudadDestino: "Maracaibo", oficina: "", montoMercanciaBs: 1000 });
+    const q = new URL(llamadasGet.find((u) => u.includes("CalcularTarifa"))!).searchParams;
+    assert.strictEqual(q.get("ciudad_remitente"), "101");
+  });
+
+  await prueba("Zoom: sin getCiudades y sin lista previa → null con aviso (no hay origen), sin lanzar", async () => {
+    resetMocks();
+    cot._resetParaPruebas();
+    const avisos: string[] = [];
+    const warnOriginal = console.warn;
+    console.warn = (...args: any[]) => avisos.push(args.map(String).join(" "));
+    const original = (axios as any).get;
+    (axios as any).get = async (url: string) => {
+      llamadasGet.push(url);
+      if (url.includes("/getCiudades")) throw new Error("timeout simulado");
+      return { data: { entidadRespuesta: { total: zoomTotal, tasa: 36 } } };
+    };
+    try {
+      assert.strictEqual(await cot.cotizarEnvio({ cotizador: "zoom", kg: 2, ciudadDestino: "CANTAURA", oficina: "2262", montoMercanciaBs: 1000 }), null);
+    } finally {
+      (axios as any).get = original;
+      console.warn = warnOriginal;
+    }
+    assert.ok(avisos.some((a) => a.includes("no se pudo leer la lista de ciudades")));
+    assert.ok(!llamadasGet.some((u) => u.includes("CalcularTarifa")), "sin origen no se pide tarifa");
+  });
+
+  await prueba("Zoom: sin tarifa se avisa en el log una vez por ciudad y día, sin datos del cliente", async () => {
+    resetMocks();
+    cot._resetParaPruebas();
+    const avisos: string[] = [];
+    const warnOriginal = console.warn;
+    console.warn = (...args: any[]) => avisos.push(args.map(String).join(" "));
+    try {
+      assert.strictEqual(await cot.cotizarEnvio({ cotizador: "zoom", kg: 1, ciudadDestino: "Ciudad Inexistente", oficina: "", montoMercanciaBs: 10 }), null);
+      assert.strictEqual(await cot.cotizarEnvio({ cotizador: "zoom", kg: 1, ciudadDestino: "Ciudad Inexistente", oficina: "", montoMercanciaBs: 10 }), null);
+    } finally {
+      console.warn = warnOriginal;
+    }
+    const lineas = avisos.filter((a) => a.includes("Zoom sin tarifa"));
+    assert.strictEqual(lineas.length, 1);
+    assert.ok(lineas[0].includes('ciudad no encontrada "Ciudad Inexistente"'));
+  });
+
+  await prueba("Zoom: respuesta sin total → null y aviso (no lanza)", async () => {
+    resetMocks();
+    cot._resetParaPruebas();
+    zoomTotal = "";
+    const avisos: string[] = [];
+    const warnOriginal = console.warn;
+    console.warn = (...args: any[]) => avisos.push(args.map(String).join(" "));
+    try {
+      assert.strictEqual(await cot.cotizarEnvio({ cotizador: "zoom", kg: 4, ciudadDestino: "Maracaibo", oficina: "9", montoMercanciaBs: 10 }), null);
+    } finally {
+      console.warn = warnOriginal;
+      zoomTotal = "22.150,58";
+    }
+    assert.ok(avisos.some((a) => a.includes("no trae total")));
+  });
+
+  await prueba("tabla por oficina de Zoom: todos los códigos son enteros positivos", () => {
+    const tabla: Record<string, number> = require("../services/zoomCiudades").CODIGO_CIUDAD_POR_OFICINA_ZOOM;
+    const valores = Object.values(tabla);
+    assert.ok(valores.length >= 300);
+    assert.ok(valores.every((v) => Number.isInteger(v) && v > 0));
   });
 
   await prueba("cotizador 'ninguno' o desconocido → null", async () => {

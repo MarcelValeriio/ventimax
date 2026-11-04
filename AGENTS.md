@@ -477,6 +477,22 @@ Datos verificados por Claude (2026-11-04):
 
 **Cierre:** `npm run build` y `./scripts/ci.sh` en verde, `esbuild --bundle` en los archivos tocados, y lista de archivos. Sin consultas reales a MRW ni a Zoom desde las pruebas.
 
+### F2q · Investigación: reseñas reales de Mercado Libre en la tienda — Investigación · `Pendiente`
+
+Pedido del dueño (2026-11-04): mostrar en la tienda (`catalogo/`) las reseñas **reales** que sus productos tienen en Mercado Libre, traídas por API. **Esta tarea es solo de investigación:** no se escribe código ni se instala nada. Entrega: `docs/resenas-mercadolibre-investigacion.md`.
+
+Preguntas que hay que responder, con fuente (documentación oficial de Mercado Libre Developers, sitio de Venezuela `MLV` si aplica):
+1. **Qué API existe hoy** para leer reseñas u opiniones de un producto (p. ej. `GET /reviews/item/{item_id}`): endpoint, si es pública o pide token, qué campos devuelve (calificación, texto, fecha, nombre del comprador, fotos), paginación y límites de uso. ¿Funciona para publicaciones de Venezuela (`MLV`)? ¿Hay también reputación del vendedor (`/users/{id}`)?
+2. **Autenticación:** si hace falta app y OAuth, qué pasos hace el dueño (crear app en el portal de desarrolladores, URL de redirección, permisos, renovación del token y cada cuánto vence). Ninguna clave va en el repo: solo variables de entorno en Render, documentadas en `.env.example`.
+3. **Cómo se relaciona** cada publicación de Mercado Libre (`item_id`, p. ej. `MLV123456789`) con un producto nuestro: proponer un campo opcional en el producto (`mercadoLibreId`) editable desde el panel.
+4. **Términos de uso:** ¿Mercado Libre permite mostrar esas reseñas fuera de su sitio? ¿Exige atribución o enlace a la publicación? ¿Se puede mostrar el nombre del comprador o hay que ocultarlo (privacidad)?
+5. **Propuesta de diseño** (para que Claude escriba la tarea de ejecución): copia periódica en nuestra BD con un job de Agenda (no consultar Mercado Libre en cada visita), caché, qué se expone en `/api/public` (lista blanca), qué pasa si la API falla (la sección no se muestra) y cómo se ve en la ficha del producto (estrellas con Lucide, sin `innerHTML` con datos).
+6. **Riesgos:** cambios de la API sin aviso, bloqueo por país o IP del servidor (Render está en Oregón), límites de uso.
+
+**Restricciones:** no leer `.env`, sin commit, sin instalar dependencias, no crear la app de Mercado Libre (eso lo hace el dueño). Si la documentación oficial no se puede leer sin sesión, decirlo y marcar lo que quede **sin verificar**, como se hizo con TikTok (F5).
+
+**Cierre:** el documento con las 6 respuestas, las fuentes y la lista de pasos del dueño. Estado final: `Lista para revisión`.
+
 ## Dudas para Claude
 
 _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde debajo.)_
@@ -518,6 +534,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
+| 2026-11-04 | — | F2q: tarea de investigación de reseñas reales de Mercado Libre por API para la tienda (pedido del dueño); asignada a Antigravity — Ejecutado por **Claude** | Claude (Cerebro) | Pendiente |
 | 2026-11-04 | — | F1-7 (peso y medidas de la caja) y F1-8 (cotizador MRW tabla diaria y Zoom en vivo, estimado en el carrito, solo retiro en agencia, cobro a destino). CI verde (53 suites). Pendiente: recorrido en Chrome y prueba real en producción. Tealca sin cotizador — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Lista para revisión |
 | 2026-11-02 | — | F2o y F1-4 aprobadas: CI verde (50 suites), 0 "Caracas" en código, `mapa` por marca con lista blanca, vehículo del cliente con validación, permiso `chat:manage`, auditoría y copiloto que propone sin guardar. Notas menores: `/api/public/marca` devuelve centro 0,0 si el dato es inválido; venta manual guarda vehículo solo en WhatsApp (la venta manual es solo WhatsApp) — Ejecutado por **Antigravity** + **Claude** | Claude (Cerebro) | Aprobada |
 | 2026-11-02 | — | F1-3 entregada: importación y exportación xlsx/CSV con vista previa (nada se escribe hasta confirmar), confirmar por SKU sin borrar, desactivación aparte, suite `test-importacion-productos.ts` en `ci.sh` (48 suites en verde). Pendiente: recorrido en Chrome a 390 y 1440 px con Excel de 10 filas (sin herramienta de navegador). `exceljs` aprobado por el dueño — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Lista para revisión |
