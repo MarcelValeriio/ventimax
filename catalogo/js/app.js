@@ -2273,7 +2273,7 @@ function renderizarCarrito() {
     if (clave !== claveEstimado) return; // ya cambió la elección
     if (r && r.disponible) {
       const bs = Number(r.montoBs).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      pintarEstimado(`Envío estimado: ${formatearUsd(r.montoUsd)} (Bs ${bs}) · se paga al retirar en la agencia`);
+      pintarEstimado(`Envío estimado: Bs ${bs}. Es un estimado, no un precio confirmado; se paga al retirar en la agencia.`);
     }
   }
 
@@ -2337,13 +2337,13 @@ function renderizarCarrito() {
       el("div", { className: "resumen-fila" }, el("dt", {}, unidades === 1 ? "1 producto" : `${unidades} productos`), el("dd", {}, formatearUsd(subtotalUsd))),
       el("div", { className: "resumen-fila" }, el("dt", {}, "Envío"), valorEnvio),
       filaSucursalResumen,
-      filaEstimadoEnvio,
       el("div", { className: "resumen-fila resumen-total" }, el("dt", {}, "Total"), valorTotal)
     ),
     honeypotInput,
     alertBox,
     hayAgotados ? el("p", { className: "alerta" }, "Hay un producto agotado en tu pedido. Quítalo para poder pedir.") : null,
     submitBtn,
+    filaEstimadoEnvio,
     pistaEntrega,
     el(
       "p",

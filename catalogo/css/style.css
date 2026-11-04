@@ -2785,7 +2785,7 @@ body.con-ayuda.con-barra .boton-volver-arriba {
 }
 
 .envio-estimado {
-  margin: 0;
+  margin: 10px 0 0;
   padding: 8px 10px;
   font-size: 0.875rem;
   color: var(--tinta);
