@@ -2542,6 +2542,13 @@ body.con-ayuda.con-barra .boton-volver-arriba {
   font-variant-numeric: tabular-nums;
 }
 
+/* Descuento por volumen en el resumen: texto y monto en el verde de descuento */
+.resumen-fila.resumen-descuento dt,
+.resumen-fila.resumen-descuento dd {
+  color: var(--descuento);
+  font-weight: 700;
+}
+
 .resumen-total {
   padding-top: 12px;
   border-top: 1px solid var(--linea);
