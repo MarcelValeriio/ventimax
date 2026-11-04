@@ -59,6 +59,11 @@ const productoSchema = new Schema<IProducto>({
   atributos: { type: [atributoSchema], default: [] },
   grupoEquivalencia: { type: String, trim: true, default: "", maxlength: LIMITES.grupoEquivalencia },
   compatibilidad: { type: [compatibilidadSchema], default: [] },
+  // Peso y medidas de la caja (F1-7). Opcionales: null = sin dato. Reglas en services/medidasProducto.ts
+  pesoKg: { type: Number, min: 0, max: 1000, default: null },
+  altoCm: { type: Number, min: 0, max: 500, default: null },
+  anchoCm: { type: Number, min: 0, max: 500, default: null },
+  profundidadCm: { type: Number, min: 0, max: 500, default: null },
 }, { timestamps: true });
 
 // pre("validate"): normaliza los campos ampliados antes de guardar y rechaza los inválidos.

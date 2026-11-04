@@ -507,6 +507,8 @@ export async function getInfo(req: any, res: any) {
                   item.slug = e.slug;
                   item.conSucursales = true;
                 }
+                // Cotizador de envío (F1-8): solo el nombre del servicio; el estimado sale de cotizar-envio
+                if (e.cotizador) item.cotizador = e.cotizador;
                 return item;
               }),
           cobroADestino: !esRetiro && m.cobroADestino === true,

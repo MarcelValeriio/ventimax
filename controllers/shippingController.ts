@@ -25,6 +25,10 @@ function sanearEmpresas(empresas: any): { ok: true; value: any[] } | { ok: false
   const lista: any[] = [];
   for (const e of empresas) {
     const esObjeto = e !== null && typeof e === "object";
+    if (esObjeto && e.cotizador !== undefined && e.cotizador !== null && e.cotizador !== "") {
+      const c = String(e.cotizador).trim().toLowerCase();
+      if (!COTIZADORES.includes(c)) return { ok: false, error: "Cotizador de envío inválido" };
+    }
     const crudo = typeof e === "string" ? e : esObjeto && typeof e.nombre === "string" ? e.nombre : "";
     const nombre = crudo.trim();
     if (!nombre) continue;
@@ -34,7 +38,7 @@ function sanearEmpresas(empresas: any): { ok: true; value: any[] } | { ok: false
     const clave = nombre.toLowerCase();
     if (vistas.has(clave)) continue;
     vistas.add(clave);
-    lista.push(esObjeto ? { nombre, logoUrl: e.logoUrl, logoPublicId: e.logoPublicId, slug: e.slug } : { nombre });
+    lista.push(esObjeto ? { nombre, logoUrl: e.logoUrl, logoPublicId: e.logoPublicId, slug: e.slug, cotizador: e.cotizador } : { nombre });
   }
   if (lista.length > MAX_EMPRESAS) return { ok: false, error: `Máximo ${MAX_EMPRESAS} empresas de envío` };
   return { ok: true, value: empresaService.normalizarEmpresas(lista) };
@@ -58,6 +62,27 @@ async function borrarLogosQuitados(anteriores: any, nuevas: any[]) {
   }
 }
 const COSTO_TIPOS_VALIDOS = ["fijo", "a_convenir"];
+// Cotizador por empresa (F1-8): "ninguno" = sin estimado. Solo lo cambia quien tiene config:manage.
+const COTIZADORES = ["ninguno", "mrw", "zoom"];
+
+/** Mapa nombre de empresa -> cotizador ("ninguno" si no tiene), para comparar cambios. */
+function cotizadoresDe(lista: any): Record<string, string> {
+  const mapa: Record<string, string> = {};
+  for (const e of empresaService.normalizarEmpresas(lista)) mapa[e.nombre.toLowerCase()] = e.cotizador || "ninguno";
+  return mapa;
+}
+
+/** ¿Cambia algún cotizador respecto de la lista anterior? (quien no tiene config:manage no puede hacerlo). */
+function cambiaCotizador(anteriores: any, nuevas: any[]): boolean {
+  const a = cotizadoresDe(anteriores);
+  const b = cotizadoresDe(nuevas);
+  const claves = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const k of claves) if ((a[k] || "ninguno") !== (b[k] || "ninguno")) return true;
+  return false;
+}
+
+const tieneConfigManage = (req: any): boolean =>
+  Array.isArray(req?.user?.permissions) && req.user.permissions.includes("config:manage");
 
 /**
  * Responde un error de base de datos o inesperado sin filtrar su detalle al navegador.
@@ -110,6 +135,9 @@ const createShippingMethod = async (req: any, res: any) => {
     }
     if (!tipo || !TIPOS_VALIDOS.includes(tipo)) {
       return res.status(400).json({ success: false, error: "Tipo de envío inválido" });
+    }
+    if (cambiaCotizador({}, empresasSaneadas.value) && !tieneConfigManage(req)) {
+      return res.status(403).json({ success: false, error: "No tienes permiso para configurar el cotizador de envío" });
     }
 
     if (direccion !== undefined && typeof direccion === "string" && direccion.trim().length > 200) {
@@ -197,6 +225,13 @@ const updateShippingMethod = async (req: any, res: any) => {
     const empresasSaneadas = sanearEmpresas(empresas);
     if (empresasSaneadas.ok === false) {
       return res.status(400).json({ success: false, error: empresasSaneadas.error });
+    }
+    if (
+      empresas !== undefined &&
+      cambiaCotizador(oldMethod.empresas, empresasSaneadas.value) &&
+      !tieneConfigManage(req)
+    ) {
+      return res.status(403).json({ success: false, error: "No tienes permiso para configurar el cotizador de envío" });
     }
 
     if (nombre !== undefined && (!nombre || typeof nombre !== "string" || !nombre.trim())) {

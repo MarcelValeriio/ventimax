@@ -27,8 +27,17 @@ const initAgenda = async (io = null) => {
       );
     });
 
+    // Cotizador de envío (F1-8): tabla diaria de MRW 60 min antes de la apertura (el job decide si toca)
+    const cotizadorEnvio = require('./cotizadorEnvio');
+    agenda.define("cotizador mrw diario", async () => {
+      await cotizadorEnvio.ejecutarJobMrw();
+    });
+
     await agenda.start();
     await agenda.every("5 minutes", "reactivacion checkout");
+    await agenda.every("10 minutes", "cotizador mrw diario");
+    // Arranque: si la tabla de MRW tiene más de 24 h, se actualiza (no bloquea el arranque)
+    cotizadorEnvio.iniciarCotizadorEnvio().catch(() => {});
   }
   return agenda;
 };

@@ -16,6 +16,7 @@ const empresaService = require("../services/empresasEnvio");
 const CarritoWebOriginal = require("../models/CarritoWeb");
 const { registrarAuditoria } = require("../services/auditService"); // Imported audit service
 const { LIMITES, normalizarTexto, normalizarCodigoOEM, validarProductoAmpliado } = require("../services/productoAmpliado");
+const { validarMedidasProducto } = require("../services/medidasProducto");
 const importacionProductos = require("../services/importacionProductos");
 const pushService = require("../services/pushService");
 let Counter = require("../models/Counter");
@@ -368,6 +369,10 @@ const postProduct = async (req, res) => {
       atributos,
       grupoEquivalencia,
       compatibilidad,
+      pesoKg,
+      altoCm,
+      anchoCm,
+      profundidadCm,
     } = req.body;
 
     // 1. Validaciones de Campos Obligatorios
@@ -406,6 +411,15 @@ const postProduct = async (req, res) => {
         errores: ampliado.errores,
       });
     }
+    // Peso y medidas de la caja (F1-7): undefined = no tocar; null o "" = sin dato
+    const medidas = validarMedidasProducto({ pesoKg, altoCm, anchoCm, profundidadCm });
+    if (!medidas.ok) {
+      return res.status(400).json({
+        success: false,
+        error: `No se pudo crear el producto. ${medidas.errores.join(" ")}`,
+        errores: medidas.errores,
+      });
+    }
     const idNuevo = id || `prod-${Date.now()}`;
     if (await skuRepetido(ampliado.valor.sku, idNuevo)) {
       return res.status(400).json({
@@ -427,6 +441,7 @@ const postProduct = async (req, res) => {
       stock: stock !== undefined ? Number(stock) : 0,
       trackStock: trackStock === true || trackStock === "true",
       ...ampliado.valor,
+      ...medidas.valor,
     });
 
     const populated = await newProduct.populate(["categoria", "categorias"]);
@@ -467,6 +482,10 @@ const updateProduct = async (req, res) => {
       atributos,
       grupoEquivalencia,
       compatibilidad,
+      pesoKg,
+      altoCm,
+      anchoCm,
+      profundidadCm,
     } = req.body;
 
     const originalProduct = await Producto.findOne({ id: id });
@@ -517,6 +536,14 @@ const updateProduct = async (req, res) => {
         errores: ampliado.errores,
       });
     }
+    const medidas = validarMedidasProducto({ pesoKg, altoCm, anchoCm, profundidadCm });
+    if (!medidas.ok) {
+      return res.status(400).json({
+        success: false,
+        error: `No se pudo actualizar el producto. ${medidas.errores.join(" ")}`,
+        errores: medidas.errores,
+      });
+    }
     if (await skuRepetido(ampliado.valor.sku, id)) {
       return res.status(400).json({
         success: false,
@@ -525,6 +552,7 @@ const updateProduct = async (req, res) => {
       });
     }
     Object.assign(updateData, ampliado.valor);
+    Object.assign(updateData, medidas.valor);
     // Un SKU vacío borra el campo: con índice único disperso no se puede guardar "" ni null
     const borrarSku = updateData.sku === "";
     if (borrarSku) delete updateData.sku;
@@ -610,6 +638,15 @@ const updateProduct = async (req, res) => {
       cambios.push(`grupo de equivalencia: "${originalProduct.grupoEquivalencia || "—"}" → "${ampliado.valor.grupoEquivalencia || "—"}"`);
     if (ampliado.valor.compatibilidad !== undefined && firmaCompat(ampliado.valor.compatibilidad) !== firmaCompat(originalProduct.compatibilidad))
       cambios.push(`compatibilidad actualizada (${ampliado.valor.compatibilidad.length} vehículos)`);
+
+    // Peso y medidas (F1-7): se comparan con el valor guardado (null = sin dato)
+    const etiquetasMedidas = { pesoKg: "peso", altoCm: "alto", anchoCm: "ancho", profundidadCm: "profundidad" };
+    for (const [clave, etiqueta] of Object.entries(etiquetasMedidas)) {
+      if (medidas.valor[clave] === undefined) continue;
+      const antes = originalProduct[clave] ?? null;
+      if (medidas.valor[clave] !== antes)
+        cambios.push(`${etiqueta}: ${antes ?? "—"} → ${medidas.valor[clave] ?? "—"}`);
+    }
 
     // Registrar Auditoría
     await registrarAuditoria(req, {
@@ -716,6 +753,10 @@ async function prepararImportacion(req) {
       grupoEquivalencia: p.grupoEquivalencia,
       categoriaNombres: nombres,
       compatibilidad: p.compatibilidad || [],
+      pesoKg: p.pesoKg ?? null,
+      altoCm: p.altoCm ?? null,
+      anchoCm: p.anchoCm ?? null,
+      profundidadCm: p.profundidadCm ?? null,
     };
   });
   const resultado = importacionProductos.analizarImportacion({
@@ -821,6 +862,10 @@ const confirmarImportacionProductos = async (req, res) => {
           codigosOEM: d.codigosOEM || [],
           grupoEquivalencia: d.grupoEquivalencia || "",
           compatibilidad: d.compatibilidad || [],
+          pesoKg: d.pesoKg ?? null,
+          altoCm: d.altoCm ?? null,
+          anchoCm: d.anchoCm ?? null,
+          profundidadCm: d.profundidadCm ?? null,
         });
         creados++;
       }
@@ -836,6 +881,10 @@ const confirmarImportacionProductos = async (req, res) => {
         if (d.codigosOEM !== undefined) set.codigosOEM = d.codigosOEM;
         if (d.grupoEquivalencia !== undefined) set.grupoEquivalencia = d.grupoEquivalencia;
         if (d.compatibilidad !== undefined) set.compatibilidad = d.compatibilidad;
+        if (d.pesoKg !== undefined) set.pesoKg = d.pesoKg;
+        if (d.altoCm !== undefined) set.altoCm = d.altoCm;
+        if (d.anchoCm !== undefined) set.anchoCm = d.anchoCm;
+        if (d.profundidadCm !== undefined) set.profundidadCm = d.profundidadCm;
         if (d.categoriaNombres !== undefined) {
           const ids = idsDe(d.categoriaNombres);
           set.categoria = ids[0];

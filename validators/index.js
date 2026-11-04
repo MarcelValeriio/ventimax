@@ -1,5 +1,45 @@
 const { z } = require("zod");
 
+// ─── Peso y medidas de la caja (F1-7) ───
+// Reglas espejo de services/medidasProducto.ts. Vacío/null = sin dato; acepta coma o punto decimal.
+const MEDIDAS_ZOD = {
+  pesoKg: { etiqueta: "El peso (kg)", min: 0, max: 1000, minExclusivo: false, decimales: 3 },
+  altoCm: { etiqueta: "El alto (cm)", min: 0, max: 500, minExclusivo: true, decimales: 1 },
+  anchoCm: { etiqueta: "El ancho (cm)", min: 0, max: 500, minExclusivo: true, decimales: 1 },
+  profundidadCm: { etiqueta: "La profundidad (cm)", min: 0, max: 500, minExclusivo: true, decimales: 1 },
+};
+const medidaZod = (clave) => {
+  const r = MEDIDAS_ZOD[clave];
+  return z.any().transform((v, ctx) => {
+    if (v === undefined) return undefined;
+    if (v === null) return null;
+    let n;
+    if (typeof v === "string") {
+      const t = v.trim();
+      if (t === "") return null;
+      const limpio = t.replace(",", ".");
+      if (!/^\d+(\.\d+)?$/.test(limpio)) { ctx.addIssue({ code: "custom", message: `${r.etiqueta} debe ser un número.` }); return z.NEVER; }
+      n = Number(limpio);
+    } else if (typeof v === "number" && Number.isFinite(v)) {
+      n = v;
+    } else {
+      ctx.addIssue({ code: "custom", message: `${r.etiqueta} debe ser un número.` });
+      return z.NEVER;
+    }
+    const fuera = r.minExclusivo ? n <= r.min : n < r.min;
+    if (fuera || n > r.max) {
+      ctx.addIssue({ code: "custom", message: `${r.etiqueta} debe ser ${r.minExclusivo ? "mayor a 0" : "mayor o igual a 0"} y no más de ${r.max}.` });
+      return z.NEVER;
+    }
+    const f = 10 ** r.decimales;
+    if (Math.abs(Math.round(n * f) - n * f) > 1e-7) {
+      ctx.addIssue({ code: "custom", message: `${r.etiqueta} admite hasta ${r.decimales} decimal${r.decimales === 1 ? "" : "es"}.` });
+      return z.NEVER;
+    }
+    return n;
+  }).optional();
+};
+
 // ─── Producto ───
 const productoSchema = z.object({
   // Vacío = el servidor genera `prod-<timestamp>` (postProduct)
@@ -24,6 +64,11 @@ const productoSchema = z.object({
   atributos: z.unknown().optional(),
   grupoEquivalencia: z.unknown().optional(),
   compatibilidad: z.unknown().optional(),
+  // Peso y medidas de la caja (F1-7)
+  pesoKg: medidaZod("pesoKg"),
+  altoCm: medidaZod("altoCm"),
+  anchoCm: medidaZod("anchoCm"),
+  profundidadCm: medidaZod("profundidadCm"),
 });
 
 // Edición: todo opcional y SIN valores por defecto. Con productoSchema.partial() los defaults seguían aplicándose y
@@ -48,6 +93,11 @@ const productoUpdateSchema = z.object({
   atributos: z.unknown().optional(),
   grupoEquivalencia: z.unknown().optional(),
   compatibilidad: z.unknown().optional(),
+  // Peso y medidas de la caja (F1-7)
+  pesoKg: medidaZod("pesoKg"),
+  altoCm: medidaZod("altoCm"),
+  anchoCm: medidaZod("anchoCm"),
+  profundidadCm: medidaZod("profundidadCm"),
 });
 
 // ─── Categoría ───

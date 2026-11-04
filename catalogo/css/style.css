@@ -2784,6 +2784,15 @@ body.con-ayuda.con-barra .boton-volver-arriba {
   font-weight: 600;
 }
 
+.envio-estimado {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 0.875rem;
+  color: var(--tinta);
+  background: var(--superficie-2, #f9fafb);
+  border-radius: var(--radio-sm, 6px);
+}
+
 .resumen-sucursal-dir {
   color: var(--tinta-3);
   font-size: 0.75rem;

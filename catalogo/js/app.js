@@ -52,7 +52,7 @@ import {
   limpiarCascadaAlCambiarEstado,
 } from "./sucursales.js";
 
-import { obtenerSucursalesEstados, obtenerSucursales } from "./api.js";
+import { obtenerSucursalesEstados, obtenerSucursales, cotizarEnvio } from "./api.js";
 
 /** Solo se abre un enlace de WhatsApp (wa.me); cualquier otra cosa que llegara de la API se ignora. */
 function esEnlaceWhatsApp(url) {
@@ -2238,6 +2238,45 @@ function renderizarCarrito() {
   const sucursalResumenTexto = el("strong", {});
   filaSucursalResumen.append(sucursalResumenTexto);
 
+  // Estimado de envío nacional (F1-8): solo informativo, se paga al retirar; no suma al total
+  const filaEstimadoEnvio = el("div", { className: "envio-estimado hidden", role: "status" });
+  let claveEstimado = "";
+
+  function pintarEstimado(texto) {
+    filaEstimadoEnvio.textContent = texto || "";
+    filaEstimadoEnvio.classList.toggle("hidden", !texto);
+  }
+
+  async function actualizarEstimadoEnvio() {
+    const m = state.entrega.metodo;
+    const emp = state.entrega.empresa;
+    const empObj = m && Array.isArray(m.empresas) ? m.empresas.find((e) => e && typeof e === "object" && e.nombre === emp) : null;
+    const cotizador = empObj ? empObj.cotizador : "";
+    const conSucursal = cotizador === "zoom";
+    if (!pideEntrega || !m || m.tipo === "retiro" || !cotizador || !emp || (conSucursal && !state.entrega.sucursalId)) {
+      claveEstimado = "";
+      pintarEstimado("");
+      return;
+    }
+    const items = state.carrito.map((i) => ({ id: i.productoId, cantidad: i.cantidad }));
+    const sucursalId = conSucursal ? state.entrega.sucursalId : "";
+    const clave = JSON.stringify([m.id, emp, sucursalId, items]);
+    if (clave === claveEstimado) return;
+    claveEstimado = clave;
+    pintarEstimado("");
+    let r = null;
+    try {
+      r = await cotizarEnvio({ items, metodoId: m.id, empresaId: emp, ...(sucursalId ? { sucursalId } : {}) });
+    } catch (err) {
+      console.warn("[Envío] No se pudo cotizar:", err);
+    }
+    if (clave !== claveEstimado) return; // ya cambió la elección
+    if (r && r.disponible) {
+      const bs = Number(r.montoBs).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      pintarEstimado(`Envío estimado: ${formatearUsd(r.montoUsd)} (Bs ${bs}) · se paga al retirar en la agencia`);
+    }
+  }
+
   function refrescarResumen() {
     const costo = pideEntrega ? costoEntrega(state.entrega.metodo) : { tipo: "pendiente", monto: 0 };
     valorEnvio.textContent =
@@ -2285,6 +2324,7 @@ function renderizarCarrito() {
                 : "Completa los datos para el envío.";
     pistaEntrega.textContent = pista;
     pistaEntrega.classList.toggle("hidden", !pista);
+    actualizarEstimadoEnvio();
   }
 
   const resumen = el(
@@ -2297,6 +2337,7 @@ function renderizarCarrito() {
       el("div", { className: "resumen-fila" }, el("dt", {}, unidades === 1 ? "1 producto" : `${unidades} productos`), el("dd", {}, formatearUsd(subtotalUsd))),
       el("div", { className: "resumen-fila" }, el("dt", {}, "Envío"), valorEnvio),
       filaSucursalResumen,
+      filaEstimadoEnvio,
       el("div", { className: "resumen-fila resumen-total" }, el("dt", {}, "Total"), valorTotal)
     ),
     honeypotInput,

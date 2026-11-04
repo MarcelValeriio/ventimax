@@ -1,6 +1,7 @@
 import express from "express";
 const router = express.Router();
 const publicController = require("../controllers/publicController");
+const cotizadorController = require("../controllers/cotizadorController");
 const rateLimit = require("express-rate-limit");
 const { registrarEventoCatalogo } = require("../services/catalogoAbusoService");
 
@@ -52,6 +53,15 @@ const geocodificacionLimiter = rateLimit({
   message: { error: "Demasiadas peticiones. Intenta de nuevo más tarde." },
 });
 
+// Cotizador de envío (F1-8): consulta a MRW/Zoom (Zoom en vivo) con su propio límite por IP
+const cotizadorLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiadas peticiones. Intenta de nuevo más tarde." },
+});
+
 const pedidosWebLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutos
   max: 5, // 5 carritos por IP cada 10 minutos
@@ -75,6 +85,7 @@ router.get("/sucursales", publicGetLimiter, publicController.getSucursales);
 router.get("/geocodificar", geocodificacionLimiter, publicController.getGeocodificar);
 router.get("/buscar-direccion", geocodificacionLimiter, publicController.getBuscarDireccion);
 router.post("/pedidos", pedidosWebLimiter, publicController.postPedidoWeb);
+router.post("/cotizar-envio", cotizadorLimiter, cotizadorController.postCotizarEnvio);
 
 // 6. Rechazo de cualquier otra ruta bajo /api/public (ej. GET /pedidos/:codigo no existe)
 router.use((req: any, res: any) => {

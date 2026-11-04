@@ -13,6 +13,7 @@
  */
 import ExcelJS from "exceljs";
 import { LIMITES, normalizarTexto, normalizarCodigoOEM, normalizarCompatibilidad, validarProductoAmpliado } from "./productoAmpliado";
+import { MEDIDAS, CLAVES_MEDIDAS, normalizarMedida, celdaMedida } from "./medidasProducto";
 
 export const LIMITES_IMPORTACION = {
   tamanoBytes: 2 * 1024 * 1024, // 2 MB por archivo
@@ -42,6 +43,11 @@ export const COLUMNAS_PRODUCTOS: Columna[] = [
   { clave: "grupoEquivalencia", titulo: "Grupo equivalencia" },
   { clave: "descripcion", titulo: "Descripción" },
   { clave: "activo", titulo: "Activo" },
+  // Peso y medidas de la caja (F1-7). Vacío = no cambia el dato en una actualización
+  { clave: "pesoKg", titulo: "Peso (kg)" },
+  { clave: "altoCm", titulo: "Alto (cm)" },
+  { clave: "anchoCm", titulo: "Ancho (cm)" },
+  { clave: "profundidadCm", titulo: "Profundidad (cm)" },
 ];
 
 /** Hoja `Compatibilidad` (una fila por vehículo compatible). Ver docs/f1-producto-ampliado.md §3.1 */
@@ -364,6 +370,10 @@ export interface ProductoExistente {
   grupoEquivalencia?: string;
   categoriaNombres: string[]; // la principal primero
   compatibilidad: any[];
+  pesoKg?: number | null;
+  altoCm?: number | null;
+  anchoCm?: number | null;
+  profundidadCm?: number | null;
 }
 
 export interface CategoriaExistente {
@@ -386,6 +396,10 @@ export interface DatosFila {
   grupoEquivalencia?: string;
   categoriaNombres?: string[];
   compatibilidad?: any[];
+  pesoKg?: number | null;
+  altoCm?: number | null;
+  anchoCm?: number | null;
+  profundidadCm?: number | null;
 }
 
 export interface CampoCambiado {
@@ -457,6 +471,12 @@ function diferencias(p: ProductoExistente, d: DatosFila): CampoCambiado[] {
   }
   if (d.compatibilidad !== undefined && firmaCompat(p.compatibilidad) !== firmaCompat(d.compatibilidad)) {
     add("Compatibilidad", `${(p.compatibilidad || []).length} vehículos`, `${d.compatibilidad.length} vehículos`);
+  }
+  for (const clave of CLAVES_MEDIDAS) {
+    const nuevo = d[clave as keyof DatosFila] as number | null | undefined;
+    if (nuevo === undefined) continue;
+    const actual = (p as any)[clave];
+    add(MEDIDAS[clave].titulo, actual === null || actual === undefined ? "" : String(actual), nuevo === null ? "" : String(nuevo));
   }
   return out;
 }
@@ -558,6 +578,14 @@ export function analizarImportacion({
     if (!vacio(c.codigosOEM)) {
       const codigos = c.codigosOEM.split(";").map((s) => normalizarCodigoOEM(s)).filter(Boolean);
       if (codigos.length) datos.codigosOEM = [...new Set(codigos)];
+    }
+
+    // Peso y medidas (F1-7): coma o punto decimal; celda vacía = no cambia
+    for (const clave of CLAVES_MEDIDAS) {
+      if (vacio(c[clave])) continue;
+      const r = normalizarMedida(clave, c[clave]);
+      if (!r.ok) motivos.push(r.error as string);
+      else if (r.valor !== undefined) (datos as any)[clave] = r.valor;
     }
 
     // Mismas reglas que el panel (F1-1) para SKU, marca, grupo y códigos OEM
@@ -752,6 +780,10 @@ export function filasExportacion(
       String(p.grupoEquivalencia || ""),
       String(p.description || ""),
       p.activo === false ? "no" : "sí",
+      celdaMedida(p.pesoKg),
+      celdaMedida(p.altoCm),
+      celdaMedida(p.anchoCm),
+      celdaMedida(p.profundidadCm),
     ]);
     if (sku) {
       for (const f of p.compatibilidad || []) {

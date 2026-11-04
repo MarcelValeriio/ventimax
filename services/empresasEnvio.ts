@@ -9,12 +9,15 @@ const MAX_LARGO_NOMBRE = 40;
 const MAX_LARGO_PUBLIC_ID = 200;
 const PREFIJO_LOGO = "https://res.cloudinary.com/";
 const SLUGS_VALIDOS = new Set(["zoom", "mrw", "tealca"]);
+// Cotizador de envío (F1-8): "ninguno" no se guarda (la empresa no tiene cotizador)
+const COTIZADORES_CON_ESTIMADO = new Set(["mrw", "zoom"]);
 
 export interface EmpresaEnvio {
   nombre: string;
   logoUrl: string;
   logoPublicId: string;
   slug?: string;
+  cotizador?: string;
 }
 
 /** Devuelve la URL solo si es de Cloudinary; si no, "" (nunca se guarda una URL ajena). */
@@ -52,6 +55,7 @@ function normalizarEmpresas(lista: any): EmpresaEnvio[] {
     let logoUrl = "";
     let logoPublicId = "";
     let slug = "";
+    let cotizador = "";
     if (typeof e === "string") {
       nombre = e;
     } else if (e && typeof e === "object" && typeof e.nombre === "string") {
@@ -61,6 +65,10 @@ function normalizarEmpresas(lista: any): EmpresaEnvio[] {
       if (typeof e.slug === "string") {
         const sLimpio = e.slug.trim().toLowerCase();
         if (SLUGS_VALIDOS.has(sLimpio)) slug = sLimpio;
+      }
+      if (typeof e.cotizador === "string") {
+        const cLimpio = e.cotizador.trim().toLowerCase();
+        if (COTIZADORES_CON_ESTIMADO.has(cLimpio)) cotizador = cLimpio;
       }
     } else {
       continue;
@@ -72,6 +80,7 @@ function normalizarEmpresas(lista: any): EmpresaEnvio[] {
     vistas.add(clave);
     const item: EmpresaEnvio = { nombre, logoUrl, logoPublicId };
     if (slug) item.slug = slug;
+    if (cotizador) item.cotizador = cotizador;
     resultado.push(item);
     if (resultado.length >= MAX_EMPRESAS) break;
   }
@@ -87,6 +96,7 @@ module.exports = {
   MAX_EMPRESAS,
   MAX_LARGO_NOMBRE,
   SLUGS_VALIDOS,
+  COTIZADORES_CON_ESTIMADO,
   normalizarEmpresas,
   nombresEmpresas,
   logoSeguro,

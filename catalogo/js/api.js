@@ -76,6 +76,21 @@ export async function obtenerInfo() {
 }
 
 /**
+ * Estimado de envío nacional (F1-8): { items, metodoId, empresaId, sucursalId? }. Si falla o no hay estimado,
+ * devuelve { disponible: false } y la tienda sigue sin mostrarlo.
+ */
+export async function cotizarEnvio(cuerpo) {
+  const base = obtenerBaseUrl();
+  const res = await fetch(`${base}/api/public/cotizar-envio`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(cuerpo),
+  });
+  if (!res.ok) return { disponible: false };
+  return res.json();
+}
+
+/**
  * Geocodificación inversa pública (F2d): convierte lat/lon a dirección descriptiva.
  */
 export async function geocodificarCoordenadas(lat, lon) {

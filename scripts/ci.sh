@@ -48,6 +48,8 @@ SUITES=(
   test-producto-admin-ampliado.ts
   test-fotos-al-crear.ts
   test-importacion-productos.ts
+  test-peso-producto.ts
+  test-cotizador-envio.ts
   test-vehiculo-cliente.ts
   test-mapa-venta-manual.ts
   test-e2e-saas.js

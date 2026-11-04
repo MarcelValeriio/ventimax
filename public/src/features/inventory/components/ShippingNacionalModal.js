@@ -28,16 +28,17 @@ const nuevoUid = () => {
  * Exportada para que el listado de métodos la use igual.
  */
 export function normalizarEmpresa(valor) {
-  if (typeof valor === "string") return { nombre: valor.trim(), logoUrl: "", logoPublicId: "", slug: "" };
+  if (typeof valor === "string") return { nombre: valor.trim(), logoUrl: "", logoPublicId: "", slug: "", cotizador: "ninguno" };
   if (valor && typeof valor === "object") {
     return {
       nombre: String(valor.nombre || "").trim(),
       logoUrl: typeof valor.logoUrl === "string" ? valor.logoUrl : "",
       logoPublicId: typeof valor.logoPublicId === "string" ? valor.logoPublicId : "",
       slug: typeof valor.slug === "string" ? valor.slug.trim().toLowerCase() : "",
+      cotizador: ["mrw", "zoom"].includes(valor.cotizador) ? valor.cotizador : "ninguno",
     };
   }
-  return { nombre: "", logoUrl: "", logoPublicId: "", slug: "" };
+  return { nombre: "", logoUrl: "", logoPublicId: "", slug: "", cotizador: "ninguno" };
 }
 
 /** Miniatura de una empresa en el listado: su logo, o su nombre si no tiene logo o el logo no carga. */
@@ -87,7 +88,7 @@ function empresasIniciales(method) {
 }
 
 /** Tarjeta de una empresa: nombre, logo (subida independiente), directorio de sucursales y eliminar. */
-function TarjetaEmpresa({ empresa, indice, onNombre, onSlug, onSubir, onQuitarLogo, onEliminar }) {
+function TarjetaEmpresa({ empresa, indice, onNombre, onSlug, onCotizador, onSubir, onQuitarLogo, onEliminar }) {
   const inputRef = useRef(null);
   const [logoRoto, setLogoRoto] = useState(false);
   const nombreEtiqueta = empresa.nombre.trim() || `empresa ${indice + 1}`;
@@ -155,6 +156,21 @@ function TarjetaEmpresa({ empresa, indice, onNombre, onSlug, onSubir, onQuitarLo
         e("option", { key: "zoom", value: "zoom" }, "Zoom"),
         e("option", { key: "mrw", value: "mrw" }, "MRW"),
         e("option", { key: "tealca", value: "tealca" }, "Tealca"),
+      ],
+    ),
+    e("label", { htmlFor: `${empresa.uid}-cotizador`, className: ETIQUETA }, "Cotizador de envío (estimado)"),
+    e(
+      "select",
+      {
+        id: `${empresa.uid}-cotizador`,
+        value: empresa.cotizador || "ninguno",
+        onChange: (ev) => onCotizador(ev.target.value),
+        className: CAMPO,
+      },
+      [
+        e("option", { key: "ninguno", value: "ninguno" }, "Ninguno (sin estimado)"),
+        e("option", { key: "mrw", value: "mrw" }, "MRW (tabla diaria)"),
+        e("option", { key: "zoom", value: "zoom" }, "Zoom (en vivo)"),
       ],
     ),
     e(
@@ -240,7 +256,7 @@ const ShippingNacionalModal = ({ isOpen, method = null, onClose, onSaved }) => {
     if (empresas.length >= MAX_EMPRESAS) return;
     setEmpresas((lista) => [
       ...lista,
-      { uid: nuevoUid(), nombre: "", logoUrl: "", logoPublicId: "", subiendo: false, error: "", logoRoto: false },
+      { uid: nuevoUid(), nombre: "", logoUrl: "", logoPublicId: "", cotizador: "ninguno", subiendo: false, error: "", logoRoto: false },
     ]);
   };
 
@@ -306,6 +322,7 @@ const ShippingNacionalModal = ({ isOpen, method = null, onClose, onSaved }) => {
         logoUrl: x.logoUrl,
         logoPublicId: x.logoPublicId,
         slug: x.slug ? x.slug.trim().toLowerCase() : undefined,
+        cotizador: x.cotizador === "mrw" || x.cotizador === "zoom" ? x.cotizador : "ninguno",
       })),
     };
 
@@ -525,6 +542,7 @@ const ShippingNacionalModal = ({ isOpen, method = null, onClose, onSaved }) => {
                 indice,
                 onNombre: (valor) => cambiarEmpresa(empresa.uid, { nombre: valor, error: "" }),
                 onSlug: (valor) => cambiarEmpresa(empresa.uid, { slug: valor }),
+                onCotizador: (valor) => cambiarEmpresa(empresa.uid, { cotizador: valor }),
                 onSubir: (archivo) => subirLogo(empresa.uid, archivo),
                 onQuitarLogo: () => cambiarEmpresa(empresa.uid, { logoUrl: "", logoPublicId: "" }),
                 onEliminar: () => eliminarEmpresa(empresa),

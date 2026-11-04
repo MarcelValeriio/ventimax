@@ -56,6 +56,31 @@ const TABS_PRODUCTO = [
 ];
 const FILA_COMPAT_VACIA = { marca: "", modelo: "", anioDesde: "", anioHasta: "", motor: "", version: "", nota: "" };
 const CAMPOS_COMPAT = ["marca", "modelo", "anioDesde", "anioHasta", "motor", "version", "nota"];
+
+// Peso y medidas de la caja (F1-7). Mismas reglas que services/medidasProducto.ts; vacío = sin dato
+const MEDIDAS_PANEL = {
+  pesoKg: { etiqueta: "El peso (kg)", min: 0, max: 1000, minExclusivo: false, decimales: 3 },
+  altoCm: { etiqueta: "El alto (cm)", min: 0, max: 500, minExclusivo: true, decimales: 1 },
+  anchoCm: { etiqueta: "El ancho (cm)", min: 0, max: 500, minExclusivo: true, decimales: 1 },
+  profundidadCm: { etiqueta: "La profundidad (cm)", min: 0, max: 500, minExclusivo: true, decimales: 1 },
+};
+const validarMedidaPanel = (texto, regla) => {
+  const t = String(texto ?? "").trim();
+  if (t === "") return { ok: true, valor: null };
+  const limpio = t.replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(limpio)) return { ok: false, error: `${regla.etiqueta} debe ser un número.` };
+  const n = Number(limpio);
+  const fuera = regla.minExclusivo ? n <= regla.min : n < regla.min;
+  if (fuera || n > regla.max) {
+    return { ok: false, error: `${regla.etiqueta} debe ser ${regla.minExclusivo ? "mayor a 0" : "mayor o igual a 0"} y no más de ${regla.max}.` };
+  }
+  const f = 10 ** regla.decimales;
+  if (Math.abs(Math.round(n * f) - n * f) > 1e-7) {
+    return { ok: false, error: `${regla.etiqueta} admite hasta ${regla.decimales} decimal${regla.decimales === 1 ? "" : "es"}.` };
+  }
+  return { ok: true, valor: n };
+};
+const textoMedida = (v) => (v === null || v === undefined ? "" : String(v));
 // Fotos (F1-2b): mismo criterio que el servidor (JPG, PNG o WebP, hasta 5 MB, máximo 5 por producto)
 const FORMATOS_FOTO = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES_FOTO = 5 * 1024 * 1024;
@@ -484,6 +509,10 @@ const ProductTab = () => {
     atributos: [],
     grupoEquivalencia: "",
     compatibilidad: [],
+    pesoKg: "",
+    altoCm: "",
+    anchoCm: "",
+    profundidadCm: "",
   });
 
   // Estado para Confirmación
@@ -629,6 +658,10 @@ const ProductTab = () => {
           version: f.version || "",
           nota: f.nota || "",
         })),
+        pesoKg: textoMedida(product.pesoKg),
+        altoCm: textoMedida(product.altoCm),
+        anchoCm: textoMedida(product.anchoCm),
+        profundidadCm: textoMedida(product.profundidadCm),
       });
     } else {
       setEditingProduct(null);
@@ -650,6 +683,10 @@ const ProductTab = () => {
         atributos: [],
         grupoEquivalencia: "",
         compatibilidad: [],
+        pesoKg: "",
+        altoCm: "",
+        anchoCm: "",
+        profundidadCm: "",
       });
     }
     setTabProducto("general");
@@ -892,9 +929,20 @@ const ProductTab = () => {
       window.showToast?.("El descuento debe ser un número entero entre 0 y 90.", "error");
       return;
     }
+    // Peso y medidas de la caja (F1-7): vacío = null (quita el dato)
+    const medidasPanel = {};
+    for (const [clave, regla] of Object.entries(MEDIDAS_PANEL)) {
+      const r = validarMedidaPanel(formData[clave], regla);
+      if (!r.ok) {
+        window.showToast?.(r.error, "error");
+        return;
+      }
+      medidasPanel[clave] = r.valor;
+    }
     const { codigosOEMTexto, ...resto } = formData;
     const payload = {
       ...resto,
+      ...medidasPanel,
       descuentoPct,
       sku: String(formData.sku || "").trim().toUpperCase(),
       marcaFabricante: String(formData.marcaFabricante || "").trim(),
@@ -1290,6 +1338,60 @@ const ProductTab = () => {
                     `Precio con descuento: $${vigente.toFixed(2)} (antes $${base.toFixed(2)})`,
                   );
                 })(),
+              ),
+              // Peso y medidas de la caja (F1-7): una fila bajo el peso; en móvil se apilan
+              e(
+                "div",
+                { className: "space-y-4" },
+                CampoProducto({
+                  label: "Peso (kg)",
+                  type: "number",
+                  step: "0.001",
+                  min: "0",
+                  inputMode: "decimal",
+                  placeholder: "Sin dato",
+                  value: formData.pesoKg,
+                  onChange: (v) => setFormData((prev) => ({ ...prev, pesoKg: v })),
+                }),
+                e(
+                  "div",
+                  null,
+                  e("p", { className: ETIQUETA_PRODUCTO }, "Medidas de la caja (cm)"),
+                  e(
+                    "div",
+                    { className: "grid grid-cols-1 sm:grid-cols-3 gap-4" },
+                    CampoProducto({
+                      label: "Alto",
+                      type: "number",
+                      step: "0.1",
+                      min: "0",
+                      inputMode: "decimal",
+                      placeholder: "Sin dato",
+                      value: formData.altoCm,
+                      onChange: (v) => setFormData((prev) => ({ ...prev, altoCm: v })),
+                    }),
+                    CampoProducto({
+                      label: "Ancho",
+                      type: "number",
+                      step: "0.1",
+                      min: "0",
+                      inputMode: "decimal",
+                      placeholder: "Sin dato",
+                      value: formData.anchoCm,
+                      onChange: (v) => setFormData((prev) => ({ ...prev, anchoCm: v })),
+                    }),
+                    CampoProducto({
+                      label: "Profundidad",
+                      type: "number",
+                      step: "0.1",
+                      min: "0",
+                      inputMode: "decimal",
+                      placeholder: "Sin dato",
+                      value: formData.profundidadCm,
+                      onChange: (v) => setFormData((prev) => ({ ...prev, profundidadCm: v })),
+                    }),
+                  ),
+                ),
               ),
               // Stock Toggle + Field
               e(

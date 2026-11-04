@@ -47,6 +47,8 @@ export default function MapaEntrega({ onSeleccionar }) {
       window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         subdomains: ["a", "b", "c"],
+        // OSM bloquea las teselas sin Referer; helmet envía no-referrer por defecto
+        referrerPolicy: "strict-origin-when-cross-origin",
       }).addTo(mapa);
       mapaInstancia.current = mapa;
       setMapaListo(true);

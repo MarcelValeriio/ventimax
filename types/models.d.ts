@@ -261,6 +261,11 @@ export interface IProducto {
   atributos?: IProductoAtributo[]; // máx. 20
   grupoEquivalencia?: string; // máx. 60
   compatibilidad?: IProductoCompatibilidad[]; // máx. 200
+  // Peso y medidas de la caja (F1-7), opcionales; null = sin dato
+  pesoKg?: number | null; // kg, 0 a 1000, máx. 3 decimales
+  altoCm?: number | null; // cm, mayor a 0 y hasta 500, máx. 1 decimal
+  anchoCm?: number | null;
+  profundidadCm?: number | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -325,6 +330,7 @@ export interface EmpresaEnvio {
   logoUrl?: string;
   logoPublicId?: string;
   slug?: string;
+  cotizador?: "mrw" | "zoom" | "ninguno";
 }
 
 export interface IMetodoEnvio {
