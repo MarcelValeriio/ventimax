@@ -2329,6 +2329,8 @@ const confirmarPago = async (req, res, io, modosOperacion) => {
       `🆔 Cédula: ${clienteCedula}\n` +
       `📞 Teléfono: ${telefono}\n` +
       `📦 Pedido: ${itemsString}\n` +
+      // Descuento por volumen (F1-9) del pedido guardado; el total ya lo resta
+      (orderService.lineaDescuentoPedido(pedidoDoc, tasa) ? `${orderService.lineaDescuentoPedido(pedidoDoc, tasa)}\n` : "") +
       `💰 Total: $${formatUsd(totalUSD)} USD\n` +
       `🧾 Monto Bs: Bs. ${formatBs(totalVES)} (Tasa: ${tasa})\n`;
 
@@ -2811,6 +2813,8 @@ const updateOrderStatus = async (req, res, io) => {
             `🆔 *Cédula:* ${pedido.cliente?.cedula || "Sin cédula"}\n` +
             `📞 *Teléfono:* ${targetPhone}\n` +
             `📦 *Pedido:* ${itemsString}\n` +
+            // Descuento por volumen (F1-9) del pedido guardado; el total ya lo resta
+            (orderService.lineaDescuentoPedido(pedido, tasa) ? `${orderService.lineaDescuentoPedido(pedido, tasa)}\n` : "") +
             `💰 *Total:* $${formatUsd(totalUSD)} USD`;
 
           if (totalVES)

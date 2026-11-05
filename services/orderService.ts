@@ -24,8 +24,36 @@ const { getCaracasTime, formatBs, formatUsd } = require("../utils/helpers");
 const { enviarTexto } = require("./whatsapp");
 const { getPasoLabel } = require("../utils/pasoEmbudo");
 const { getConfig } = require("./configStore");
-const { calcularDescuentoVolumen, resumenDescuentoVolumen } = require("./descuentoVolumen");
+const { calcularDescuentoVolumen, resumenDescuentoVolumen, lineaDescuentoVolumen } = require("./descuentoVolumen");
 const { getConfigDescuentoVolumenSync } = require("./descuentoVolumenService");
+
+/**
+ * Descuento por volumen de un carrito con sus ítems actuales (solo si el carrito lo marca).
+ * Mismo cálculo que calcularTotalCarrito: el total ya lo incluye, así que los mensajes no lo restan otra vez.
+ */
+function resumenDescuentoCarrito(carrito: any): { pct: number; montoUsd: number; unidadesElegibles: number } {
+  if (!carrito || Array.isArray(carrito) || carrito.aplicaDescuentoVolumen !== true) {
+    return { pct: 0, montoUsd: 0, unidadesElegibles: 0 };
+  }
+  const items = Array.isArray(carrito.items) ? carrito.items : [];
+  return resumenDescuentoVolumen(lineasDescuentoDeItems(items), getConfigDescuentoVolumenSync());
+}
+
+/** Plantilla de la marca (settings.messages.descuentoVolumenLinea) o undefined para usar la predeterminada. */
+function getPlantillaLineaDescuento(): string | undefined {
+  const plantilla = configManager.get("settings.messages.descuentoVolumenLinea");
+  return typeof plantilla === "string" && plantilla.trim() ? plantilla : undefined;
+}
+
+/** Línea de descuento para los mensajes de un carrito (vacía si no hay descuento). */
+function lineaDescuentoCarrito(carrito: any, tasa?: unknown): string {
+  return lineaDescuentoVolumen(resumenDescuentoCarrito(carrito), { tasa, plantilla: getPlantillaLineaDescuento() });
+}
+
+/** Línea de descuento de un pedido ya guardado (su bloque descuentoVolumen; el total ya lo resta). */
+function lineaDescuentoPedido(pedido: any, tasa?: unknown): string {
+  return lineaDescuentoVolumen(pedido?.descuentoVolumen, { tasa, plantilla: getPlantillaLineaDescuento() });
+}
 
 /**
  * Helper único para calcular el total en USD de un carrito o pedido.
@@ -762,9 +790,12 @@ class OrderService {
           }
         }
 
+        // Descuento por volumen (F1-9) guardado en el pedido; el total ya lo resta (sin Bs: la mini comanda no los muestra)
+        const lineaDescuento = lineaDescuentoPedido(doc);
         const miniComandaText = `🧾 *NUEVO PAGO RECIBIDO*\n\n` +
           `*Pedido:* ${idFormateado}\n` +
           `*Cliente:* ${nombreCliente}\n` +
+          (lineaDescuento ? `${lineaDescuento}\n` : "") +
           `*Total:* $${totalPagadoUsd}\n` +
           `*Dirección:* ${ubicacionTexto}${envioTexto}\n\n` +
           `_Revisa el comprobante para verificar._`;
@@ -877,6 +908,10 @@ class OrderService {
       metodo = await MetodoPago.findOne({ tipo: pago, activo: true });
     }
 
+    // Descuento por volumen (F1-9): línea antes del total, con su equivalente en Bs (misma tasa del mensaje)
+    const lineaDescuento = lineaDescuentoCarrito(carrito, tasa);
+    const prefijoDescuento = lineaDescuento ? `${lineaDescuento}\n` : "";
+
     let msgCliente = "";
     if (metodo) {
       let instrucciones = "";
@@ -910,9 +945,9 @@ class OrderService {
       msgCliente =
         configManager.format("settings.messages.paymentInstructionsHeader", {
           metodo: metodo.nombre,
-        }) + `\n\n${instrucciones}\n\n🛒 Total: $${formatUsd(totalUSD)} USD`;
+        }) + `\n\n${instrucciones}\n\n${prefijoDescuento}🛒 Total: $${formatUsd(totalUSD)} USD`;
     } else {
-      msgCliente = `🔗 Pago: $${formatUsd(totalUSD)} USD`;
+      msgCliente = `${prefijoDescuento}🔗 Pago: $${formatUsd(totalUSD)} USD`;
     }
 
     if (totalVES) msgCliente += ` (Bs. ${formatBs(totalVES)})`;
@@ -932,6 +967,9 @@ class OrderService {
 
 const orderServiceInstance = new OrderService();
 (orderServiceInstance as any).calcularTotalCarrito = calcularTotalCarrito;
+(orderServiceInstance as any).resumenDescuentoCarrito = resumenDescuentoCarrito;
+(orderServiceInstance as any).lineaDescuentoCarrito = lineaDescuentoCarrito;
+(orderServiceInstance as any).lineaDescuentoPedido = lineaDescuentoPedido;
 
 module.exports = orderServiceInstance;
 (module.exports as any).calcularTotalCarrito = calcularTotalCarrito;

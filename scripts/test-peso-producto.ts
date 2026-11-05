@@ -19,6 +19,7 @@ process.env.WHATSAPP_PHONE = "584122781982";
 const dbLocal = require("../services/dbLocal");
 const adminController = require("../controllers/adminController");
 const { productoSchema, productoUpdateSchema } = require("../validators");
+const medidas = require("../services/medidasProducto");
 const imp = require("../services/importacionProductos");
 const PERMISSIONS = require("../data/permissions");
 
@@ -300,6 +301,32 @@ async function runTests() {
     const modelo = fsSync.readFileSync(path.join(__dirname, "../models/Producto.ts"), "utf8");
     assert.ok(/pesoKg: \{ type: Number, min: 0, max: 1000/.test(modelo), "modelo: pesoKg min 0 max 1000");
     console.log("  ✅ Panel con los campos; API pública sin medidas; tipos y modelo declarados");
+  }
+
+  console.log("\n8. Una sola fuente de reglas: validators/index.js usa services/medidasProducto.ts");
+  {
+    const validadores = fsSync.readFileSync(path.join(__dirname, "../validators/index.js"), "utf8");
+    assert.ok(!/MEDIDAS_ZOD|minExclusivo: true|decimales: 3/.test(validadores), "validators/index.js no repite la tabla de límites");
+    assert.ok(/require\("\.\.\/services\/medidasProducto"\)/.test(validadores), "validators/index.js importa normalizarMedida");
+    const valores = [undefined, null, "", "  ", "1,5", "1.5", "12.5", "12,25", "0", 0, -1, 0.5, 1000, 1000.001, 1001, 500, 500.1, "abc", "1.2345", 1.2345, true, NaN, Infinity, "-3", 3.14159];
+    let comparados = 0;
+    for (const clave of medidas.CLAVES_MEDIDAS) {
+      for (const v of valores) {
+        const esperado = medidas.normalizarMedida(clave, v);
+        const r = productoSchema.safeParse({ ...BASE, [clave]: v });
+        assert.strictEqual(r.success, esperado.ok, `${clave} con ${JSON.stringify(v)}: éxito distinto`);
+        if (esperado.ok) {
+          assert.strictEqual(r.data[clave], esperado.valor, `${clave} con ${JSON.stringify(v)}: valor distinto`);
+        } else {
+          assert.strictEqual(r.error.issues[0].message, esperado.error, `${clave} con ${JSON.stringify(v)}: mensaje distinto`);
+        }
+        const rUpd = productoUpdateSchema.safeParse({ [clave]: v });
+        assert.strictEqual(rUpd.success, esperado.ok, `update ${clave} con ${JSON.stringify(v)}`);
+        comparados++;
+      }
+    }
+    assert.deepStrictEqual(Object.keys(medidas.MEDIDAS), CAMPOS, "las cuatro medidas de la tabla");
+    console.log(`  ✅ Zod y normalizarMedida dan lo mismo en ${comparados} casos (POST y PUT); sin tabla duplicada`);
   }
 
   console.log("\n🎉 TODOS LOS TESTS DE PESO Y MEDIDAS (F1-7) PASARON EXITOSAMENTE.");

@@ -1924,7 +1924,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
                   type: "number", min: 2, max: 500, step: 1,
                   value: tr.minUnidades,
                   onChange: (ev) => setTramoDescVol(i, "minUnidades", ev.target.value),
-                  className: "w-full min-h-[44px] px-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm",
+                  className: "w-full min-h-[44px] px-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm text-gray-800 dark:text-gray-100",
                 })
               ),
               e("label", { className: "flex-1 min-w-[120px] space-y-1" },
@@ -1933,7 +1933,7 @@ const SettingsPanel = ({ isDark, setIsDark, setActiveTab, user, audioEnabled, se
                   type: "number", min: 1, max: 50, step: 1,
                   value: tr.pct,
                   onChange: (ev) => setTramoDescVol(i, "pct", ev.target.value),
-                  className: "w-full min-h-[44px] px-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm",
+                  className: "w-full min-h-[44px] px-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm text-gray-800 dark:text-gray-100",
                 })
               ),
               e("button", {

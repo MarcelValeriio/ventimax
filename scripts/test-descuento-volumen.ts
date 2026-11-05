@@ -502,6 +502,95 @@ async function runTests() {
   });
 
   // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  console.log("\n▶ Línea de descuento en resumen, pago y comanda");
+  const configMarca = require("../services/configManager");
+  await descuentoService.setConfigDescuentoVolumen(configActiva());
+  const itemsCinco = [{ producto: "Fortunne Mini Jumbo 6\"", price: 25, cantidad: 5, descuentoProductoPct: 0 }];
+  const itemsCuatro = [{ producto: "Fortunne Mini Jumbo 6\"", price: 25, cantidad: 4, descuentoProductoPct: 0 }];
+
+  await caso("lineaDescuentoVolumen: '(−N %): −$X.XX' y, con tasa, el equivalente en Bs", () => {
+    assert.strictEqual(
+      descuento.lineaDescuentoVolumen({ pct: 3, montoUsd: 3.75 }),
+      "Descuento por volumen (−3 %): −$3.75",
+    );
+    assert.strictEqual(
+      descuento.lineaDescuentoVolumen({ pct: 3, montoUsd: 3.75 }, { tasa: 36 }),
+      "Descuento por volumen (−3 %): −$3.75 (−Bs. 135,00)",
+    );
+  });
+  await caso("lineaDescuentoVolumen: sin monto, sin porcentaje o sin bloque -> vacío (no sale la línea)", () => {
+    assert.strictEqual(descuento.lineaDescuentoVolumen({ pct: 3, montoUsd: 0 }), "");
+    assert.strictEqual(descuento.lineaDescuentoVolumen({ pct: 0, montoUsd: 3.75 }), "");
+    assert.strictEqual(descuento.lineaDescuentoVolumen({}), "");
+    assert.strictEqual(descuento.lineaDescuentoVolumen(undefined), "");
+    assert.strictEqual(descuento.lineaDescuentoVolumen(null, { tasa: 36 }), "");
+  });
+  await caso("lineaDescuentoVolumen: la plantilla de la marca sustituye la predeterminada", () => {
+    assert.strictEqual(
+      descuento.lineaDescuentoVolumen({ pct: 3, montoUsd: 3.75 }, { plantilla: "Dto −{{pct}} %: −${{montoUsd}}{{bs}}", tasa: 36 }),
+      "Dto −3 %: −$3.75 (−Bs. 135,00)",
+    );
+  });
+  await caso("la marca trae la plantilla descuentoVolumenLinea con los mismos marcadores", () => {
+    const plantilla = configMarca.get("settings.messages.descuentoVolumenLinea");
+    assert.ok(typeof plantilla === "string" && plantilla.includes("{{pct}}") && plantilla.includes("{{montoUsd}}") && plantilla.includes("{{bs}}"));
+  });
+  await caso("resumenDescuentoCarrito: 5 unidades -> 3 %; carrito sin la marca de la web -> 0", () => {
+    const con = orderService.resumenDescuentoCarrito({ items: itemsCinco, aplicaDescuentoVolumen: true });
+    assert.deepStrictEqual(con, { pct: 3, montoUsd: 3.75, unidadesElegibles: 5 });
+    const sin = orderService.resumenDescuentoCarrito({ items: itemsCinco });
+    assert.deepStrictEqual(sin, { pct: 0, montoUsd: 0, unidadesElegibles: 0 });
+  });
+  await caso("pago sin método guardado: la línea sale antes de 'Pago' y el total ya viene neto (121.25)", async () => {
+    const msg = await orderService.generarInstruccionesPago("584123330101", {
+      items: itemsCinco,
+      pago: "metodo-inexistente",
+      aplicaDescuentoVolumen: true,
+    });
+    const linea = "Descuento por volumen (−3 %): −$3.75 (−Bs. 135,00)";
+    assert.ok(msg.includes(linea), `falta la línea: ${msg}`);
+    assert.ok(msg.indexOf(linea) < msg.indexOf("🔗 Pago"), "la línea va antes del total");
+    assert.ok(msg.includes("Pago: $121.25 USD"), "el total no resta el descuento dos veces");
+  });
+  await caso("pago con 4 unidades o sin la marca de la web: sin línea de descuento", async () => {
+    const cuatro = await orderService.generarInstruccionesPago("584123330102", { items: itemsCuatro, pago: "metodo-inexistente", aplicaDescuentoVolumen: true });
+    assert.ok(!cuatro.includes("Descuento por volumen"), cuatro);
+    const sinMarca = await orderService.generarInstruccionesPago("584123330103", { items: itemsCinco, pago: "metodo-inexistente" });
+    assert.ok(!sinMarca.includes("Descuento por volumen"), sinMarca);
+    assert.ok(sinMarca.includes("Pago: $125.00 USD"));
+  });
+  await caso("pedido guardado: la línea sale de su bloque descuentoVolumen; sin bloque o en 0 no sale", () => {
+    assert.strictEqual(
+      orderService.lineaDescuentoPedido({ descuentoVolumen: { pct: 5, montoUsd: 6.25, unidadesElegibles: 10 } }, 36),
+      "Descuento por volumen (−5 %): −$6.25 (−Bs. 225,00)",
+    );
+    assert.strictEqual(orderService.lineaDescuentoPedido({ descuentoVolumen: { pct: 0, montoUsd: 0 } }, 36), "");
+    assert.strictEqual(orderService.lineaDescuentoPedido({}, 36), "");
+  });
+  await caso("reclamo web con 5 unidades: el resumen del bot muestra la línea antes del total", async () => {
+    resetDb();
+    const cw = dbLocal.getCarritoWebModel();
+    await cw.create({
+      codigo: "VM-7K3QX",
+      items: [{ productoId: "fortunne-n21", nombre: "Fortunne Mini Jumbo 6\"", precio: 25, cantidad: 5 }],
+      total: 121.25,
+      descuentoVolumen: { pct: 3, montoUsd: 3.75, unidadesElegibles: 5 },
+      estado: "pendiente",
+      telefono: null,
+      creadoEn: new Date(),
+      expiraEn: new Date(Date.now() + 72 * 3600 * 1000),
+    });
+    const telLin = "584123330104";
+    await chatFlowService._processBatch(telLin, [{ from: telLin, text: "Hola, quiero confirmar mi pedido web VM-7K3QX", tipo: "text", io: null }]);
+    const mensajes = (dbLocal.read().mensajes || []).map((m: any) => String(m.texto || m.contenido || m.text || ""));
+    const resumen = mensajes.find((t: string) => t.includes("Pedido Web VM-7K3QX"));
+    assert.ok(resumen, "no se encontró el resumen del pedido web en los mensajes guardados");
+    assert.ok(resumen.includes("Descuento por volumen (−3 %): −$3.75 (−Bs. 135,00)"), resumen);
+    assert.ok(resumen.indexOf("Descuento por volumen") < resumen.indexOf("Total:"), "la línea va antes del total");
+  });
+
+  // ---------------------------------------------------------------------------
   console.log("\n▶ Estáticos: sin marca escrita, sin innerHTML, íconos y permisos");
   const archivosNuevos = [
     "services/descuentoVolumen.ts",
@@ -522,6 +611,16 @@ async function runTests() {
       const txt = fs.readFileSync(path.join(RAIZ, rel), "utf8");
       assert.ok(!txt.includes("innerHTML"), `${rel} usa innerHTML`);
     }
+  });
+  await caso("los mensajes del pedido (bot, pago, comanda y mini comanda) llaman a la línea de descuento", () => {
+    const leer = (rel: string) => fs.readFileSync(path.join(RAIZ, rel), "utf8");
+    const chat = leer("services/chatFlowService.ts");
+    assert.strictEqual((chat.match(/lineaDescuentoCarrito\(/g) || []).length, 2, "resumen web en 2 sitios");
+    const orden = leer("services/orderService.ts");
+    assert.ok(orden.includes("lineaDescuentoCarrito(carrito, tasa)"), "instrucciones de pago");
+    assert.ok(orden.includes("lineaDescuentoPedido(doc)"), "mini comanda");
+    const admin = leer("controllers/adminController.ts");
+    assert.strictEqual((admin.match(/lineaDescuentoPedido\(/g) || []).length, 4, "comanda de pago verificado (2 llamadas) y de estado (2)");
   });
   await caso("interruptor de la venta manual y sección del panel presentes", () => {
     const modal = fs.readFileSync(path.join(RAIZ, "public/src/features/inbox/components/InboxManualOrderModal.js"), "utf8");

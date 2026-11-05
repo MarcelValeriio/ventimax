@@ -1827,8 +1827,10 @@ class ChatFlowService {
     }
 
     let elegida = "";
-    if (listReplyId && /^empresa_\d+$/.test(listReplyId)) {
-      elegida = empresas[Number(listReplyId.replace("empresa_", ""))] || "";
+    // El webhook pone el id de la fila tocada en `text` (list_reply.id); listReplyId puede no llegar
+    const idFila = String(listReplyId || text || "").trim();
+    if (/^empresa_\d+$/.test(idFila)) {
+      elegida = empresas[Number(idFila.replace("empresa_", ""))] || "";
     }
     if (!elegida && text) {
       const norm = text.trim().toLowerCase();
@@ -1987,8 +1989,10 @@ class ChatFlowService {
       }
 
       let seleccionado = null;
-      if (listReplyId && listReplyId.startsWith("envio_")) {
-        const idTarget = listReplyId.replace(/^envio_/, "");
+      // El webhook pone el id de la fila tocada en `text` (list_reply.id); listReplyId puede no llegar
+      const idFila = String(listReplyId || text || "").trim();
+      if (idFila.startsWith("envio_")) {
+        const idTarget = idFila.replace(/^envio_/, "");
         seleccionado = metodos.find((m) => String(m._id) === idTarget);
       }
 
@@ -2825,9 +2829,12 @@ class ChatFlowService {
     const totalVES = totalVESRaw > 0 ? formatBs(totalVESRaw) : "N/A";
 
     const brandName = configManager.get("settings.brandName");
+    // Descuento por volumen (F1-9): línea justo antes del total, con su equivalente en Bs
+    const lineaDescuento = orderService.lineaDescuentoCarrito(nuevoCarrito, tasa);
     const resumenItems =
       itemsCargados.map((i) => `• ${i.producto} x${i.cantidad} — $${formatUsd(i.price * i.cantidad)}`).join("\n") +
-      (lineasEntrega.length ? `\n\n${lineasEntrega.join("\n")}` : "");
+      (lineasEntrega.length ? `\n\n${lineasEntrega.join("\n")}` : "") +
+      (lineaDescuento ? `\n\n${lineaDescuento}` : "");
 
     const msgLoaded =
       configManager.format("settings.messages.webOrderLoaded", {
@@ -3023,9 +3030,11 @@ class ChatFlowService {
       const totalVESRaw = totalUSD * tasa;
       const totalVES = totalVESRaw > 0 ? formatBs(totalVESRaw) : "N/A";
       const brandName = configManager.get("settings.brandName");
+      // Descuento por volumen (F1-9): línea justo antes del total, con su equivalente en Bs
+      const lineaDescuento = orderService.lineaDescuentoCarrito(carrito, tasa);
       const resumenItems = (carrito.items || [])
         .map((i: any) => `• ${i.producto} x${i.cantidad} — $${formatUsd(i.price * i.cantidad)}`)
-        .join("\n");
+        .join("\n") + (lineaDescuento ? `\n\n${lineaDescuento}` : "");
 
       const msgLoaded =
         configManager.format("settings.messages.webOrderLoaded", {

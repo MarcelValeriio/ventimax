@@ -1,44 +1,17 @@
 const { z } = require("zod");
 
 // ─── Peso y medidas de la caja (F1-7) ───
-// Reglas espejo de services/medidasProducto.ts. Vacío/null = sin dato; acepta coma o punto decimal.
-const MEDIDAS_ZOD = {
-  pesoKg: { etiqueta: "El peso (kg)", min: 0, max: 1000, minExclusivo: false, decimales: 3 },
-  altoCm: { etiqueta: "El alto (cm)", min: 0, max: 500, minExclusivo: true, decimales: 1 },
-  anchoCm: { etiqueta: "El ancho (cm)", min: 0, max: 500, minExclusivo: true, decimales: 1 },
-  profundidadCm: { etiqueta: "La profundidad (cm)", min: 0, max: 500, minExclusivo: true, decimales: 1 },
-};
-const medidaZod = (clave) => {
-  const r = MEDIDAS_ZOD[clave];
-  return z.any().transform((v, ctx) => {
-    if (v === undefined) return undefined;
-    if (v === null) return null;
-    let n;
-    if (typeof v === "string") {
-      const t = v.trim();
-      if (t === "") return null;
-      const limpio = t.replace(",", ".");
-      if (!/^\d+(\.\d+)?$/.test(limpio)) { ctx.addIssue({ code: "custom", message: `${r.etiqueta} debe ser un número.` }); return z.NEVER; }
-      n = Number(limpio);
-    } else if (typeof v === "number" && Number.isFinite(v)) {
-      n = v;
-    } else {
-      ctx.addIssue({ code: "custom", message: `${r.etiqueta} debe ser un número.` });
+// Única fuente de reglas: services/medidasProducto.ts (MEDIDAS, normalizarMedida). Vacío/null = sin dato.
+const { normalizarMedida } = require("../services/medidasProducto");
+const medidaZod = (clave) =>
+  z.any().transform((v, ctx) => {
+    const r = normalizarMedida(clave, v);
+    if (!r.ok) {
+      ctx.addIssue({ code: "custom", message: r.error });
       return z.NEVER;
     }
-    const fuera = r.minExclusivo ? n <= r.min : n < r.min;
-    if (fuera || n > r.max) {
-      ctx.addIssue({ code: "custom", message: `${r.etiqueta} debe ser ${r.minExclusivo ? "mayor a 0" : "mayor o igual a 0"} y no más de ${r.max}.` });
-      return z.NEVER;
-    }
-    const f = 10 ** r.decimales;
-    if (Math.abs(Math.round(n * f) - n * f) > 1e-7) {
-      ctx.addIssue({ code: "custom", message: `${r.etiqueta} admite hasta ${r.decimales} decimal${r.decimales === 1 ? "" : "es"}.` });
-      return z.NEVER;
-    }
-    return n;
+    return r.valor;
   }).optional();
-};
 
 // ─── Producto ───
 const productoSchema = z.object({

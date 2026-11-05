@@ -9,6 +9,8 @@
  * - Un valor inválido (cantidad, precio o descuento) cuenta 0: nunca se cobra un descuento inventado.
  */
 
+const { formatBs, formatUsd } = require("../utils/helpers");
+
 export const CANTIDAD_MAX_LINEA = 50;
 const TRAMOS_MAX = 5;
 const MIN_UNIDADES_MIN = 2;
@@ -153,3 +155,27 @@ export function resumenDescuentoVolumen(items: LineaDescuentoVolumen[], config: 
 
 /** Configuración apagada o sin tramos válidos: nunca aplica descuento. */
 export const SIN_DESCUENTO_VOLUMEN: ConfigDescuentoVolumen = { activo: false, tramos: [] };
+
+/** Plantilla por defecto de la línea de descuento en los mensajes (la marca puede sobrescribirla en messages). */
+export const PLANTILLA_LINEA_DESCUENTO_VOLUMEN = "Descuento por volumen (−{{pct}} %): −${{montoUsd}}{{bs}}";
+
+/**
+ * Línea "Descuento por volumen (−N %): −$X.XX" para resúmenes, comandas y pagos.
+ * Vacía si no hubo descuento (pct o monto en 0). Con `tasa` agrega el equivalente en Bs con la misma tasa del mensaje.
+ * Solo formatea: el monto llega ya calculado (resumen guardado o recalculado con los ítems actuales).
+ */
+export function lineaDescuentoVolumen(
+  resumen: { pct?: unknown; montoUsd?: unknown } | null | undefined,
+  opciones: { tasa?: unknown; plantilla?: unknown } = {},
+): string {
+  const pct = Number(resumen?.pct) || 0;
+  const montoUsd = Number(resumen?.montoUsd) || 0;
+  if (!(pct > 0) || !(montoUsd > 0)) return "";
+  const tasa = Number(opciones.tasa) || 0;
+  const bs = tasa > 0 ? ` (−Bs. ${formatBs(montoUsd * tasa)})` : "";
+  const plantilla = typeof opciones.plantilla === "string" && opciones.plantilla.trim()
+    ? opciones.plantilla
+    : PLANTILLA_LINEA_DESCUENTO_VOLUMEN;
+  const valores: Record<string, string> = { pct: String(pct), montoUsd: formatUsd(montoUsd), bs };
+  return plantilla.replace(/{{(\w+)}}/g, (m, k) => (valores[k] !== undefined ? valores[k] : m));
+}

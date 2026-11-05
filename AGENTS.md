@@ -291,7 +291,9 @@ Pedido del dueño (2026-11-02): hoy el campo de fotos solo aparece al **editar**
 
 **Cierre:** `npm run build` y `./scripts/ci.sh` en verde (con la suite nueva), `esbuild --bundle` en `ProductTab.js`, recorrido de Chrome con la lista de pantallas, y lista de archivos tocados.
 
-### F1-3 · Importación y exportación Excel/CSV con vista previa — Backend + Frontend · `Lista para revisión`
+### F1-3 · Importación y exportación Excel/CSV con vista previa — Backend + Frontend · `Aprobada`
+
+**Revisión (2026-11-04, Claude):** recorrido en Chrome a 1083 px (la ventana no baja de ahí; 390 px queda para el dueño) con un Excel de 10 filas generado con `generarXlsx`: paso 1 con plantilla y exportación, vista previa con 9 nuevos, 2 errores (fila 8 "El precio está vacío" y su compatibilidad) y Confirmar bloqueado. Consola sin errores. Dudas resueltas abajo.
 
 Especificación completa: **`docs/plan-haiku-f1.md`, Paso 2**, y diseño en `docs/f1-producto-ampliado.md` §3. Depende de F1-2 (`Aprobada`).
 
@@ -443,7 +445,9 @@ Base: `docs/f1-producto-ampliado.md` §1.3 y §4; plan: `docs/plan-haiku-f1.md`,
 
 **Cierre:** `npm run build`, `./scripts/ci.sh` en verde (con la suite nueva), `esbuild --bundle` en los archivos tocados, lista de archivos y de pantallas.
 
-### F1-7 · Peso y medidas de la caja del producto — Backend + Frontend · `Lista para revisión`
+### F1-7 · Peso y medidas de la caja del producto — Backend + Frontend · `Aprobada`
+
+**Revisión (2026-11-04, Claude):** campos "Peso (kg)" y "Medidas de la caja (cm)" vistos en Chrome a 1083 px. Reglas duplicadas resueltas: `validators/index.js` usa `normalizarMedida` de `services/medidasProducto.ts` (Haiku; la suite compara 100 casos). Pendiente del dueño: 390 px.
 
 Pedido del dueño (2026-11-04), base para el cotizador de envío nacional por peso (tarea siguiente). Campos opcionales `pesoKg` (0–1000, 3 decimales), `altoCm`, `anchoCm`, `profundidadCm` (>0–500, 1 decimal) en modelo, validador Zod, POST/PUT con auditoría, importación/exportación (4 columnas al final de `COLUMNAS_PRODUCTOS`) y panel (General: "Peso (kg)" y "Medidas de la caja (cm)"). Reglas en `services/medidasProducto.ts`. **No** se exponen en `/api/public`.
 
@@ -451,7 +455,9 @@ Pedido del dueño (2026-11-04), base para el cotizador de envío nacional por pe
 
 **Cotizador (siguiente tarea, sin especificar):** Zoom tiene cotización pública sin credenciales (`https://api.zoom.red/canguroazul/CalcularTarifa`, solo pide `peso`; responde en Bs con la tasa). MRW no tiene API pública: el dueño trae 8 cotizaciones de su calculadora para deducir la tabla. Tealca: API con credenciales a pedir. Falta saber si el envío es estimado informativo o se cobra en el pedido.
 
-### F1-8 · Cotizador de envío nacional (MRW y Zoom) con estimado en el carrito — Backend + Frontend · `Lista para revisión`
+### F1-8 · Cotizador de envío nacional (MRW y Zoom) con estimado en el carrito — Backend + Frontend · `Aprobada`
+
+**Revisión (2026-11-04, Claude):** confirmado por el dueño en producción (MRW y Zoom con estimado bajo el botón de WhatsApp). No se probó en local: arrancar con una empresa MRW configurada hace 80 consultas reales.
 
 **Entrega (2026-11-04, Haiku 5.5; revisión de Claude):** `services/cotizadorEnvio.ts` y `controllers/cotizadorController.ts` (nuevos; el controlador va aparte porque `publicController` no debe leer `pesoKg`), `services/empresasEnvio.ts`, `types/models.d.ts`, `controllers/shippingController.ts` (cotizador validado; cambiarlo exige `config:manage`), `controllers/publicController.ts` (`/info` expone `cotizador`), `routes/publicRoutes.ts` (30/min por IP), `services/agendaService.ts` (job cada 10 min que decide si toca, y revisión al arrancar), `ShippingNacionalModal.js` (select por empresa), `catalogo/js/api.js`, `app.js`, `style.css` y `scripts/test-cotizador-envio.ts` (31 pruebas, sin red). Claude revisó el diff y corrió `./scripts/ci.sh`: `✅ Build, 53 suites e imports del panel en verde.`
 - Solo retiro en agencia: MRW guarda solo `retiro`; Zoom siempre `modalidad_tarifa=1`. Texto: "Envío estimado: $X (Bs Y) · se paga al retirar en la agencia". Solo si el método tiene `cobroADestino`.
@@ -477,9 +483,26 @@ Datos verificados por Claude (2026-11-04):
 
 **Cierre:** `npm run build` y `./scripts/ci.sh` en verde, `esbuild --bundle` en los archivos tocados, y lista de archivos. Sin consultas reales a MRW ni a Zoom desde las pruebas.
 
-### F2q · Investigación: reseñas reales de Mercado Libre en la tienda — Investigación · `Pendiente`
+### F2q · Investigación: reseñas reales de Mercado Libre en la tienda — Investigación · `Aprobada`
+
+**Revisión (2026-11-04, Claude):** documento `docs/resenas-mercadolibre-investigacion.md` aprobado. Verificado: `GET https://api.mercadolibre.com/reviews/item/{id}` sin token responde `403 PA_UNAUTHORIZED_RESULT_FROM_POLICIES`, así que hace falta app y OAuth. **Sin verificar por Claude:** la página de documentación y los términos responden 403 a un cliente sin navegador. Las cláusulas citadas (5.2, 5.3, 6, 7.6) se toman de la entrega; el dueño debe leer los términos antes de publicar. Condiciones para la tarea de ejecución:
+1. El flujo OAuth lleva parámetro `state` aleatorio guardado en la sesión del panel y comprobado en el callback (anti-CSRF). El callback exige sesión con `config:manage`.
+2. **Primera versión sin fotos ni videos de las reseñas:** mostrarlas exige abrir `img-src` de la CSP de la tienda (`render.yaml`) a `http2.mlstatic.com`. Se decide después.
+3. Tokens en `Setting` (clave propia), nunca en `/api/public` ni en logs. Al renovar se guarda el nuevo `refresh_token` antes de usar el `access_token`. Si la renovación falla, push al dueño (como el aviso de Zoom) y la tienda sigue con la última copia hasta 24 h; pasado ese plazo la sección se oculta (regla de 24 h de los términos).
+4. Job diario de Agenda. Una publicación con 404 borra sus reseñas guardadas.
 
 Pedido del dueño (2026-11-04): mostrar en la tienda (`catalogo/`) las reseñas **reales** que sus productos tienen en Mercado Libre, traídas por API. **Esta tarea es solo de investigación:** no se escribe código ni se instala nada. Entrega: `docs/resenas-mercadolibre-investigacion.md`.
+
+**Entrega (2026-11-04, Antigravity):**
+- Documento de investigación entregado: `docs/resenas-mercadolibre-investigacion.md`.
+- Contesta las 6 preguntas con fuentes oficiales de Mercado Libre Developers actualizadas a 2026 y pruebas reales contra la API:
+  1. API oficial de evaluaciones `GET /reviews/item/{id}` (promedio, distribución de estrellas, textos, fotos/videos de compradores y comprador anónimo con `reviewer_id: 0`) y reputación del vendedor en `GET /users/{id}` (`seller_reputation`). Confirmada compatibilidad con `MLV` (Venezuela).
+  2. Autenticación OAuth 2.0 (Authorization Code Grant): DevCenter, scope `read`, tokens de 6 horas y Refresh Token Rotation (RTR) con 180 días de vigencia. Persistencia segura en MongoDB y variables de entorno en Render.
+  3. Relación en catálogo: campo opcional `mercadoLibreId` en `models/Producto.ts` con regex `^ML[A-Z]\d{8,14}$`, editable en `ProductTab.js` con enlace de verificación a `articulo.mercadolibre.com.ve`.
+  4. Términos de uso y legalidad: cláusula 5.2 (exhibición permitida fuera del sitio), cláusula 5.3 (obligación contractual de actualizar cada 24 horas y remover eliminados), atribución transparente sin confusión de marca y privacidad estricta. Scraping prohibido (cláusula 7.6).
+  5. Diseño técnico: job periódico de Agenda cada 24 horas (3:00 AM) para desacoplar llamadas externas, modelo `ResenaProducto` en MongoDB, lista blanca estricta en `/api/public/productos/:id/resenas`, y renderizado en la tienda con Lucide y `textContent` (cero `innerHTML` con datos de usuarios).
+  6. Matriz de riesgos: mitigación de CloudFront PolicyAgent 403 con Bearer token en backend, manejo de RTR para evitar desautenticación, y degradación elegante si la publicación es pausada o borrada (404).
+- Sin código de producción, sin dependencias nuevas y sin credenciales en el repositorio.
 
 Preguntas que hay que responder, con fuente (documentación oficial de Mercado Libre Developers, sitio de Venezuela `MLV` si aplica):
 1. **Qué API existe hoy** para leer reseñas u opiniones de un producto (p. ej. `GET /reviews/item/{item_id}`): endpoint, si es pública o pide token, qué campos devuelve (calificación, texto, fecha, nombre del comprador, fotos), paginación y límites de uso. ¿Funciona para publicaciones de Venezuela (`MLV`)? ¿Hay también reputación del vendedor (`/users/{id}`)?
@@ -495,7 +518,11 @@ Preguntas que hay que responder, con fuente (documentación oficial de Mercado L
 
 ### F1-9 · Descuento por volumen (tienda web y venta manual) — Backend + Frontend · `Aprobada`
 
-**Entrega (2026-11-04, Haiku 5.5; revisión de Claude):** `services/descuentoVolumen.ts` (cálculo puro y validador) y `services/descuentoVolumenService.ts` (Setting `descuentoVolumen`, inicial desde la marca, apagado), `orderService.calcularTotalCarrito` (recalcula sobre los ítems actuales solo si `aplicaDescuentoVolumen === true`), `publicController` (`/info` con `{activo, tramos}`; `postPedidoWeb` con precios y descuentos de la base), `chatFlowService` (reclamo del código web), `adminController.postManualSale` (booleano estricto, precio de la base), `configAdminController` + rutas `GET/PUT /config/descuento-volumen` (`config:manage`, auditoría), modelos `CarritoWeb`/`Pedido`, tienda (vista previa), `InboxManualOrderModal.js` (interruptor) y `SettingsPanel.js` (tramos). Suite `test-descuento-volumen.ts` 46/46. CI verde (55 suites). Desviaciones aceptadas: el pedido web con precio o descuento del cliente responde `400` (esquema `.strict()`); ítems sin `descuentoProductoPct` no cuentan; la comanda al admin no muestra la línea de descuento. **Pendiente:** recorrido del dueño en Chrome a 390 y 1440 px.
+**Entrega (2026-11-04, Haiku 5.5; revisión de Claude):** `services/descuentoVolumen.ts` (cálculo puro y validador) y `services/descuentoVolumenService.ts` (Setting `descuentoVolumen`, inicial desde la marca, apagado), `orderService.calcularTotalCarrito` (recalcula sobre los ítems actuales solo si `aplicaDescuentoVolumen === true`), `publicController` (`/info` con `{activo, tramos}`; `postPedidoWeb` con precios y descuentos de la base), `chatFlowService` (reclamo del código web), `adminController.postManualSale` (booleano estricto, precio de la base), `configAdminController` + rutas `GET/PUT /config/descuento-volumen` (`config:manage`, auditoría), modelos `CarritoWeb`/`Pedido`, tienda (vista previa), `InboxManualOrderModal.js` (interruptor) y `SettingsPanel.js` (tramos). Suite `test-descuento-volumen.ts` 46/46. CI verde (55 suites). Desviaciones aceptadas: el pedido web con precio o descuento del cliente responde `400` (esquema `.strict()`); ítems sin `descuentoProductoPct` no cuentan.
+
+**Recorrido en Chrome (2026-11-04, Claude, 1083 px, base local):** panel → Catálogo web → Descuento por volumen activado y guardado. Tienda: 4 unidades → "Agrega 1 unidad más para −3 %"; 5 → −3 % (−$3,75 sobre $125); 5 normales + 1 en oferta → el −3 % solo sobre los $125; 4 normales + 1 en oferta → sin descuento. API: ítem con `precio` → 400; límite de 5 carritos por IP → 429. Venta manual con el selector encendido y 5 unidades → pedido #005 por $121,25 y aviso "Descuento por volumen −3 % aplicado". Consola sin errores. Corregido: los números de los tramos se veían oscuros sobre fondo oscuro (`SettingsPanel.js`, `text-gray-800 dark:text-gray-100`).
+
+**Línea del descuento en los mensajes (2026-11-04, Haiku 5.5; revisión de Claude):** "Descuento por volumen (−N %): −$X (−Bs. Y)" antes del total en el resumen del pedido web, las instrucciones de pago, la mini comanda y la comanda de pago verificado. Plantilla en `settings.messages.descuentoVolumenLinea` de la marca. Suite 56/56. **Pendiente del dueño:** 390 px.
 
 
 Pedido del dueño (2026-11-04). Decisiones del dueño:
@@ -532,6 +559,8 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 - `package-lock.json`: npm reescribió unas 2100 líneas (reordenamiento; sin cambios de versiones). Revisar en el commit.
 - El commit `6b1e31a` del dueño, hecho durante esta sesión, ya trae una versión anterior de `services/importacionProductos.ts`. El working tree tiene la final.
 
+**Respuesta de Claude (2026-11-04):** se acepta todo como está. (1) Vaciar la compatibilidad de un producto se hace desde el panel; si el cliente de repuestos lo pide en el archivo, se añade una marca explícita en F1-6. (2) La categoría que no existe se crea al confirmar (el plan manda). (3) Confirmar es todo o nada: correcto. (4) Descompresión: riesgo bajo, la ruta exige `config:manage` y el archivo tiene tope de 2 MB; queda anotado. (5) El dueño ya hizo el commit.
+
 ## Pendientes del dueño
 
 - **Formato de las tablas de importación (F1-3):** definir las columnas finales de la plantilla Excel/CSV con una muestra del Excel real del cliente de repuestos. Mientras tanto se usan las del §3.1 de `docs/f1-producto-ampliado.md`.
@@ -562,8 +591,10 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
 | 2026-11-04 | — | F1-8, corrección: Zoom sin estimado en ciudades fuera de `getCiudades` (tabla oficina → codciudad en `services/zoomCiudades.ts`, 344 de 401 sucursales con tarifa; 57 sin código, consultar a Zoom; la tabla no tiene script de regeneración), estimado bajo el botón de WhatsApp solo en Bs, y tabla de MRW con logs y arranque al guardar en el panel. CI verde (53 suites). Confirmado por el dueño en producción — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Aprobada |
+| 2026-11-04 | — | F2q aprobada: reseñas de Mercado Libre requieren app y OAuth (403 verificado sin token); condiciones para la ejecución: `state` en OAuth, sin fotos en la primera versión (CSP), tokens en `Setting`, job diario — Ejecutado por **Antigravity** + **Claude** | Claude (Cerebro) | Aprobada |
+| 2026-11-04 | — | Recorrido en Chrome (1083 px, base local) de F1-3, F1-7 y F1-9: todo correcto; corregido el color de los tramos en el panel. Línea del descuento por volumen en resumen, pago y comandas, y reglas de peso en una sola fuente (Haiku). F1-3, F1-7 y F1-8 aprobadas. CI verde (55 suites). Pendiente del dueño: 390 px — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Aprobada |
 | 2026-11-04 | — | F1-9 descuento por volumen (5 → 3 %, 10 → 5 %, solo productos sin oferta, tienda y venta manual con selector) y aviso semanal de cambios de códigos de oficina de Zoom (log + push, racha de 3 fallos, `scripts/regenerar-zoom-ciudades.ts`). CI verde (55 suites) — Ejecutado por **Haiku 5.5** (subagentes) + **Claude** | Claude (Cerebro) | Aprobada |
-| 2026-11-04 | — | F2q: tarea de investigación de reseñas reales de Mercado Libre por API para la tienda (pedido del dueño); asignada a Antigravity — Ejecutado por **Claude** | Claude (Cerebro) | Pendiente |
+| 2026-11-04 | — | F2q: documento de investigación `docs/resenas-mercadolibre-investigacion.md` con las 6 respuestas sobre API de reseñas de Mercado Libre, OAuth 2.0, términos de uso, mitigación de PolicyAgent 403 y propuesta de diseño con Agenda y lista blanca — Ejecutado por **Antigravity** | Antigravity (TPM) | Lista para revisión |
 | 2026-11-04 | — | F1-7 (peso y medidas de la caja) y F1-8 (cotizador MRW tabla diaria y Zoom en vivo, estimado en el carrito, solo retiro en agencia, cobro a destino). CI verde (53 suites). Pendiente: recorrido en Chrome y prueba real en producción. Tealca sin cotizador — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Lista para revisión |
 | 2026-11-02 | — | F2o y F1-4 aprobadas: CI verde (50 suites), 0 "Caracas" en código, `mapa` por marca con lista blanca, vehículo del cliente con validación, permiso `chat:manage`, auditoría y copiloto que propone sin guardar. Notas menores: `/api/public/marca` devuelve centro 0,0 si el dato es inválido; venta manual guarda vehículo solo en WhatsApp (la venta manual es solo WhatsApp) — Ejecutado por **Antigravity** + **Claude** | Claude (Cerebro) | Aprobada |
 | 2026-11-02 | — | F1-3 entregada: importación y exportación xlsx/CSV con vista previa (nada se escribe hasta confirmar), confirmar por SKU sin borrar, desactivación aparte, suite `test-importacion-productos.ts` en `ci.sh` (48 suites en verde). Pendiente: recorrido en Chrome a 390 y 1440 px con Excel de 10 filas (sin herramienta de navegador). `exceljs` aprobado por el dueño — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Lista para revisión |
