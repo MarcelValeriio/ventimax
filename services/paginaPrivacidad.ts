@@ -149,4 +149,4 @@ ${bloqueContacto}
 </html>`;
 }
 
-module.exports = { generarPaginaPrivacidad };
+module.exports = { generarPaginaPrivacidad, escapar, contactos, formatearFecha };

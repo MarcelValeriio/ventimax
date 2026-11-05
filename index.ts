@@ -55,6 +55,12 @@ app.get(["/privacidad", "/privacidad.html", "/privacidad-instagram", "/privacida
   res.type("html").send(generarPaginaPrivacidad());
 });
 
+// 1c. CONDICIONES DEL SERVICIO de la marca activa (misma fuente de datos que la privacidad).
+const { generarPaginaCondiciones } = require("./services/paginaCondiciones");
+app.get(["/condiciones", "/condiciones.html", "/terminos", "/terminos.html"], (req, res) => {
+  res.type("html").send(generarPaginaCondiciones());
+});
+
 // 2. MAPEOS ESTÁTICOS
 // Redirigir accesos directos a archivos HTML para que /panel y /login gobiernen las entradas
 app.get("/index.html", (req, res) => res.redirect("/panel"));

@@ -16,6 +16,7 @@ SUITES=(
   test-multicategoria.ts
   test-mensajes-marca.ts
   test-privacidad.ts
+  test-condiciones.ts
   test-horario.ts
   test-seguridad.ts
   test-flujo-no-laborable.ts
