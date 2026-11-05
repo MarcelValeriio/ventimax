@@ -529,6 +529,19 @@ async function runTests() {
   assert.strictEqual(estadoSeleccionado.carrito.envio.nombre, "Envío Nacional Zoom");
   assert.strictEqual(estadoSeleccionado.carrito.envio.aConvenir, true);
 
+  // Toque en la lista: el webhook pone el id de la fila (envio_<id>) en `text` y no manda listReplyId
+  const otroMetodo = (await MetodoEnvio.find({ activo: true })).find((m: any) => m.nombre !== "Envío Nacional Zoom");
+  await orderService.setEstado("584129995512", { paso: "esperando_metodo_envio", carrito: carritoDos }, mockIo);
+  await chatFlowService.handleEsperandoMetodoEnvio({
+    from: "584129995512",
+    text: `envio_${otroMetodo._id}`,
+    listReplyId: undefined,
+    io: mockIo,
+    estado: await orderService.getEstado("584129995512"),
+  });
+  const estadoToque = await orderService.getEstado("584129995512");
+  assert.strictEqual(estadoToque.carrito.envio.nombre, otroMetodo.nombre, "El toque en la lista (id en text) debe elegir ese método");
+
   console.log("  ✅ Test 7 superado (Flujo interactivo de WhatsApp y auto-selección verificados)");
 
   // --------------------------------------------------------------------------

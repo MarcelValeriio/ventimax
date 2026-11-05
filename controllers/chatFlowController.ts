@@ -41,6 +41,8 @@ const {
 } = require("../services/horarioService");
 const { getFlujoNoLaborableSync } = require("../services/flujoNoLaborableService");
 const { precioVigente, descuentoVigente } = require("../services/precios");
+const busquedaVehiculo = require("../services/busquedaVehiculo");
+const { describirVehiculo } = require("../services/vehiculoCliente");
 
 /**
  * Orquestador de las interfaces de conversación (Vistas de WhatsApp)
@@ -198,6 +200,15 @@ class ChatFlowController {
    * Realiza consulta directa a MongoDB para evitar problemas de caché.
    */
   async mostrarCategorias(to, io, padreId = null) {
+    // F1-5: con la bandera activa, el menú de primer nivel pasa por la búsqueda por vehículo.
+    // Guarda estricta: solo `true` activa el flujo; con cualquier otro valor, el menú es el de siempre.
+    if (!padreId && configManager.get("settings.features.busquedaPorVehiculo") === true) {
+      return await this.iniciarBusquedaVehiculo(to, io);
+    }
+    return await this.mostrarCategoriasClasico(to, io, padreId);
+  }
+
+  async mostrarCategoriasClasico(to, io, padreId = null) {
     try {
       // Consulta fresca a DB excluyendo la categoría 'general' en la raíz
       const query: Record<string, any> = { padre: padreId };
@@ -764,6 +775,159 @@ class ChatFlowController {
       `💡 _Si prefieres registrar tu pedido para el ${proximoDiaHabil}, escribe *pedir* o *menu*._`;
 
     return await this.enviarYRegistrar(to, { tipo: "texto", texto: msg }, io);
+  }
+
+  // ===== F1-5 · Bot por vehículo (solo con settings.features.busquedaPorVehiculo === true) =====
+
+  /** Texto de la marca (config/brand/<marca>/settings.json, messages). Vacío si la clave falta. */
+  msgVeh(clave, vars = {}) {
+    return configManager.format(`settings.messages.${clave}`, vars) || "";
+  }
+
+  /** Entrada desde "Hacer pedido": confirma el vehículo guardado o pide la marca. */
+  async iniciarBusquedaVehiculo(to, io) {
+    const estado = await orderService.getEstado(to);
+    const carrito = estado.carrito || {};
+    const v = estado.vehiculo;
+    if (v && v.marca && v.modelo && v.anio) {
+      await orderService.setEstado(to, { paso: "veh_confirmar", carrito: { ...carrito, busqueda: null } }, io);
+      return await this.enviarYRegistrar(
+        to,
+        {
+          tipo: "botones",
+          texto: this.msgVeh("vehiculoConfirmar", { vehiculo: describirVehiculo(v) }),
+          buttons: [
+            { id: "veh_confirmar_si", title: this.msgVeh("vehiculoBotonSi").substring(0, 20) },
+            { id: "veh_confirmar_otro", title: this.msgVeh("vehiculoBotonOtro").substring(0, 20) },
+          ],
+        },
+        io
+      );
+    }
+    return await this.iniciarBusquedaNueva(to, io);
+  }
+
+  /** Pide la marca. Sin marcas en el catálogo, cae al menú de categorías de siempre. */
+  async iniciarBusquedaNueva(to, io) {
+    const estado = await orderService.getEstado(to);
+    const carrito = estado.carrito || {};
+    const marcas = await busquedaVehiculo.listarMarcas();
+    if (marcas.length === 0) {
+      await orderService.setEstado(to, { paso: "esperando_seleccion", carrito: { ...carrito, busqueda: null } }, io);
+      return await this.mostrarCategoriasClasico(to, io);
+    }
+    await orderService.setEstado(to, { paso: "veh_marca", carrito: { ...carrito, busqueda: {} } }, io);
+    return await this.enviarListaVehiculo(to, io, {
+      texto: this.msgVeh("vehiculoPreguntaMarca"),
+      opciones: marcas.map((m) => ({
+        id: `veh_marca_${busquedaVehiculo.slugOpcion(m.marcaNorm)}`,
+        titulo: m.marca,
+        descripcion: this.msgVeh("vehiculoDescMarca"),
+      })),
+      otra: "veh_otra_marca",
+    });
+  }
+
+  /** Lista de WhatsApp: hasta 9 opciones y la fila "Otra (escríbela)" (10 filas, límite del helper). */
+  async enviarListaVehiculo(to, io, { texto, opciones, otra }) {
+    const filas: any[] = opciones.slice(0, busquedaVehiculo.OPCIONES_POR_LISTA).map((o) => ({
+      id: o.id,
+      title: String(o.titulo || "").substring(0, 24),
+      description: String(o.descripcion || "").substring(0, 72),
+    }));
+    if (otra) {
+      filas.push({
+        id: otra,
+        title: this.msgVeh("vehiculoFilaOtra").substring(0, 24),
+        description: this.msgVeh("vehiculoDescOtra").substring(0, 72),
+      });
+    }
+    return await this.enviarYRegistrar(
+      to,
+      {
+        tipo: "lista",
+        texto,
+        buttonText: this.msgVeh("vehiculoListaBoton"),
+        sections: [{ title: this.msgVeh("vehiculoSeccion").substring(0, 24), rows: filas }],
+        headerText: null,
+        footerText: configManager.get("settings.brandName") || null,
+      },
+      io
+    );
+  }
+
+  async mostrarModelosVehiculo(to, io, marca, modelos) {
+    return await this.enviarListaVehiculo(to, io, {
+      texto: this.msgVeh("vehiculoPreguntaModelo", { marca }),
+      opciones: modelos.map((m) => ({
+        id: `veh_modelo_${busquedaVehiculo.slugOpcion(m.modeloNorm)}`,
+        titulo: m.modelo,
+        descripcion: this.msgVeh("vehiculoDescModelo"),
+      })),
+      otra: "veh_otra_modelo",
+    });
+  }
+
+  /** Pide el año como texto, con el rango que cubre el catálogo para el modelo. */
+  async pedirAnioVehiculo(to, io, b, rango, invalido = false) {
+    const texto = invalido
+      ? this.msgVeh("vehiculoAnioInvalido", { desde: rango.desde, hasta: rango.hasta })
+      : this.msgVeh("vehiculoPreguntaAnio", { marca: b.marca, modelo: b.modelo });
+    return await this.enviarYRegistrar(to, { tipo: "texto", texto }, io);
+  }
+
+  async mostrarMotoresVehiculo(to, io, vehiculo, motores) {
+    return await this.enviarListaVehiculo(to, io, {
+      texto: this.msgVeh("vehiculoPreguntaMotor", { vehiculo }),
+      opciones: motores.map((m) => ({
+        id: `veh_motor_${busquedaVehiculo.slugOpcion(m.norm)}`,
+        titulo: m.label,
+        descripcion: this.msgVeh("vehiculoDescMotor"),
+      })),
+      otra: "veh_otra_motor",
+    });
+  }
+
+  async mostrarCategoriasVehiculo(to, io, vehiculo, categorias) {
+    return await this.enviarListaVehiculo(to, io, {
+      texto: this.msgVeh("vehiculoPreguntaCategoria", { vehiculo }),
+      opciones: categorias.map((c) => ({
+        id: `veh_cat_${c.id}`,
+        titulo: c.nombre,
+        descripcion: this.msgVeh("vehiculoDescCategoria"),
+      })),
+      otra: "veh_otra_categoria",
+    });
+  }
+
+  /** Piezas de una categoría para el vehículo, con precio vigente (misma forma que mostrarProductos). */
+  async mostrarPiezasVehiculo(to, io, vehiculo, categoriaNombre, piezas) {
+    const tasaRes = await obtenerTasaUSD();
+    const tasa = tasaRes?.tasa || 0;
+    const descripcion = (p) => {
+      const priceUSD = precioVigente(p);
+      const pct = descuentoVigente(p);
+      const etiqueta = pct > 0 ? ` (-${pct}%)` : "";
+      const bs = priceUSD * tasa;
+      return `$${formatUsd(priceUSD)}${etiqueta}${bs > 0 ? ` / Bs. ${formatBs(bs)}` : ""}`.substring(0, 72);
+    };
+    return await this.enviarListaVehiculo(to, io, {
+      texto: this.msgVeh("vehiculoPreguntaProducto", { categoria: categoriaNombre, vehiculo }),
+      opciones: piezas.map((p) => ({ id: `veh_prod_${p.id}`, titulo: p.name, descripcion: descripcion(p) })),
+      otra: "veh_otra_producto",
+    });
+  }
+
+  /** Respuesta a "Otra (escríbela)": pide el texto y no cambia el paso. */
+  async pedirTextoVehiculo(to, io, tipo, vars = {}) {
+    const clave = {
+      marca: "vehiculoEscribeMarca",
+      modelo: "vehiculoEscribeModelo",
+      motor: "vehiculoEscribeMotor",
+      categoria: "vehiculoEscribeCategoria",
+      producto: "vehiculoEscribeProducto",
+    }[tipo];
+    return await this.enviarYRegistrar(to, { tipo: "texto", texto: this.msgVeh(clave, vars) }, io);
   }
 }
 

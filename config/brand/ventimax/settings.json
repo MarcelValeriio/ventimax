@@ -30,7 +30,8 @@
   "features": {
     "showBcvRate": true,
     "allowManualStepOverride": true,
-    "sendProductImage": true
+    "sendProductImage": true,
+    "busquedaPorVehiculo": false
   },
   "watchdog": {
     "disabledDays": [
@@ -98,6 +99,31 @@
     ]
   },
   "messages": {
+      "vehiculoConfirmar": "¿Sigue siendo para tu *{{vehiculo}}*?",
+      "vehiculoBotonSi": "Sí, el mismo",
+      "vehiculoBotonOtro": "Otro vehículo",
+      "vehiculoPreguntaMarca": "Para mostrarte solo las piezas que sí le quedan, elige la marca de tu vehículo:",
+      "vehiculoEscribeMarca": "Escribe la marca de tu vehículo:",
+      "vehiculoPreguntaModelo": "Elige el modelo de tu *{{marca}}*:",
+      "vehiculoEscribeModelo": "Escribe el modelo de tu *{{marca}}*:",
+      "vehiculoPreguntaAnio": "¿De qué año es tu *{{marca}} {{modelo}}*? Escríbelo con cuatro cifras:",
+      "vehiculoAnioInvalido": "Ese año no corresponde a este modelo. Escribe un año entre {{desde}} y {{hasta}}:",
+      "vehiculoPreguntaMotor": "Tu *{{vehiculo}}* tiene más de un motor. Elige el tuyo:",
+      "vehiculoEscribeMotor": "Escribe el motor de tu *{{vehiculo}}* (por ejemplo 1.8):",
+      "vehiculoPreguntaCategoria": "Piezas para tu *{{vehiculo}}*. Elige una categoría:",
+      "vehiculoEscribeCategoria": "Escribe el nombre de la categoría que buscas:",
+      "vehiculoPreguntaProducto": "Piezas de *{{categoria}}* para tu *{{vehiculo}}*:",
+      "vehiculoEscribeProducto": "Escribe el nombre de la pieza que buscas:",
+      "vehiculoOpcionNoEncontrada": "No encontramos esa opción. Elige una de la lista o escríbela de nuevo:",
+      "vehiculoSinPiezas": "Por ahora no tenemos piezas registradas para tu *{{vehiculo}}*. Un asesor te atenderá por este chat.",
+      "vehiculoFilaOtra": "Otra (escríbela)",
+      "vehiculoSeccion": "Vehículo",
+      "vehiculoListaBoton": "Elegir",
+      "vehiculoDescMarca": "Ver modelos",
+      "vehiculoDescModelo": "Elegir modelo",
+      "vehiculoDescMotor": "Elegir motor",
+      "vehiculoDescCategoria": "Ver piezas",
+      "vehiculoDescOtra": "Escribir la opción",
     "socialThanks": ["¡Con gusto! 🙌 Aquí estamos cuando lo necesites.", "¡A la orden! Si te surge otra duda, escríbenos 😊", "¡Gracias a ti! Cuando quieras tu ventilador, te atendemos por WhatsApp: {{waLink}}"],
     "socialOutsideZone": ["¡Llegamos a todo el país! 📦 Hacemos envíos nacionales por agencia. Escríbenos por WhatsApp y te decimos cómo llega a tu ciudad: {{waLink}}", "¡No hay problema! Enviamos a toda Venezuela por agencia de envíos. Cuéntanos tu ciudad por WhatsApp y te ayudamos: {{waLink}}"],
     "socialOutsideZoneNoShipping": ["Por ahora entregamos solo en nuestra zona, pero un asesor puede ayudarte a buscar una opción para tu ciudad: {{waLink}}"],

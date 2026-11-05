@@ -547,6 +547,21 @@ Pedido del dueño (2026-11-04). Decisiones del dueño:
 
 **Cierre:** `npm run build`, `./scripts/ci.sh` en verde, `esbuild --bundle` en los archivos tocados, lista de archivos y decisiones. Estado final: `Lista para revisión`.
 
+### F1-5 · Bot por vehículo (`busquedaPorVehiculo`) — Backend · `Aprobada`
+
+**Entrega 4b (2026-11-04, Haiku 5.5; revisión de Claude):** `services/busquedaVehiculo.ts` y `models/BusquedaSinResultado.ts` (nuevos), `chatFlowController.ts` (guarda `=== true` al inicio de `mostrarCategorias`; el cuerpo original queda en `mostrarCategoriasClasico`), `chatFlowService.ts` (pasos `veh_*`; un toque `veh_` se atiende por su id), validador `validarFeatures`, 27 mensajes `vehiculo*` en la marca, `dbLocal`, `pasoEmbudo.js` y suite `test-bot-vehiculo.ts`. Con la bandera encendida, todo menú de categorías de primer nivel entra por vehículo; "Hola" sigue con las preguntas frecuentes. La pieza elegida sigue el camino de un código de producto (solo productos activos).
+- **Corrección de Claude:** los universales (sin compatibilidad) contaban como piezas, así que con un solo universal nunca se registraba una búsqueda sin resultado. Ahora, si no hay ninguna pieza específica, la búsqueda se registra una vez y los universales se siguen ofreciendo; sin universales, pasa a modo manual como antes. Caso nuevo en la suite.
+- CI verde (56 suites). Deuda: `listarMarcas`/`listarModelos` leen todos los productos activos y filtran en JS; con el catálogo grande de repuestos conviene una agregación (F3). Sin prueba con WhatsApp real: se prueba al activar la bandera para el cliente de repuestos.
+
+Plan: `docs/plan-haiku-f1.md`, Paso 4. Fase 4a (investigación) entregada en `docs/f1-5-investigacion.md` (Haiku, 2026-11-04) y revisada por Claude.
+
+**Decisiones de Claude (2026-11-04) para la fase 4b:**
+- **Líneas autorizadas en `features/whatsapp/**` e `features/instagram/**`: ninguna.** El bot vive en `services/chatFlowService.ts` y `controllers/chatFlowController.ts` (esas carpetas son la consola del panel). Instagram y Messenger no cambian.
+- Archivos permitidos: `services/busquedaVehiculo.ts` (nuevo), modelo nuevo `models/BusquedaSinResultado.ts` (`canal`, `usuarioId`, `marca`, `modelo`, `anio`, `motor`, `fecha`; índice TTL de 365 días; sin panel, el análisis es F3), `services/chatFlowService.ts`, `controllers/chatFlowController.ts`, `utils/pasoEmbudo.js`, `config/brand/ventimax/settings.json` (bandera y `messages`), validador de la bandera en `services/configManager.ts`/`configValidators.ts`, mocks `dbLocal`/`dbMock` si hace falta, `types/models.d.ts`, `scripts/test-bot-vehiculo.ts` y `scripts/ci.sh`.
+- Entrada: solo por "Hacer pedido" (donde hoy se llama `mostrarCategorias`). "Hola" sigue mostrando las preguntas frecuentes.
+- Con la bandera en `false` (por defecto), el flujo actual no cambia: la guarda va al inicio y es estricta (`=== true`).
+- Corregido por Claude antes de 4b: `handleEsperandoEmpresaEnvio` y `handleEsperandoMetodoEnvio` leían el id de la fila tocada solo de `listReplyId`, que no llega (el webhook lo pone en `text`); ahora usan `listReplyId || text`. Prueba nueva en `test-envios.ts` (9/9).
+
 ## Dudas para Claude
 
 _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde debajo.)_
@@ -591,6 +606,7 @@ _(Antigravity escribe aquí: tarea, pregunta, opciones que ve. Claude responde d
 | Fecha | Hora | Tarea | Responsable | Estado |
 |---|---|---|---|---|
 | 2026-11-04 | — | F1-8, corrección: Zoom sin estimado en ciudades fuera de `getCiudades` (tabla oficina → codciudad en `services/zoomCiudades.ts`, 344 de 401 sucursales con tarifa; 57 sin código, consultar a Zoom; la tabla no tiene script de regeneración), estimado bajo el botón de WhatsApp solo en Bs, y tabla de MRW con logs y arranque al guardar en el panel. CI verde (53 suites). Confirmado por el dueño en producción — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Aprobada |
+| 2026-11-04 | — | F1-5 bot por vehículo aprobado (bandera apagada por defecto; búsqueda sin piezas específicas registrada) y corrección del toque en las listas de empresa y método de envío del bot. CI verde (56 suites) — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Aprobada |
 | 2026-11-04 | — | F2q aprobada: reseñas de Mercado Libre requieren app y OAuth (403 verificado sin token); condiciones para la ejecución: `state` en OAuth, sin fotos en la primera versión (CSP), tokens en `Setting`, job diario — Ejecutado por **Antigravity** + **Claude** | Claude (Cerebro) | Aprobada |
 | 2026-11-04 | — | Recorrido en Chrome (1083 px, base local) de F1-3, F1-7 y F1-9: todo correcto; corregido el color de los tramos en el panel. Línea del descuento por volumen en resumen, pago y comandas, y reglas de peso en una sola fuente (Haiku). F1-3, F1-7 y F1-8 aprobadas. CI verde (55 suites). Pendiente del dueño: 390 px — Ejecutado por **Haiku 5.5** (subagente) + **Claude** | Claude (Cerebro) | Aprobada |
 | 2026-11-04 | — | F1-9 descuento por volumen (5 → 3 %, 10 → 5 %, solo productos sin oferta, tienda y venta manual con selector) y aviso semanal de cambios de códigos de oficina de Zoom (log + push, racha de 3 fallos, `scripts/regenerar-zoom-ciudades.ts`). CI verde (55 suites) — Ejecutado por **Haiku 5.5** (subagentes) + **Claude** | Claude (Cerebro) | Aprobada |

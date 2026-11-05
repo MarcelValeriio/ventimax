@@ -22,6 +22,16 @@ const PASO_LABELS = {
   esperando_comprobante: "🧾 Comprobante",
   pendiente_verificacion: "⏳ Verificación",
 
+  // Búsqueda de piezas por vehículo (F1-5, solo con settings.features.busquedaPorVehiculo)
+  veh_seleccion: "Búsqueda por vehículo",
+  veh_confirmar: "Confirmando vehículo",
+  veh_marca: "Eligiendo marca del vehículo",
+  veh_modelo: "Eligiendo modelo",
+  veh_anio: "Escribiendo año",
+  veh_motor: "Eligiendo motor",
+  veh_categoria: "Eligiendo categoría de piezas",
+  veh_producto: "Eligiendo pieza",
+
   // Alias legacy (datos antiguos en DB, para no mostrar claves crudas)
   menu: "🍱 Viendo menú",
   carrito: "🛒 Armando carrito",

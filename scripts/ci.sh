@@ -61,6 +61,7 @@ SUITES=(
   test-instagram-quick-replies.js
   test-web-push-fullstack.js
   test-descuento-volumen.ts
+  test-bot-vehiculo.ts
 )
 
 fallos=()

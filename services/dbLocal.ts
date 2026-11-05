@@ -97,6 +97,18 @@ class DbLocal {
           }
           continue;
         }
+        // Búsqueda por vehículo (F1-5): mismos operadores que usa Mongo sobre el arreglo compatibilidad
+        if (key === "compatibilidad.marcaNorm" || key === "compatibilidad.modeloNorm") {
+          const campo = key.split(".")[1];
+          const lista = Array.isArray(p.compatibilidad) ? p.compatibilidad : [];
+          if (!lista.some((c) => c[campo] === val)) return false;
+          continue;
+        }
+        if (key === "compatibilidad" && val && typeof val === "object" && "$size" in val) {
+          const largo = Array.isArray(p.compatibilidad) ? p.compatibilidad.length : 0;
+          if (largo !== val.$size) return false;
+          continue;
+        }
         if (val !== undefined && p[key] !== val) return false;
       }
       return true;
@@ -1285,6 +1297,28 @@ class DbLocal {
         });
         return Object.values(groups);
       }
+    };
+  }
+
+  /** Búsquedas por vehículo sin piezas (F1-5). Colección simple; el análisis es F3. */
+  getBusquedaSinResultadoModel() {
+    const self = this;
+    return {
+      create: async (doc) => {
+        const data = self.read();
+        if (!Array.isArray(data.busquedasSinResultado)) data.busquedasSinResultado = [];
+        const registro = { _id: `bsr-${Date.now()}-${data.busquedasSinResultado.length}`, ...doc };
+        data.busquedasSinResultado.push(registro);
+        self.write(data);
+        return registro;
+      },
+      find: (query = {}) => {
+        const data = self.read();
+        const lista = (data.busquedasSinResultado || []).filter((r) =>
+          Object.entries(query).every(([k, v]) => r[k] === v)
+        );
+        return { then: (res, rej) => Promise.resolve(lista).then(res, rej), lean: () => Promise.resolve(lista) };
+      },
     };
   }
 

@@ -771,3 +771,25 @@ export function validarConfigMapa(val: unknown): ResultadoValidacionMapa {
   };
 }
 
+
+export type ResultadoValidacionFeatures =
+  | { ok: true; value: { busquedaPorVehiculo: boolean } }
+  | { ok: false; error: string };
+
+/**
+ * Banderas de funciones del bot (settings.features). Solo se valida lo que hoy usa el código.
+ * busquedaPorVehiculo (F1-5): ausente o false = flujo de categorías de siempre.
+ */
+export function validarFeatures(val: unknown): ResultadoValidacionFeatures {
+  if (val === undefined || val === null) {
+    return { ok: true, value: { busquedaPorVehiculo: false } };
+  }
+  if (typeof val !== "object" || Array.isArray(val)) {
+    return { ok: false, error: "El bloque features debe ser un objeto." };
+  }
+  const f = val as any;
+  if (f.busquedaPorVehiculo !== undefined && typeof f.busquedaPorVehiculo !== "boolean") {
+    return { ok: false, error: "features.busquedaPorVehiculo debe ser booleano." };
+  }
+  return { ok: true, value: { busquedaPorVehiculo: f.busquedaPorVehiculo === true } };
+}

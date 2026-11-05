@@ -156,6 +156,18 @@ export interface IVehiculoCliente {
   modeloNorm?: string;
 }
 
+/** Búsqueda por vehículo sin piezas (F1-5). Solo registro; el análisis es F3. */
+export interface IBusquedaSinResultado {
+  _id?: string;
+  canal: "whatsapp";
+  usuarioId: string;
+  marca: string;
+  modelo: string;
+  anio?: number | null;
+  motor: string;
+  fecha: Date;
+}
+
 export interface IEtiqueta {
   _id?: string;
   telefono: string;

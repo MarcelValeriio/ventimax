@@ -47,6 +47,21 @@ const configManager = require("./configManager");
 const { getConfigCatalogoSync } = require("./catalogoConfigService");
 const orderService = require("./orderService");
 const chatFlow = require("../controllers/chatFlowController");
+const busquedaVehiculo = require("./busquedaVehiculo");
+const { validarVehiculo, describirVehiculo } = require("./vehiculoCliente");
+const { normalizarTexto } = require("./productoAmpliado");
+let BusquedaSinResultado = require("../models/BusquedaSinResultado");
+if (process.env.NODE_ENV === "test") {
+  const dbLocalVeh = require("./dbLocal");
+  if (typeof dbLocalVeh.getBusquedaSinResultadoModel === "function") {
+    BusquedaSinResultado = dbLocalVeh.getBusquedaSinResultadoModel();
+  }
+}
+
+/** Texto de la búsqueda por vehículo desde messages de la marca (F1-5). */
+function msgVeh(clave, vars = {}) {
+  return configManager.format(`settings.messages.${clave}`, vars) || "";
+}
 const { isAskingForBCVRate } = require("./intentClassifier");
 const { buscarFAQ, getSaboresEnStock, getMenuDinamico } = require("./faqMatcher");
 const { obtenerTasaUSD } = require("./bcv");
@@ -183,6 +198,15 @@ class ChatFlowService {
         this.handleEsperandoConfirmacionWeb.bind(this),
       esperando_reemplazo_web:
         this.handleEsperandoReemplazoWeb.bind(this),
+      // F1-5: pasos de la búsqueda por vehículo (solo activos con settings.features.busquedaPorVehiculo)
+      veh_seleccion: this.handleVehiculo.bind(this),
+      veh_confirmar: this.handleVehiculo.bind(this),
+      veh_marca: this.handleVehiculo.bind(this),
+      veh_modelo: this.handleVehiculo.bind(this),
+      veh_anio: this.handleVehiculo.bind(this),
+      veh_motor: this.handleVehiculo.bind(this),
+      veh_categoria: this.handleVehiculo.bind(this),
+      veh_producto: this.handleVehiculo.bind(this),
     };
 
     // Mapa de colas y debounce en memoria indexado por número de WhatsApp (from)
@@ -618,9 +642,15 @@ class ChatFlowService {
       return low.startsWith("category_") || low.startsWith("cat_");
     });
 
+    // F1-5: un toque de la búsqueda por vehículo se atiende aunque el paso guardado sea otro
+    const vehItem = batch.find((item) => (item.text || "").toLowerCase().trim().startsWith("veh_"));
+
     if (categoryItem) {
       paso = "esperando_seleccion";
       primaryItem = categoryItem;
+    } else if (vehItem) {
+      paso = "veh_seleccion";
+      primaryItem = vehItem;
     } else if (interactiveItem) {
       primaryItem = interactiveItem;
     } else if (paso === "esperando_datos_cliente") {
@@ -677,7 +707,8 @@ class ChatFlowService {
       low.startsWith("datos_correctos") ||
       low.startsWith("cambiar_") ||
       low.startsWith("confirmar_") ||
-      low.startsWith("efectivo_");
+      low.startsWith("efectivo_") ||
+      low.startsWith("veh_");
     const esComando = [
       "menu",
       "inicio",
@@ -717,7 +748,8 @@ class ChatFlowService {
         t.startsWith("datos_correctos") ||
         t.startsWith("cambiar_") ||
         t.startsWith("confirmar_") ||
-        t.startsWith("efectivo_")
+        t.startsWith("efectivo_") ||
+        t.startsWith("veh_")
       );
     });
 
@@ -907,6 +939,318 @@ class ChatFlowService {
   }
 
   // Helper para enviar a WhatsApp y emitir/guardar en tiempo real en el SaaS
+  /** Despacho de la búsqueda por vehículo: toques (veh_*) o texto según el paso. */
+  async handleVehiculo(ctx) {
+    const low = String(ctx.text || "").trim().toLowerCase();
+    if (low.startsWith("veh_")) return this.handleVehiculoToque(ctx);
+    return this.handleVehiculoTexto(ctx);
+  }
+
+
+  // ===== F1-5 · Bot por vehículo (solo con settings.features.busquedaPorVehiculo === true) =====
+  // Estado en curso: carrito.busqueda { marca, marcaNorm, modelo, modeloNorm, anio, motor, motorNorm, categoriaId, categoriaNombre }.
+  // Vehículo ya elegido: Etiqueta.vehiculo (se guarda al llegar a las categorías).
+
+  /** Toque en una fila (id veh_*). Va antes que el texto y se procesa según el id, no el paso. */
+  async handleVehiculoToque({ from, text, io, estado }) {
+    const raw = String(text || "").trim();
+    const low = raw.toLowerCase();
+    const carrito = estado.carrito || {};
+    const b = { ...(carrito.busqueda || {}) };
+
+    if (low === "veh_confirmar_si") {
+      const v = estado.vehiculo;
+      if (!v || !v.marca) return chatFlow.iniciarBusquedaNueva(from, io);
+      return this.avanzarVehiculo({
+        from,
+        io,
+        carrito,
+        b: {
+          marca: v.marca,
+          marcaNorm: v.marcaNorm || normalizarTexto(v.marca),
+          modelo: v.modelo,
+          modeloNorm: v.modeloNorm || normalizarTexto(v.modelo),
+          anio: v.anio,
+          motor: v.motor || "",
+          motorNorm: v.motor ? normalizarTexto(v.motor) : null,
+        },
+      });
+    }
+    if (low === "veh_confirmar_otro") return chatFlow.iniciarBusquedaNueva(from, io);
+
+    if (low.startsWith("veh_marca_")) {
+      const slug = low.slice("veh_marca_".length);
+      const marcas = await busquedaVehiculo.listarMarcas();
+      const m = marcas.find((x) => busquedaVehiculo.slugOpcion(x.marcaNorm) === slug);
+      if (!m) return chatFlow.iniciarBusquedaNueva(from, io);
+      return this.avanzarVehiculo({ from, io, carrito, b: { marca: m.marca, marcaNorm: m.marcaNorm } });
+    }
+
+    if (low.startsWith("veh_modelo_")) {
+      if (!b.marcaNorm) return chatFlow.iniciarBusquedaNueva(from, io);
+      const slug = low.slice("veh_modelo_".length);
+      const modelos = await busquedaVehiculo.listarModelos(b.marcaNorm);
+      const m = modelos.find((x) => busquedaVehiculo.slugOpcion(x.modeloNorm) === slug);
+      if (!m) return chatFlow.iniciarBusquedaNueva(from, io);
+      return this.avanzarVehiculo({
+        from,
+        io,
+        carrito,
+        b: { marca: b.marca, marcaNorm: b.marcaNorm, modelo: m.modelo, modeloNorm: m.modeloNorm },
+      });
+    }
+
+    if (low.startsWith("veh_motor_")) {
+      if (!b.modeloNorm || !b.anio) return chatFlow.iniciarBusquedaNueva(from, io);
+      const slug = low.slice("veh_motor_".length);
+      const { motores } = await busquedaVehiculo.motoresParaVehiculo(b.marcaNorm, b.modeloNorm, b.anio);
+      const m = motores.find((x) => busquedaVehiculo.slugOpcion(x.norm) === slug);
+      if (!m) return chatFlow.iniciarBusquedaNueva(from, io);
+      return this.avanzarVehiculo({ from, io, carrito, b: { ...b, motor: m.label, motorNorm: m.norm } });
+    }
+
+    if (low.startsWith("veh_cat_")) {
+      if (!estado.vehiculo) return chatFlow.iniciarBusquedaVehiculo(from, io);
+      const id = raw.slice("veh_cat_".length);
+      const piezas = await busquedaVehiculo.piezasParaVehiculo(this.vehiculoABusqueda(estado.vehiculo));
+      const categorias = await busquedaVehiculo.categoriasDePiezas(piezas);
+      const cat = categorias.find((c) => c.id === id);
+      if (!cat) return chatFlow.mostrarCategoriasVehiculo(from, io, describirVehiculo(estado.vehiculo), categorias);
+      await orderService.setEstado(
+        from,
+        { paso: "veh_producto", carrito: { ...carrito, busqueda: { categoriaId: cat.id, categoriaNombre: cat.nombre } } },
+        io
+      );
+      return chatFlow.mostrarPiezasVehiculo(
+        from,
+        io,
+        describirVehiculo(estado.vehiculo),
+        cat.nombre,
+        busquedaVehiculo.piezasDeCategoria(piezas, cat.id)
+      );
+    }
+
+    if (low.startsWith("veh_prod_")) {
+      // El id de la pieza sigue el mismo camino que un pedido por código de producto
+      const productoId = raw.slice("veh_prod_".length);
+      return this.handleEsperandoSeleccion({ from, low: productoId, text: productoId, io, estado });
+    }
+
+    if (low.startsWith("veh_otra_")) {
+      const tipo = low.slice("veh_otra_".length);
+      const pasoPorTipo: Record<string, string> = {
+        marca: "veh_marca",
+        modelo: "veh_modelo",
+        motor: "veh_motor",
+        categoria: "veh_categoria",
+        producto: "veh_producto",
+      };
+      if (!pasoPorTipo[tipo]) return chatFlow.iniciarBusquedaNueva(from, io);
+      await orderService.setEstado(from, { paso: pasoPorTipo[tipo] }, io);
+      return chatFlow.pedirTextoVehiculo(from, io, tipo, { marca: b.marca, modelo: b.modelo, categoria: b.categoriaNombre, vehiculo: describirVehiculo(b) });
+    }
+
+    return chatFlow.iniciarBusquedaNueva(from, io);
+  }
+
+  /** Texto libre: responde según el paso guardado (marca, modelo, año, motor, categoría o pieza). */
+  async handleVehiculoTexto({ from, text, cleanText, io, estado }) {
+    const carrito = estado.carrito || {};
+    const b = { ...(carrito.busqueda || {}) };
+    const paso = estado.paso;
+    const entrada = String(text || "").trim();
+    const norm = normalizarTexto(entrada);
+
+    if (["menu", "inicio", "cancelar", "reiniciar", "salir", "reset"].includes(cleanText)) {
+      await orderService.setEstado(from, { paso: "inicio" }, io);
+      return this.handleInicio({ from, io });
+    }
+
+    if (paso === "veh_confirmar") {
+      if (["si", "si el mismo", "sí"].includes(norm)) {
+        return this.handleVehiculoToque({ from, text: "veh_confirmar_si", io, estado });
+      }
+      if (["no", "otro", "otro vehiculo"].includes(norm)) return chatFlow.iniciarBusquedaNueva(from, io);
+      return chatFlow.iniciarBusquedaVehiculo(from, io);
+    }
+
+    if (paso === "veh_marca") {
+      if (!norm) return chatFlow.iniciarBusquedaNueva(from, io);
+      const marcas = await busquedaVehiculo.listarMarcas();
+      const m = marcas.find((x) => x.marcaNorm === norm);
+      if (!m) return this.sinPiezasVehiculo({ from, io, carrito, marca: entrada });
+      return this.avanzarVehiculo({ from, io, carrito, b: { marca: m.marca, marcaNorm: m.marcaNorm } });
+    }
+
+    if (paso === "veh_modelo") {
+      if (!b.marcaNorm) return chatFlow.iniciarBusquedaNueva(from, io);
+      const modelos = await busquedaVehiculo.listarModelos(b.marcaNorm);
+      const m = modelos.find((x) => x.modeloNorm === norm);
+      if (!m) return this.sinPiezasVehiculo({ from, io, carrito, marca: b.marca, modelo: entrada });
+      return this.avanzarVehiculo({
+        from,
+        io,
+        carrito,
+        b: { marca: b.marca, marcaNorm: b.marcaNorm, modelo: m.modelo, modeloNorm: m.modeloNorm },
+      });
+    }
+
+    if (paso === "veh_anio") {
+      if (!b.marcaNorm || !b.modeloNorm) return chatFlow.iniciarBusquedaNueva(from, io);
+      const rango = await busquedaVehiculo.rangoAnios(b.marcaNorm, b.modeloNorm);
+      if (!rango) return this.sinPiezasVehiculo({ from, io, carrito, marca: b.marca, modelo: b.modelo });
+      const anio = busquedaVehiculo.parsearAnio(entrada);
+      if (anio === null || anio < rango.desde || anio > rango.hasta) {
+        return chatFlow.pedirAnioVehiculo(from, io, b, rango, true);
+      }
+      return this.avanzarVehiculo({ from, io, carrito, b: { ...b, anio } });
+    }
+
+    if (paso === "veh_motor") {
+      if (!b.modeloNorm || !b.anio) return chatFlow.iniciarBusquedaNueva(from, io);
+      const { motores } = await busquedaVehiculo.motoresParaVehiculo(b.marcaNorm, b.modeloNorm, b.anio);
+      const m = motores.find((x) => x.norm === norm);
+      if (m) return this.avanzarVehiculo({ from, io, carrito, b: { ...b, motor: m.label, motorNorm: m.norm } });
+      await this._sendYGuardar(from, msgVeh("vehiculoOpcionNoEncontrada"), io);
+      return this.avanzarVehiculo({ from, io, carrito, b });
+    }
+
+    if (paso === "veh_categoria") {
+      if (!estado.vehiculo) return chatFlow.iniciarBusquedaVehiculo(from, io);
+      const piezas = await busquedaVehiculo.piezasParaVehiculo(this.vehiculoABusqueda(estado.vehiculo));
+      const categorias = await busquedaVehiculo.categoriasDePiezas(piezas);
+      const cat = categorias.find((c) => normalizarTexto(c.nombre) === norm);
+      if (cat) {
+        await orderService.setEstado(
+          from,
+          { paso: "veh_producto", carrito: { ...carrito, busqueda: { categoriaId: cat.id, categoriaNombre: cat.nombre } } },
+          io
+        );
+        return chatFlow.mostrarPiezasVehiculo(
+          from,
+          io,
+          describirVehiculo(estado.vehiculo),
+          cat.nombre,
+          busquedaVehiculo.piezasDeCategoria(piezas, cat.id)
+        );
+      }
+      await this._sendYGuardar(from, msgVeh("vehiculoOpcionNoEncontrada"), io);
+      return chatFlow.mostrarCategoriasVehiculo(from, io, describirVehiculo(estado.vehiculo), categorias);
+    }
+
+    if (paso === "veh_producto") {
+      if (!estado.vehiculo || !b.categoriaId) return chatFlow.iniciarBusquedaVehiculo(from, io);
+      const piezas = await busquedaVehiculo.piezasParaVehiculo(this.vehiculoABusqueda(estado.vehiculo));
+      const deCategoria = busquedaVehiculo.piezasDeCategoria(piezas, b.categoriaId);
+      const p = deCategoria.find((x) => normalizarTexto(x.name) === norm);
+      if (p) return this.handleVehiculoToque({ from, text: `veh_prod_${p.id}`, io, estado });
+      await this._sendYGuardar(from, msgVeh("vehiculoOpcionNoEncontrada"), io);
+      return chatFlow.mostrarPiezasVehiculo(
+        from,
+        io,
+        describirVehiculo(estado.vehiculo),
+        b.categoriaNombre || "",
+        deCategoria
+      );
+    }
+
+    return chatFlow.iniciarBusquedaVehiculo(from, io);
+  }
+
+  /** Siguiente paso según lo que ya se sabe del vehículo: marca, modelo, año, motor y, al final, categorías. */
+  async avanzarVehiculo({ from, io, carrito, b }) {
+    const guardar = (paso) =>
+      orderService.setEstado(from, { paso, carrito: { ...carrito, busqueda: b } }, io);
+
+    if (!b.marcaNorm) return chatFlow.iniciarBusquedaNueva(from, io);
+
+    if (!b.modeloNorm) {
+      const modelos = await busquedaVehiculo.listarModelos(b.marcaNorm);
+      if (modelos.length === 0) return this.sinPiezasVehiculo({ from, io, carrito, marca: b.marca });
+      await guardar("veh_modelo");
+      return chatFlow.mostrarModelosVehiculo(from, io, b.marca, modelos);
+    }
+
+    const rango = await busquedaVehiculo.rangoAnios(b.marcaNorm, b.modeloNorm);
+    if (!rango) return this.sinPiezasVehiculo({ from, io, carrito, marca: b.marca, modelo: b.modelo });
+
+    if (!b.anio) {
+      await guardar("veh_anio");
+      return chatFlow.pedirAnioVehiculo(from, io, b, rango);
+    }
+
+    const base = { marcaNorm: b.marcaNorm, modeloNorm: b.modeloNorm, anio: b.anio };
+    const hayPiezas = await busquedaVehiculo.piezasParaVehiculo({ ...base, motorNorm: null });
+    if (hayPiezas.length === 0) {
+      return this.sinPiezasVehiculo({ from, io, carrito, marca: b.marca, modelo: b.modelo, anio: b.anio, motor: b.motor });
+    }
+    // Solo hay universales (ninguna pieza específica para el vehículo): se ofrecen igual, pero la búsqueda
+    // queda registrada como sin resultado para el análisis (F3). Una vez por búsqueda (antes de pedir el motor).
+    if (!b.registradaSinEspecificas && !hayPiezas.some((p) => Array.isArray(p.compatibilidad) && p.compatibilidad.length > 0)) {
+      await this.registrarBusquedaSinResultado({ from, marca: b.marca, modelo: b.modelo, anio: b.anio, motor: b.motor });
+      b.registradaSinEspecificas = true;
+    }
+
+    const { necesitaMotor, motores } = await busquedaVehiculo.motoresParaVehiculo(b.marcaNorm, b.modeloNorm, b.anio);
+    if (necesitaMotor && !b.motorNorm) {
+      await guardar("veh_motor");
+      return chatFlow.mostrarMotoresVehiculo(from, io, describirVehiculo(b), motores);
+    }
+
+    const valido = validarVehiculo({ marca: b.marca, modelo: b.modelo, anio: b.anio, motor: b.motor || "" });
+    if (!valido.ok) return chatFlow.iniciarBusquedaNueva(from, io);
+
+    const piezas = await busquedaVehiculo.piezasParaVehiculo({ ...base, motorNorm: b.motorNorm || null });
+    const categorias = await busquedaVehiculo.categoriasDePiezas(piezas);
+    if (categorias.length === 0) {
+      return this.sinPiezasVehiculo({ from, io, carrito, marca: b.marca, modelo: b.modelo, anio: b.anio, motor: b.motor });
+    }
+
+    // Vehículo completo: se guarda en Etiqueta y la búsqueda en curso se cierra
+    await orderService.setEstado(
+      from,
+      { vehiculo: valido.valor, paso: "veh_categoria", carrito: { ...carrito, busqueda: null } },
+      io
+    );
+    return chatFlow.mostrarCategoriasVehiculo(from, io, describirVehiculo(valido.valor), categorias);
+  }
+
+  /** Sin piezas para el vehículo: registra la búsqueda y pasa la conversación a modo manual (asesor). */
+  async sinPiezasVehiculo({ from, io, carrito, marca = "", modelo = "", anio = null, motor = "" }) {
+    await this.registrarBusquedaSinResultado({ from, marca, modelo, anio, motor });
+    await orderService.setEstado(from, { paso: "inicio", carrito: { ...carrito, busqueda: null } }, io);
+    await orderService.setModo(from, "manual", io);
+    const vehiculo = describirVehiculo({ marca, modelo, anio, motor }) || String(marca || "");
+    return await this.enviarYRegistrar(from, { tipo: "texto", texto: msgVeh("vehiculoSinPiezas", { vehiculo }) }, io);
+  }
+
+  /** Guarda una búsqueda por vehículo sin piezas específicas (colección BusquedaSinResultado, TTL 365 días). */
+  async registrarBusquedaSinResultado({ from, marca = "", modelo = "", anio = null, motor = "" }) {
+    try {
+      await BusquedaSinResultado.create({
+        canal: "whatsapp",
+        usuarioId: from,
+        marca: String(marca || ""),
+        modelo: String(modelo || ""),
+        anio: anio || null,
+        motor: String(motor || ""),
+        fecha: new Date(),
+      });
+    } catch (err: any) {
+      console.error(`⚠️ [Bot] No se pudo registrar la búsqueda sin resultado de ${from}:`, err?.message || err);
+    }
+  }
+
+  /** Vehículo guardado (Etiqueta.vehiculo) a la forma que usa busquedaVehiculo. */
+  vehiculoABusqueda(v) {
+    return {
+      marcaNorm: v.marcaNorm || normalizarTexto(v.marca),
+      modeloNorm: v.modeloNorm || normalizarTexto(v.modelo),
+      anio: v.anio,
+      motorNorm: v.motor ? normalizarTexto(v.motor) : null,
+    };
+  }
+
   async _sendYGuardar(from, text, io) {
     return await this.enviarYRegistrar(from, { tipo: "texto", texto: text }, io);
   }

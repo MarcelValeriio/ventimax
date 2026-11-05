@@ -149,6 +149,15 @@ class ConfigManager {
       this.config.settings.tienda.preguntasFrecuentes = [];
     }
 
+    // Banderas del bot (F1-5): busquedaPorVehiculo debe ser booleano si existe
+    if (this.config.settings.features !== undefined) {
+      const { validarFeatures } = require("./configValidators");
+      const resFeatures = validarFeatures(this.config.settings.features);
+      if (!resFeatures.ok) {
+        throw new Error(`[ConfigManager] Bloque 'features' inválido: ${resFeatures.error}`);
+      }
+    }
+
     // Configuración territorial del mapa (F2o)
     if (this.config.settings.mapa !== undefined) {
       const { validarConfigMapa } = require("./configValidators");
