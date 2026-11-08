@@ -90,7 +90,12 @@ function validateMetaHmac(req: Request, res: Response, next: NextFunction): void
   if (!isValid && process.env.APP_SECRET) isValid = checkSig(process.env.APP_SECRET);
 
   if (!isValid) {
-    console.error("❌ [HMAC] Firma inválida. Petición rechazada.");
+    // Diagnóstico sin valores secretos: qué secretos hay configurados (longitud) y si el cuerpo crudo llegó.
+    const len = (s?: string) => (s ? String(s.length) : "no");
+    console.error(
+      `❌ [HMAC] Firma inválida. Petición rechazada. url=${req.originalUrl} rawBody=${req.rawBody ? req.rawBody.length : "no"} ` +
+        `firma=${signature.slice(0, 14)}… secretos(longitud): wa=${len(whatsappSecret)} ig=${len(igSecret)} fb=${len(fbSecret)} app=${len(process.env.APP_SECRET)}`,
+    );
     return res.sendStatus(403);
   }
 
