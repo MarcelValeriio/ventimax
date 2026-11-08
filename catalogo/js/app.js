@@ -638,6 +638,11 @@ function pintarPiePagina() {
     privEl.setAttribute("href", `${base}/privacidad`);
     privEl.classList.remove("hidden");
   }
+  const termEl = document.getElementById("footer-terms");
+  if (termEl && base) {
+    termEl.setAttribute("href", `${base}/condiciones`);
+    termEl.classList.remove("hidden");
+  }
 }
 
 /** Abre el cajón del menú de navegación en celular. */
@@ -693,6 +698,12 @@ function prepararMarco() {
     privacidad.setAttribute("href", `${base}/privacidad`);
     privacidad.setAttribute("rel", "noopener");
     privacidad.classList.remove("hidden");
+  }
+  const condiciones = document.getElementById("footer-terms");
+  if (condiciones && base) {
+    condiciones.setAttribute("href", `${base}/condiciones`);
+    condiciones.setAttribute("rel", "noopener");
+    condiciones.classList.remove("hidden");
   }
 
   // Botón "Volver arriba": área táctil de 44 px, salta sin animar con prefers-reduced-motion
