@@ -19,6 +19,18 @@ const configManager = require("./configManager");
 const { getConfig } = require("./configStore");
 const { getDatosNegocioSync } = require("./datosNegocioService");
 
+/**
+ * Línea opcional con el enlace del catálogo web, para quien prefiera pedir por la tienda.
+ * La URL sale de CATALOGO_ORIGEN y el texto de settings.messages.socialCatalogoLinea (plantilla con
+ * {{catalogoUrl}}). Sin alguno de los dos, no se agrega nada.
+ */
+function lineaCatalogo(): string {
+  const url = (process.env.CATALOGO_ORIGEN || "").trim().replace(/\/+$/, "");
+  if (!url) return "";
+  const plantilla = configManager.format("settings.messages.socialCatalogoLinea", { catalogoUrl: url });
+  return plantilla ? `\n\n${plantilla}` : "";
+}
+
 function buildWaLink(waPhone: string, etiqueta: any, baseText: string = "pedir") {
   let adTag = "";
   const ref = etiqueta?.referralData?.referral || etiqueta?.metadata?.referral;
@@ -958,7 +970,7 @@ class InstagramFlowService {
           `Soy tu asistente virtual en Instagram. ¿Cómo podemos ayudarte hoy?\n\n` +
           `Toca uno de los botones abajo o escríbenos tu consulta:\n\n` +
           `📲 *Para hacer tu pedido directo por WhatsApp:*\n` +
-          `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}`;
+          `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}` + lineaCatalogo();
         nuevoPaso = "en_faq";
         shouldSendQuickReplies = true;
       } else {
@@ -969,7 +981,7 @@ class InstagramFlowService {
           `${faqMenu}\n\n` +
           `_Escribe el número o el tema de tu consulta para ver la información._\n\n` +
           `📲 *Nota:* Todos los pedidos y pagos se coordinan exclusivamente a través de nuestro WhatsApp oficial:\n` +
-          `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}`;
+          `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}` + lineaCatalogo();
         nuevoPaso = "en_faq";
       }
     } else if (intencionSocial) {
@@ -1017,7 +1029,7 @@ class InstagramFlowService {
           `${faqMenu}\n\n` +
           `_Escribe el número o el tema de tu consulta para ver la información._\n\n` +
           `📲 *Nota:* Todos los pedidos y pagos se coordinan exclusivamente a través de nuestro WhatsApp oficial:\n` +
-          `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}`;
+          `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}` + lineaCatalogo();
         nuevoPaso = "en_faq";
       } else {
         let matchedFaq = null;
@@ -1059,7 +1071,7 @@ class InstagramFlowService {
             `${greetingPrefix} Encantado de saludarte. Para poder ayudarte mejor, elige una de estas opciones o escríbeme tu duda:\n\n` +
             `${faqMenu}\n\n` +
             `📲 Si deseas hacer tu pedido, escríbenos por nuestro WhatsApp oficial:\n` +
-            `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}`;
+            `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}` + lineaCatalogo();
           nuevoPaso = "en_faq";
         }
       }
@@ -1088,7 +1100,7 @@ class InstagramFlowService {
           `${catalogHeader}\n\n` +
           `${menuText}\n\n` +
           `📲 *Para hacer tu pedido y coordinar delivery, escríbenos por WhatsApp oficial:*\n` +
-          `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}`;
+          `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}` + lineaCatalogo();
         nuevoPaso = "en_faq";
         shouldSendQuickReplies = true;
       } else if (isLocationAction(actionKey)) {
@@ -1113,7 +1125,7 @@ class InstagramFlowService {
           `${faqMenu}\n\n` +
           `_Escribe el número o el tema de tu consulta para ver la información._\n\n` +
           `📲 *Para hacer pedidos directos por WhatsApp:*\n` +
-          `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}`;
+          `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}` + lineaCatalogo();
         nuevoPaso = "en_faq";
         shouldSendQuickReplies = true;
       } else if (etiqueta.paso === "inicio") {
@@ -1127,7 +1139,7 @@ class InstagramFlowService {
           `Soy tu asistente virtual en Instagram. ¿Cómo podemos ayudarte hoy?\n\n` +
           `Toca uno de los botones abajo o escríbenos tu consulta:\n\n` +
           `📲 *Para hacer tu pedido directo por WhatsApp:*\n` +
-          `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}`;
+          `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}` + lineaCatalogo();
         nuevoPaso = "en_faq";
         shouldSendQuickReplies = true;
       } else {
@@ -1172,7 +1184,7 @@ class InstagramFlowService {
           botReplyText =
             `${greetingPrefix} Encantado de saludarte. Para poder ayudarte mejor, selecciona una de las siguientes opciones o escríbenos tu duda:\n\n` +
             `📲 Si deseas hacer tu pedido, escríbenos por nuestro WhatsApp oficial:\n` +
-            `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}`;
+            `👉 ${buildWaLink(waPhone, etiqueta, 'pedir')}` + lineaCatalogo();
           nuevoPaso = "en_faq";
           shouldSendQuickReplies = true;
         }

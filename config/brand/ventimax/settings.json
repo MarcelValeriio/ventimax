@@ -99,6 +99,7 @@
     ]
   },
   "messages": {
+      "socialCatalogoLinea": "🛒 *O haz tu pedido en nuestra tienda web:*\n👉 {{catalogoUrl}}",
       "vehiculoConfirmar": "¿Sigue siendo para tu *{{vehiculo}}*?",
       "vehiculoBotonSi": "Sí, el mismo",
       "vehiculoBotonOtro": "Otro vehículo",
